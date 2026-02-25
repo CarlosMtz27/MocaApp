@@ -1,1 +1,30 @@
-/build
+# Firebase
+google-services.json
+**/google-services.json
+
+# Local config
+local.properties
+
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Android Studio
+.idea/
+*.iml
+
+# Keystore
+*.jks
+*.keystore
+
+# Logs
+*.log
+.DS_Store
+
+# Native
+.externalNativeBuild/
+.cxx/
+
+# Captures
+captures/
