@@ -30,13 +30,38 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    buildFeatures {
+        compose = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.15"
+    }
+
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.material)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
+    // Compose
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    implementation(platform("androidx.compose:compose-bom:2024.02.00"))
+    // ViewModel
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
+
+    // Firebase — solo los que cada feature usa
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-auth-ktx")       // auth
+    implementation("com.google.firebase:firebase-firestore-ktx")  // auth, diario, eventos
+    implementation("com.google.firebase:firebase-storage-ktx")    // diario (fotos/videos)
+    implementation("com.google.firebase:firebase-messaging-ktx")  // eventos (notificaciones)
+
+    // Coroutines (para .await() de Firebase)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
+    // Cargar imágenes desde URL (diario, perfil)
+    implementation("io.coil-kt:coil-compose:2.6.0")
 }

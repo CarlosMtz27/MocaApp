@@ -33,10 +33,17 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.material)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
+    // Firebase para leer datos (días juntos, notas)
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
+
+    // Coroutines (para llamadas async en los updaters)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
+    // WorkManager (para actualización periódica de widgets)
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+
+    // DataStore (guardar datos locales del widget: días juntos, última nota)
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
 }
