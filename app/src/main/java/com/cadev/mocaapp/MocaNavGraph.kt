@@ -11,12 +11,16 @@ import com.cadev.mocaapp.core.ui.PlaceholderScreen
 import com.cadev.mocaapp.feature.auth.ui.AuthViewModel
 import com.cadev.mocaapp.feature.auth.ui.LoginScreen
 import com.cadev.mocaapp.feature.auth.ui.RegistroScreen
+import com.cadev.mocaapp.feature.pareja.ui.CodigoParejaScreen
+import com.cadev.mocaapp.feature.pareja.ui.ParejaViewModel
+import com.google.firebase.auth.FirebaseAuth
+
 
 
 @Composable
 fun MocaNavGraph(
     navController: NavHostController,
-    factory: ViewModelProvider.Factory   // ← recibe el factory, no crea Firebase
+    factory: ViewModelProvider.Factory   // recibe el factory, no crea Firebase
 ) {
     NavHost(
         navController = navController,
@@ -44,7 +48,7 @@ fun MocaNavGraph(
                 viewModel = viewModel,
                 onRegistroExitoso = {
                     navController.navigate(NavRoutes.CodigoPareja.route) {
-                        // Limpia todo el stack de auth — ya no puede volver atrás
+                        // Limpia todo el stack de auth, ya no puede volver atrás
                         popUpTo(NavRoutes.Login.route) { inclusive = true }
                     }
                 },
@@ -55,8 +59,22 @@ fun MocaNavGraph(
         }
 
         composable(NavRoutes.CodigoPareja.route) {
-            PlaceholderScreen("Código de Pareja")
+            val viewModel: ParejaViewModel = viewModel(factory = factory)
+
+            // Obtenemos el ID del usuario actual directamente de Firebase Auth
+            val usuarioId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+
+            CodigoParejaScreen(
+                viewModel = viewModel,
+                usuarioId = usuarioId,
+                onVinculado = {
+                    navController.navigate(NavRoutes.Main.route) {
+                        popUpTo(NavRoutes.CodigoPareja.route) { inclusive = true }
+                    }
+                }
+            )
         }
+
 
         composable(NavRoutes.Main.route) {
             PlaceholderScreen("Main")

@@ -6,6 +6,10 @@ import com.cadev.mocaapp.feature.auth.data.repository.AuthRepositoryImpl
 import com.cadev.mocaapp.feature.auth.ui.AuthViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.cadev.mocaapp.feature.pareja.data.repository.ParejaRepositoryImpl
+import com.cadev.mocaapp.feature.pareja.ui.ParejaViewModel
+
+
 
 // Este Factory vive en app/ — el único módulo que puede
 // conocer todos los demás. Es el "ensamblador" de ViewModels.
@@ -14,17 +18,16 @@ import com.google.firebase.firestore.FirebaseFirestore
 
 class MocaViewModelFactory : ViewModelProvider.Factory {
 
-    // Firebase se instancia una sola vez aquí
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
 
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when {
             modelClass.isAssignableFrom(AuthViewModel::class.java) ->
-                AuthViewModel(
-                    AuthRepositoryImpl(auth, firestore)
-                ) as T
+                AuthViewModel(AuthRepositoryImpl(auth, firestore)) as T
 
+            modelClass.isAssignableFrom(ParejaViewModel::class.java) ->
+                ParejaViewModel(ParejaRepositoryImpl(firestore)) as T
 
             else -> throw IllegalArgumentException(
                 "ViewModel no registrado: ${modelClass.name}"

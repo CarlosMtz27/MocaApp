@@ -50,7 +50,7 @@ fun RegistroScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
-        // ── Título ────────────────────────────────────────────
+        // Título
         Text(
             text = "💕",
             fontSize = 48.sp
@@ -69,7 +69,7 @@ fun RegistroScreen(
 
         Spacer(Modifier.height(40.dp))
 
-        // ── Campo Nombre ──────────────────────────────────────
+        // Campo Nombre
         OutlinedTextField(
             value = nombre,
             onValueChange = { nombre = it },
@@ -80,7 +80,7 @@ fun RegistroScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // ── Campo Email ───────────────────────────────────────
+        //Campo Email
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
@@ -94,7 +94,7 @@ fun RegistroScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // ── Campo Contraseña ──────────────────────────────────
+        // Campo Contraseña
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
@@ -117,7 +117,7 @@ fun RegistroScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // ── Confirmar Contraseña ──────────────────────────────
+        // Confirmar Contraseña
         OutlinedTextField(
             value = confirmarPassword,
             onValueChange = { confirmarPassword = it },
@@ -144,7 +144,7 @@ fun RegistroScreen(
 
         Spacer(Modifier.height(28.dp))
 
-        // ── Errores ───────────────────────────────────────────
+        // Errores
         val errorMostrar = errorLocal ?: uiState.error
         if (errorMostrar != null) {
             Text(
@@ -156,10 +156,10 @@ fun RegistroScreen(
             Spacer(Modifier.height(12.dp))
         }
 
-        // ── Botón Registrarse ─────────────────────────────────
+        // Botón Registrarse
         Button(
             onClick = {
-                // Validación local antes de llamar al ViewModel
+                // Validacion local antes de llamar al ViewModel
                 errorLocal = when {
                     password != confirmarPassword ->
                         "Las contraseñas no coinciden"
@@ -188,7 +188,7 @@ fun RegistroScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // ── Ir a Login ────────────────────────────────────────
+        // Ir a Login
         TextButton(onClick = onIrALogin) {
             Text("¿Ya tienes cuenta? Inicia sesión")
         }

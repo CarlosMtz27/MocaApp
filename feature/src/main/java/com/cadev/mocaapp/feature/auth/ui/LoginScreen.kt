@@ -43,7 +43,7 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center
     ) {
 
-        // ── Logo / Título ─────────────────────────────────────
+        // Logo / Título
         Text(
             text = "💕",
             style = MaterialTheme.typography.headlineLarge.copy(fontSize = 64.sp)
@@ -62,7 +62,7 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        // ── Campo Email ───────────────────────────────────────
+        // Campo Email
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
@@ -74,7 +74,7 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ── Campo Contraseña ──────────────────────────────────
+        // Campo Contraseña
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
@@ -95,7 +95,7 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // ── Error ─────────────────────────────────────────────
+        //Error
         if (uiState.error != null) {
             Text(
                 text = uiState.error!!,
@@ -106,7 +106,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(12.dp))
         }
 
-        // ── Botón Login ───────────────────────────────────────
+        //Botón Login
         Button(
             onClick = { viewModel.login(email, password) },
             enabled = !uiState.cargando,
@@ -126,7 +126,7 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ── Ir a Registro ─────────────────────────────────────
+        //Ir a Registro
         TextButton(onClick = onIrARegistro) {
             Text("¿No tienes cuenta? Regístrate")
         }
