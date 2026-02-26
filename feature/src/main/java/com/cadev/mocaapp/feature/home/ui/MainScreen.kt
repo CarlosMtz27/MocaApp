@@ -4,10 +4,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -15,10 +18,17 @@ import androidx.navigation.compose.rememberNavController
 import com.cadev.mocaapp.core.ui.BottomNavItem
 import com.cadev.mocaapp.core.ui.NavRoutes
 import com.cadev.mocaapp.core.ui.PlaceholderScreen
+import com.cadev.mocaapp.feature.pareja.data.UsuarioHelper
+import com.cadev.mocaapp.feature.diario.ui.CalendarioScreen
+import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.runBlocking
 
 
 @Composable
-fun MainScreen(factory: ViewModelProvider.Factory) {
+fun MainScreen(factory: ViewModelProvider.Factory,
+               navController: NavHostController
+) {
 
     // NavController propio para los tabs, independiente del principal
     val tabNavController = rememberNavController()
@@ -79,7 +89,19 @@ fun MainScreen(factory: ViewModelProvider.Factory) {
                 HomeScreen()
             }
             composable(NavRoutes.Calendario.route) {
-                PlaceholderScreen("📅 Calendario")
+                val viewModel: DiarioViewModel = viewModel(factory = factory)
+                val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                val parejaId = remember(uid) {
+                    runBlocking { UsuarioHelper.obtenerParejaId(uid) }
+                }
+                CalendarioScreen(
+                    viewModel = viewModel,
+                    usuarioId = uid,
+                    parejaId = parejaId,
+                    onDiaSeleccionado = { fecha ->
+                        navController.navigate(NavRoutes.DetalleDia.crearRuta(fecha))
+                    }
+                )
             }
             composable(NavRoutes.Chat.route) {
                 PlaceholderScreen("💬 Chat")

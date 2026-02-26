@@ -10,7 +10,6 @@ import androidx.compose.ui.Modifier
 
 // Pantalla genérica de placeholder
 // Recibe un nombre y muestra solo ese texto centrado
-// La vamos a ir reemplazando pantalla por pantala
 @Composable
 fun PlaceholderScreen(nombre: String) {
     Box(

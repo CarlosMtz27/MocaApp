@@ -52,6 +52,9 @@ dependencies {
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
+    implementation("androidx.compose.foundation:foundation")
+
+
 
     // Firebase — solo los que cada feature usa
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))

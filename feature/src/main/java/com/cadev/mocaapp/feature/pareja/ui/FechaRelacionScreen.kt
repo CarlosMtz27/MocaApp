@@ -44,7 +44,7 @@ fun FechaRelacionScreen(
         verticalArrangement = Arrangement.Center
     ) {
 
-        // ── Encabezado ────────────────────────────────────────
+        //Encabezado
         Text(text = "🗓️", fontSize = 56.sp)
         Spacer(Modifier.height(12.dp))
 

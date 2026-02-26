@@ -1,8 +1,9 @@
 package com.cadev.mocaapp
 
 import androidx.compose.runtime.Composable
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.remember
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -11,24 +12,30 @@ import com.cadev.mocaapp.core.ui.PlaceholderScreen
 import com.cadev.mocaapp.feature.auth.ui.AuthViewModel
 import com.cadev.mocaapp.feature.auth.ui.LoginScreen
 import com.cadev.mocaapp.feature.auth.ui.RegistroScreen
-import com.cadev.mocaapp.feature.pareja.ui.CodigoParejaScreen
-import com.cadev.mocaapp.feature.pareja.ui.ParejaViewModel
-import com.cadev.mocaapp.feature.pareja.ui.FechaRelacionScreen
+import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
+import com.cadev.mocaapp.feature.diario.ui.CrearEntradaScreen
+import com.cadev.mocaapp.feature.diario.ui.DetalleDiaScreen
+import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
 import com.cadev.mocaapp.feature.home.ui.MainScreen
+import com.cadev.mocaapp.feature.pareja.data.UsuarioHelper
+import com.cadev.mocaapp.feature.pareja.ui.CodigoParejaScreen
+import com.cadev.mocaapp.feature.pareja.ui.FechaRelacionScreen
+import com.cadev.mocaapp.feature.pareja.ui.ParejaViewModel
 import com.google.firebase.auth.FirebaseAuth
-
-
+import kotlinx.coroutines.runBlocking
 
 @Composable
 fun MocaNavGraph(
     navController: NavHostController,
-    factory: ViewModelProvider.Factory,   // recibe el factory, no crea Firebase
+    factory: ViewModelProvider.Factory,
     destinoInicial: String = NavRoutes.Login.route
 ) {
     NavHost(
         navController = navController,
         startDestination = destinoInicial
     ) {
+
+        // Auth
 
         composable(NavRoutes.Login.route) {
             val viewModel: AuthViewModel = viewModel(factory = factory)
@@ -51,25 +58,23 @@ fun MocaNavGraph(
                 viewModel = viewModel,
                 onRegistroExitoso = {
                     navController.navigate(NavRoutes.CodigoPareja.route) {
-                        // Limpia todo el stack de auth, ya no puede volver atrás
                         popUpTo(NavRoutes.Login.route) { inclusive = true }
                     }
                 },
                 onIrALogin = {
-                    navController.popBackStack() // simplemente regresa a Login
+                    navController.popBackStack()
                 }
             )
         }
 
+        //Pareja
         composable(NavRoutes.CodigoPareja.route) {
             val viewModel: ParejaViewModel = viewModel(factory = factory)
             val usuarioId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-
             CodigoParejaScreen(
                 viewModel = viewModel,
                 usuarioId = usuarioId,
                 onVinculado = { relacionId ->
-                    // Navega a la pantalla de fecha pasando el relacionId
                     navController.navigate(
                         NavRoutes.FechaRelacion.crearRuta(relacionId)
                     )
@@ -81,7 +86,6 @@ fun MocaNavGraph(
             val relacionId = backStackEntry.arguments
                 ?.getString("relacionId") ?: ""
             val viewModel: ParejaViewModel = viewModel(factory = factory)
-
             FechaRelacionScreen(
                 viewModel = viewModel,
                 relacionId = relacionId,
@@ -93,33 +97,86 @@ fun MocaNavGraph(
             )
         }
 
+        //Main
+
         composable(NavRoutes.Main.route) {
-            MainScreen(factory = factory)
+            MainScreen(
+                factory = factory,
+                navController = navController
+            )
         }
 
-        composable(NavRoutes.CrearEntrada.route) {
-            PlaceholderScreen("Crear Entrada")
+        //Diario
+
+        // DetalleDia, al tocar un día en el calendario
+        composable(NavRoutes.DetalleDia.route) { backStackEntry ->
+            val fecha = backStackEntry.arguments?.getString("fecha") ?: ""
+            val viewModel: DiarioViewModel = viewModel(factory = factory)
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            val parejaId = remember(uid) {
+                runBlocking { UsuarioHelper.obtenerParejaId(uid) }
+            }
+            DetalleDiaScreen(
+                viewModel = viewModel,
+                usuarioId = uid,
+                parejaId = parejaId,
+                fecha = fecha,
+                onRegresar = { navController.popBackStack() },
+                onEditarEntrada = { entradaId ->
+                    navController.navigate(
+                        NavRoutes.EditarEntrada.crearRuta(entradaId)
+                    )
+                },
+                onCrearEntrada = { f, tipo ->
+                    navController.navigate(
+                        NavRoutes.CrearEntrada.crearRuta(f, tipo)
+                    )
+                }
+            )
         }
 
-        composable(NavRoutes.DetalleEntrada.route) { backStackEntry ->
-            val entradaId = backStackEntry.arguments?.getString("entradaId") ?: ""
-            PlaceholderScreen("Detalle: $entradaId")
+        // CrearEntrada — recibe fecha y tipo desde el FAB
+        composable(NavRoutes.CrearEntrada.route) { backStackEntry ->
+            val fecha = backStackEntry.arguments?.getString("fecha") ?: ""
+            val tipo = backStackEntry.arguments?.getString("tipo")
+                ?: TipoEntrada.MI_DIA.name
+            val viewModel: DiarioViewModel = viewModel(factory = factory)
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            val parejaId = remember(uid) {
+                runBlocking { UsuarioHelper.obtenerParejaId(uid) }
+            }
+            CrearEntradaScreen(
+                viewModel = viewModel,
+                usuarioId = uid,
+                parejaId = parejaId,
+                fecha = fecha,
+                tipo = tipo,
+                onEntradaGuardada = { navController.popBackStack() },
+                onRegresar = { navController.popBackStack() }
+            )
         }
+
+        // EditarEntrada — placeholder hasta implementarlo
+        composable(NavRoutes.EditarEntrada.route) {
+            PlaceholderScreen("✏️ Editar entrada")
+        }
+
+        // Otros (placeholders por ahora)
 
         composable(NavRoutes.Eventos.route) {
-            PlaceholderScreen("Eventos")
+            PlaceholderScreen("🗓️ Eventos")
         }
 
         composable(NavRoutes.CrearEvento.route) {
-            PlaceholderScreen("Crear Evento")
+            PlaceholderScreen("➕ Crear Evento")
         }
 
         composable(NavRoutes.Notas.route) {
-            PlaceholderScreen("Notas")
+            PlaceholderScreen("🗒️ Notas")
         }
 
         composable(NavRoutes.Estados.route) {
-            PlaceholderScreen("Estadísticas")
+            PlaceholderScreen("📊 Estadísticas")
         }
     }
 }

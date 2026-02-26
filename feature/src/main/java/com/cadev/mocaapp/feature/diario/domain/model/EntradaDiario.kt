@@ -1,0 +1,42 @@
+package com.cadev.mocaapp.feature.diario.domain.model
+
+import java.util.Date
+enum class TipoEntrada(
+    val etiqueta: String,
+    val emoji: String,
+    val colorHex: String
+) {
+    MI_DIA(
+        etiqueta = "Mi día",
+        emoji = "📝",
+        colorHex = "C2185B"    // rosa —
+    ),
+    RECUERDO(
+        etiqueta = "Recuerdo",
+        emoji = "📸",
+        colorHex = "7B1FA2"    // lila —
+    ),
+    EVENTO(
+        etiqueta = "Evento",
+        emoji = "🗓️",
+        colorHex = "E65100"    // naranja
+    ),
+    DIA_ESPECIAL(
+        etiqueta = "Día especial",
+        emoji = "⭐",
+        colorHex = "F9A825"    // dorado
+    )
+}
+data class EntradaDiario(
+    val id: String = "",
+    val usuarioId: String = "",
+    val fecha: String = "",          // formato YYYY-MM-DD
+    val tipo: String = TipoEntrada.MI_DIA.name,
+    val titulo: String = "",
+    val detalles: String = "",
+    val emociones: List<String> = emptyList(),
+    val fotos: List<String> = emptyList(),  // URLs de Storage
+    val compartida: Boolean = false,
+    val parejaId: String? = null,
+    val creadaEn: Date = Date()
+)

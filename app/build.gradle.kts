@@ -54,9 +54,11 @@ dependencies {
     // Firebase (para el Factory que ensambla todo)
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation(platform("androidx.compose:compose-bom:2024.02.00"))
+
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
-
+    implementation("com.google.firebase:firebase-storage-ktx")
+    implementation("com.google.firebase:firebase-messaging-ktx")
     // Compose
     implementation("androidx.activity:activity-compose:1.8.2")
     implementation("androidx.navigation:navigation-compose:2.7.7")

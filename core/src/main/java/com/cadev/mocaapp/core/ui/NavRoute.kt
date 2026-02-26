@@ -28,7 +28,17 @@ sealed class NavRoutes(val route: String) {
     object Perfil      : NavRoutes("perfil")
 
     //Diario
-    object CrearEntrada  : NavRoutes("crear_entrada")
+    // Detalle del día, muestra todp lo que hay ese día
+    object DetalleDia : NavRoutes("detalle_dia/{fecha}") {
+        fun crearRuta(fecha: String) = "detalle_dia/$fecha"
+    }
+    object CrearEntrada : NavRoutes("crear_entrada/{fecha}") {
+        fun crearRuta(fecha: String, tipo: String) = "crear_entrada/$fecha"
+    }
+    // Editar entrada existente
+    object EditarEntrada : NavRoutes("editar_entrada/{entradaId}") {
+        fun crearRuta(entradaId: String) = "editar_entrada/$entradaId"
+    }
     object DetalleEntrada : NavRoutes("detalle_entrada/{entradaId}") {
         // Función para construir la ruta con el ID real
         fun crearRuta(entradaId: String) = "detalle_entrada/$entradaId"
