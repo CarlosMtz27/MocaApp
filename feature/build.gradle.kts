@@ -46,6 +46,7 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation(libs.androidx.navigation.compose)
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation(platform("androidx.compose:compose-bom:2024.02.00"))
     // ViewModel
@@ -64,4 +65,6 @@ dependencies {
 
     // Cargar imágenes desde URL (diario, perfil)
     implementation("io.coil-kt:coil-compose:2.6.0")
+
+    implementation(project(":core"))
 }

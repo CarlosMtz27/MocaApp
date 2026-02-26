@@ -12,7 +12,9 @@ data class ParejaUiState(
     val cargando: Boolean = false,
     val error: String? = null,
     val vinculado: Boolean = false,
-    val miCodigo: String = ""
+    val miCodigo: String = "",
+    val relacionId: String = "",
+    val fechaGuardada: Boolean = false
 )
 
 class ParejaViewModel(
@@ -56,10 +58,11 @@ class ParejaViewModel(
             _uiState.value = _uiState.value.copy(cargando = true, error = null)
 
             repository.vincularPorCodigo(codigo, miUsuarioId).fold(
-                onSuccess = {
+                onSuccess = { relacionId ->
                     _uiState.value = _uiState.value.copy(
                         cargando = false,
-                        vinculado = true
+                        vinculado = true,
+                        relacionId = relacionId
                     )
                 },
                 onFailure = { error ->
@@ -82,5 +85,26 @@ class ParejaViewModel(
         "ya fue usado" in mensaje  -> "Este código ya está vinculado a alguien"
         "network" in mensaje       -> "Sin conexión a internet"
         else                       -> "Error al vincular, intenta de nuevo"
+    }
+
+    fun guardarFechaInicio(relacionId: String, fechaMillis: Long) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(cargando = true, error = null)
+
+            repository.guardarFechaInicio(relacionId, fechaMillis).fold(
+                onSuccess = {
+                    _uiState.value = _uiState.value.copy(
+                        cargando = false,
+                        fechaGuardada = true
+                    )
+                },
+                onFailure = { error ->
+                    _uiState.value = _uiState.value.copy(
+                        cargando = false,
+                        error = "No se pudo guardar la fecha, intenta de nuevo"
+                    )
+                }
+            )
+        }
     }
 }

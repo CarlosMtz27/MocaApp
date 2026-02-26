@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.sp
 fun CodigoParejaScreen(
     viewModel: ParejaViewModel,
     usuarioId: String,
-    onVinculado: () -> Unit
+    onVinculado: (relacionId: String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val clipboard = LocalClipboardManager.current
@@ -34,7 +34,9 @@ fun CodigoParejaScreen(
 
     // Navegamos cuando se vincule exitosamente
     LaunchedEffect(uiState.vinculado) {
-        if (uiState.vinculado) onVinculado()
+        if (uiState.vinculado) {
+            onVinculado(uiState.relacionId)  //pasa el ID
+        }
     }
 
     Column(
@@ -102,7 +104,7 @@ fun CodigoParejaScreen(
         HorizontalDivider()
         Spacer(Modifier.height(40.dp))
 
-        // Campo para ingresar codigo de pareja ─────────────────────────
+        // Campo para ingresar codigo de pareja
         Text(
             text = "Código de tu pareja",
             style = MaterialTheme.typography.titleMedium,

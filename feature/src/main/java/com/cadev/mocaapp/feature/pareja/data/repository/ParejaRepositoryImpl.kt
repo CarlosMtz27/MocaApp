@@ -1,6 +1,5 @@
 package com.cadev.mocaapp.feature.pareja.data.repository
 
-import com.cadev.mocaapp.feature.pareja.domain.model.Relacion
 import com.cadev.mocaapp.feature.pareja.domain.repository.ParejaRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
@@ -13,7 +12,7 @@ class ParejaRepositoryImpl(
     override suspend fun vincularPorCodigo(
         codigoPareja: String,
         miUsuarioId: String
-    ): Result<Relacion> {
+    ): Result<String> {
         return try {
             // Buscamos al usuario que tiene ese código
             val resultado = firestore
@@ -52,11 +51,11 @@ class ParejaRepositoryImpl(
                 .document()
                 .id
 
-            val relacion = Relacion(
-                id = relacionId,
-                usuario1Id = miUsuarioId,
-                usuario2Id = parejaId,
-                fechaInicio = Date()
+            val relacion = mapOf(
+                "id" to relacionId,
+                "usuario1Id" to miUsuarioId,
+                "usuario2Id" to parejaId,
+                "estado" to "activa"
             )
 
             // Guardamos todo en una transacción atómica
@@ -89,7 +88,7 @@ class ParejaRepositoryImpl(
                 )
             }.await()
 
-            Result.success(relacion)
+            Result.success(relacionId)
 
         } catch (e: Exception) {
             Result.failure(e)
@@ -125,6 +124,23 @@ class ParejaRepositoryImpl(
             doc.getString("parejaId") != null
         } catch (e: Exception) {
             false
+        }
+    }
+
+    override suspend fun guardarFechaInicio(
+        relacionId: String,
+        fecha: Long
+    ): Result<Unit> {
+        return try {
+            firestore
+                .collection("relaciones")
+                .document(relacionId)
+                .update("fechaInicio", Date(fecha))
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 }

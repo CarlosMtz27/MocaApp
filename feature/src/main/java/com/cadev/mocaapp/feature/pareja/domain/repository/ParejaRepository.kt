@@ -8,7 +8,13 @@ interface ParejaRepository {
     suspend fun vincularPorCodigo(
         codigoPareja: String,
         miUsuarioId: String
-    ): Result<Relacion>
+    ): Result<String>
+
+    suspend fun guardarFechaInicio(
+        relacionId: String,
+        fecha: Long   // timestamp en milisegundos
+    ): Result<Unit>
+
 
     // Obtiene el código propio del usuario actual
     suspend fun obtenerMiCodigo(usuarioId: String): Result<String>

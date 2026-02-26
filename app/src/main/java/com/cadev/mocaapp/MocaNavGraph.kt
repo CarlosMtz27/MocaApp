@@ -13,6 +13,8 @@ import com.cadev.mocaapp.feature.auth.ui.LoginScreen
 import com.cadev.mocaapp.feature.auth.ui.RegistroScreen
 import com.cadev.mocaapp.feature.pareja.ui.CodigoParejaScreen
 import com.cadev.mocaapp.feature.pareja.ui.ParejaViewModel
+import com.cadev.mocaapp.feature.pareja.ui.FechaRelacionScreen
+import com.cadev.mocaapp.feature.home.ui.MainScreen
 import com.google.firebase.auth.FirebaseAuth
 
 
@@ -20,11 +22,12 @@ import com.google.firebase.auth.FirebaseAuth
 @Composable
 fun MocaNavGraph(
     navController: NavHostController,
-    factory: ViewModelProvider.Factory   // recibe el factory, no crea Firebase
+    factory: ViewModelProvider.Factory,   // recibe el factory, no crea Firebase
+    destinoInicial: String = NavRoutes.Login.route
 ) {
     NavHost(
         navController = navController,
-        startDestination = NavRoutes.Login.route
+        startDestination = destinoInicial
     ) {
 
         composable(NavRoutes.Login.route) {
@@ -60,24 +63,38 @@ fun MocaNavGraph(
 
         composable(NavRoutes.CodigoPareja.route) {
             val viewModel: ParejaViewModel = viewModel(factory = factory)
-
-            // Obtenemos el ID del usuario actual directamente de Firebase Auth
             val usuarioId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
             CodigoParejaScreen(
                 viewModel = viewModel,
                 usuarioId = usuarioId,
-                onVinculado = {
+                onVinculado = { relacionId ->
+                    // Navega a la pantalla de fecha pasando el relacionId
+                    navController.navigate(
+                        NavRoutes.FechaRelacion.crearRuta(relacionId)
+                    )
+                }
+            )
+        }
+
+        composable(NavRoutes.FechaRelacion.route) { backStackEntry ->
+            val relacionId = backStackEntry.arguments
+                ?.getString("relacionId") ?: ""
+            val viewModel: ParejaViewModel = viewModel(factory = factory)
+
+            FechaRelacionScreen(
+                viewModel = viewModel,
+                relacionId = relacionId,
+                onFechaGuardada = {
                     navController.navigate(NavRoutes.Main.route) {
-                        popUpTo(NavRoutes.CodigoPareja.route) { inclusive = true }
+                        popUpTo(NavRoutes.Login.route) { inclusive = true }
                     }
                 }
             )
         }
 
-
         composable(NavRoutes.Main.route) {
-            PlaceholderScreen("Main")
+            MainScreen(factory = factory)
         }
 
         composable(NavRoutes.CrearEntrada.route) {
