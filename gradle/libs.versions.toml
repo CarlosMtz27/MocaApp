@@ -14,6 +14,7 @@ navigationCompose = "2.9.7"
 material3 = "1.4.0"
 firebaseFirestoreKtx = "26.1.0"
 firebaseStorageKtx = "22.0.1"
+playServicesCastTv = "21.1.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -33,6 +34,7 @@ firebase-storage-ktx = { group = "com.google.firebase", name = "firebase-storage
 firebase-messaging-ktx = { group = "com.google.firebase", name = "firebase-messaging-ktx" }
 google-firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx", version.ref = "firebaseFirestoreKtx" }
 google-firebase-storage-ktx = { group = "com.google.firebase", name = "firebase-storage-ktx", version.ref = "firebaseStorageKtx" }
+play-services-cast-tv = { group = "com.google.android.gms", name = "play-services-cast-tv", version.ref = "playServicesCastTv" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

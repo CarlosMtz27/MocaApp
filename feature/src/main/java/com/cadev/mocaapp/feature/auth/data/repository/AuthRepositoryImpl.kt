@@ -17,7 +17,7 @@ class AuthRepositoryImpl(
         nombre: String
     ): Result<Usuario> {
         return try {
-            // 1. Crear la cuenta en Firebase Auth
+            // Creamos la cuenta en Firebase Auth
             val resultado = auth
                 .createUserWithEmailAndPassword(email, password)
                 .await()  // await() convierte el callback de Firebase en suspend
@@ -25,10 +25,10 @@ class AuthRepositoryImpl(
             val firebaseUser = resultado.user
                 ?: return Result.failure(Exception("Error al crear usuario"))
 
-            // 2. Generar código único de pareja (6 caracteres)
+            // Generamos código único de pareja (6 caracteres)
             val codigoPareja = generarCodigo()
 
-            // 3. Guardar datos extra en Firestore
+            // Guardamos datos extra en Firestore
             val usuario = Usuario(
                 id = firebaseUser.uid,
                 nombre = nombre,
@@ -54,7 +54,7 @@ class AuthRepositoryImpl(
         password: String
     ): Result<Usuario> {
         return try {
-            // 1. Iniciar sesión en Firebase Auth
+            // Iniciar sesión en Firebase Auth
             val resultado = auth
                 .signInWithEmailAndPassword(email, password)
                 .await()
@@ -62,7 +62,7 @@ class AuthRepositoryImpl(
             val firebaseUser = resultado.user
                 ?: return Result.failure(Exception("Error al iniciar sesión"))
 
-            // 2. Obtener datos del usuario desde Firestore
+            // Obtener datos del usuario desde Firestore
             val documento = firestore
                 .collection("usuarios")
                 .document(firebaseUser.uid)

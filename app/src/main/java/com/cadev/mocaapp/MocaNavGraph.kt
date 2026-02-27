@@ -5,17 +5,21 @@ import androidx.compose.runtime.remember
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.cadev.mocaapp.core.ui.NavRoutes
 import com.cadev.mocaapp.core.ui.PlaceholderScreen
 import com.cadev.mocaapp.feature.auth.ui.AuthViewModel
 import com.cadev.mocaapp.feature.auth.ui.LoginScreen
 import com.cadev.mocaapp.feature.auth.ui.RegistroScreen
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
+import com.cadev.mocaapp.feature.diario.ui.CalendarioScreen
 import com.cadev.mocaapp.feature.diario.ui.CrearEntradaScreen
 import com.cadev.mocaapp.feature.diario.ui.DetalleDiaScreen
 import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
+import com.cadev.mocaapp.feature.diario.ui.EditarEntradaScreen
 import com.cadev.mocaapp.feature.home.ui.MainScreen
 import com.cadev.mocaapp.feature.pareja.data.UsuarioHelper
 import com.cadev.mocaapp.feature.pareja.ui.CodigoParejaScreen
@@ -35,7 +39,7 @@ fun MocaNavGraph(
         startDestination = destinoInicial
     ) {
 
-        // Auth
+        //Auth
 
         composable(NavRoutes.Login.route) {
             val viewModel: AuthViewModel = viewModel(factory = factory)
@@ -61,13 +65,11 @@ fun MocaNavGraph(
                         popUpTo(NavRoutes.Login.route) { inclusive = true }
                     }
                 },
-                onIrALogin = {
-                    navController.popBackStack()
-                }
+                onIrALogin = { navController.popBackStack() }
             )
         }
 
-        //Pareja
+        // Pareja
         composable(NavRoutes.CodigoPareja.route) {
             val viewModel: ParejaViewModel = viewModel(factory = factory)
             val usuarioId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
@@ -82,9 +84,13 @@ fun MocaNavGraph(
             )
         }
 
-        composable(NavRoutes.FechaRelacion.route) { backStackEntry ->
-            val relacionId = backStackEntry.arguments
-                ?.getString("relacionId") ?: ""
+        composable(
+            route = NavRoutes.FechaRelacion.route,
+            arguments = listOf(
+                navArgument("relacionId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val relacionId = backStackEntry.arguments?.getString("relacionId") ?: ""
             val viewModel: ParejaViewModel = viewModel(factory = factory)
             FechaRelacionScreen(
                 viewModel = viewModel,
@@ -98,7 +104,6 @@ fun MocaNavGraph(
         }
 
         //Main
-
         composable(NavRoutes.Main.route) {
             MainScreen(
                 factory = factory,
@@ -108,8 +113,12 @@ fun MocaNavGraph(
 
         //Diario
 
-        // DetalleDia, al tocar un día en el calendario
-        composable(NavRoutes.DetalleDia.route) { backStackEntry ->
+        composable(
+            route = NavRoutes.DetalleDia.route,
+            arguments = listOf(
+                navArgument("fecha") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
             val fecha = backStackEntry.arguments?.getString("fecha") ?: ""
             val viewModel: DiarioViewModel = viewModel(factory = factory)
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
@@ -135,8 +144,13 @@ fun MocaNavGraph(
             )
         }
 
-        // CrearEntrada — recibe fecha y tipo desde el FAB
-        composable(NavRoutes.CrearEntrada.route) { backStackEntry ->
+        composable(
+            route = NavRoutes.CrearEntrada.route,
+            arguments = listOf(
+                navArgument("fecha") { type = NavType.StringType },
+                navArgument("tipo") { type = NavType.StringType }  // ← clave
+            )
+        ) { backStackEntry ->
             val fecha = backStackEntry.arguments?.getString("fecha") ?: ""
             val tipo = backStackEntry.arguments?.getString("tipo")
                 ?: TipoEntrada.MI_DIA.name
@@ -156,13 +170,28 @@ fun MocaNavGraph(
             )
         }
 
-        // EditarEntrada — placeholder hasta implementarlo
-        composable(NavRoutes.EditarEntrada.route) {
-            PlaceholderScreen("✏️ Editar entrada")
+        composable(
+            route = NavRoutes.EditarEntrada.route,
+            arguments = listOf(
+                navArgument("entradaId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val entradaId = backStackEntry.arguments?.getString("entradaId") ?: ""
+            val viewModel: DiarioViewModel = viewModel(factory = factory)
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            val parejaId = remember(uid) {
+                runBlocking { UsuarioHelper.obtenerParejaId(uid) }
+            }
+            EditarEntradaScreen(
+                viewModel = viewModel,
+                entradaId = entradaId,
+                parejaId = parejaId,
+                onGuardado = { navController.popBackStack() },
+                onRegresar = { navController.popBackStack() }
+            )
         }
 
-        // Otros (placeholders por ahora)
-
+        //Otros
         composable(NavRoutes.Eventos.route) {
             PlaceholderScreen("🗓️ Eventos")
         }

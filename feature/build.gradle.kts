@@ -70,4 +70,11 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.6.0")
 
     implementation(project(":core"))
+    implementation("androidx.compose.material:material-icons-extended:1.6.2")
+
+    //Para el storage
+    implementation("com.cloudinary:cloudinary-android:2.3.1")
+
+
+
 }

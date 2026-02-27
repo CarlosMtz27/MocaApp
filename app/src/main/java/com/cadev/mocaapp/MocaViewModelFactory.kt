@@ -13,16 +13,13 @@ import com.cadev.mocaapp.feature.pareja.ui.ParejaViewModel
 import com.google.firebase.storage.FirebaseStorage
 
 
-// Este Factory vive en app/ — el único módulo que puede
-// conocer todos los demás. Es el "ensamblador" de ViewModels.
-// Cuando agreguemos Hilt más adelante, este archivo desaparece
-// y Hilt lo hace automáticamente.
+// Este Factory vive en app/el único módulo que puede,
+// conocer todos los demás.
 
 class MocaViewModelFactory : ViewModelProvider.Factory {
 
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
-    private val storage = FirebaseStorage.getInstance()
 
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when {
@@ -34,7 +31,7 @@ class MocaViewModelFactory : ViewModelProvider.Factory {
 
             modelClass.isAssignableFrom(DiarioViewModel::class.java) ->
                 DiarioViewModel(
-                    DiarioRepositoryImpl(firestore, storage)
+                    DiarioRepositoryImpl(firestore)
                 ) as T
 
 

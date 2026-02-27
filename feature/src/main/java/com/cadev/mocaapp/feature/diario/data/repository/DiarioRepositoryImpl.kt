@@ -4,15 +4,19 @@ import android.net.Uri
 import com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
 import com.cadev.mocaapp.feature.diario.domain.repository.DiarioRepository
+import com.cloudinary.android.MediaManager
+import com.cloudinary.android.callback.ErrorInfo
+import com.cloudinary.android.callback.UploadCallback
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 class DiarioRepositoryImpl(
-    private val firestore: FirebaseFirestore,
-    private val storage: FirebaseStorage
+    private val firestore: FirebaseFirestore
 ) : DiarioRepository {
 
     override suspend fun obtenerEntradasDelMes(
@@ -21,7 +25,6 @@ class DiarioRepositoryImpl(
         mes: Int
     ): Result<List<EntradaDiario>> {
         return try {
-            // Construimos el prefijo del mes ej: "2024-02"
             val mesFormateado = mes.toString().padStart(2, '0')
             val prefijo = "$anio-$mesFormateado"
 
@@ -52,7 +55,6 @@ class DiarioRepositoryImpl(
         return try {
             val entradas = mutableListOf<EntradaDiario>()
 
-            // Mis entradas del día
             val misEntradas = firestore
                 .collection("entradas")
                 .whereEqualTo("usuarioId", usuarioId)
@@ -64,7 +66,6 @@ class DiarioRepositoryImpl(
 
             entradas.addAll(misEntradas)
 
-            // Entradas compartidas de la pareja
             if (parejaId != null) {
                 val entradasPareja = firestore
                     .collection("entradas")
@@ -88,20 +89,24 @@ class DiarioRepositoryImpl(
 
     override suspend fun crearEntrada(
         entrada: EntradaDiario,
-        fotosLocales: List<String>
+        fotosLocales: List<String>,
+        videosLocales: List<String>
     ): Result<EntradaDiario> {
         return try {
-            // Subir fotos a Firebase Storage
-            val urlsFotos = fotosLocales.map { rutaLocal ->
-                subirFoto(rutaLocal, entrada.usuarioId)
+            val urlsFotos = fotosLocales.map {
+                subirArchivo(it, entrada.usuarioId, "fotos")
+            }
+            val urlsVideos = videosLocales.map {
+                subirArchivo(it, entrada.usuarioId, "videos")
             }
 
-            // Crear la entrada con las URLs de las fotos
-            val entradaConFotos = entrada.copy(fotos = urlsFotos)
             val entradaId = firestore.collection("entradas").document().id
-            val entradaFinal = entradaConFotos.copy(id = entradaId)
+            val entradaFinal = entrada.copy(
+                id = entradaId,
+                fotos = urlsFotos,
+                videos = urlsVideos
+            )
 
-            //Guardar en Firestore
             firestore
                 .collection("entradas")
                 .document(entradaId)
@@ -109,6 +114,65 @@ class DiarioRepositoryImpl(
                 .await()
 
             Result.success(entradaFinal)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun obtenerEntradaPorId(
+        entradaId: String
+    ): Result<EntradaDiario> {
+        return try {
+            val doc = firestore
+                .collection("entradas")
+                .document(entradaId)
+                .get()
+                .await()
+
+            val entrada = doc.toObject(EntradaDiario::class.java)
+                ?: return Result.failure(Exception("Entrada no encontrada"))
+
+            Result.success(entrada)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun actualizarEntrada(
+        entrada: EntradaDiario,
+        fotosNuevas: List<String>,
+        videosNuevos: List<String>,
+        fotosEliminar: List<String>,
+        videosEliminar: List<String>
+    ): Result<EntradaDiario> {
+        return try {
+            // Eliminar archivos de Cloudinary
+            fotosEliminar.forEach { url ->
+                try { eliminarArchivo(url) } catch (e: Exception) { }
+            }
+            videosEliminar.forEach { url ->
+                try { eliminarArchivo(url) } catch (e: Exception) { }
+            }
+
+            val urlsFotosNuevas = fotosNuevas.map {
+                subirArchivo(it, entrada.usuarioId, "fotos")
+            }
+            val urlsVideosNuevos = videosNuevos.map {
+                subirArchivo(it, entrada.usuarioId, "videos")
+            }
+
+            val entradaActualizada = entrada.copy(
+                fotos = entrada.fotos + urlsFotosNuevas,
+                videos = entrada.videos + urlsVideosNuevos
+            )
+
+            firestore
+                .collection("entradas")
+                .document(entrada.id)
+                .set(entradaActualizada)
+                .await()
+
+            Result.success(entradaActualizada)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -125,7 +189,6 @@ class DiarioRepositoryImpl(
             val prefijo = "$anio-$mesFormateado"
             val diasConEntrada = mutableMapOf<String, MutableList<String>>()
 
-            // Mis entradas
             firestore.collection("entradas")
                 .whereEqualTo("usuarioId", usuarioId)
                 .whereGreaterThanOrEqualTo("fecha", "$prefijo-01")
@@ -137,7 +200,6 @@ class DiarioRepositoryImpl(
                     diasConEntrada.getOrPut(fecha) { mutableListOf() }.add(tipo)
                 }
 
-            // Entradas compartidas de la pareja
             if (parejaId != null) {
                 firestore.collection("entradas")
                     .whereEqualTo("usuarioId", parejaId)
@@ -158,17 +220,61 @@ class DiarioRepositoryImpl(
         }
     }
 
-    // Sube una foto a Firebase Storage y devuelve su URL
-    private suspend fun subirFoto(
-        rutaLocal: String,
-        usuarioId: String
-    ): String {
-        val nombreArchivo = UUID.randomUUID().toString()
-        val ref = storage
-            .reference
-            .child("entradas/$usuarioId/$nombreArchivo.jpg")
+    //Cloudinary: subir archivo
 
-        ref.putFile(Uri.parse(rutaLocal)).await()
-        return ref.downloadUrl.await().toString()
+    private suspend fun subirArchivo(
+        rutaLocal: String,
+        usuarioId: String,
+        carpeta: String  // "fotos" o "videos"
+    ): String = suspendCancellableCoroutine { continuation ->
+
+        val requestId = MediaManager.get()
+            .upload(Uri.parse(rutaLocal))
+            .option("folder", "entradas/$usuarioId/$carpeta")
+            .option("public_id", UUID.randomUUID().toString())
+            .callback(object : UploadCallback {
+                override fun onStart(requestId: String) {}
+                override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
+
+                override fun onSuccess(requestId: String, resultData: Map<*, *>) {
+                    val url = resultData["secure_url"] as? String
+                    if (url != null) {
+                        continuation.resume(url)
+                    } else {
+                        continuation.resumeWithException(
+                            Exception("Cloudinary no devolvió URL")
+                        )
+                    }
+                }
+
+                override fun onError(requestId: String, error: ErrorInfo) {
+                    continuation.resumeWithException(
+                        Exception("Error Cloudinary: ${error.description}")
+                    )
+                }
+
+                override fun onReschedule(requestId: String, error: ErrorInfo) {
+                    continuation.resumeWithException(
+                        Exception("Upload reprogramado: ${error.description}")
+                    )
+                }
+            })
+            .dispatch()
+
+        // Si la coroutine se cancela, cancelamos el upload
+        continuation.invokeOnCancellation {
+            MediaManager.get().cancelRequest(requestId)
+        }
+    }
+
+    // Cloudinary: eliminar archivo
+
+    private fun eliminarArchivo(url: String) {
+        // Extraemos el public_id de la URL de Cloudinary
+        // URL ejemplo: https://res.cloudinary.com/cloud/image/upload/v123/entradas/uid/fotos/uuid.jpg
+        val publicId = url
+            .substringAfter("/upload/")
+            .substringAfter("/")  // quita la versión v123
+            .substringBeforeLast(".")  // quita la extensión
     }
 }

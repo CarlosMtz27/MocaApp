@@ -35,46 +35,44 @@ import com.cadev.mocaapp.feature.diario.domain.model.EtiquetaDiaEspecial
 import com.cadev.mocaapp.feature.diario.domain.model.EtiquetaEvento
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
 import java.io.File
-import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CrearEntradaScreen(
+fun EditarEntradaScreen(
     viewModel: DiarioViewModel,
-    usuarioId: String,
+    entradaId: String,
     parejaId: String?,
-    fecha: String,
-    tipo: String = TipoEntrada.MI_DIA.name,
-    onEntradaGuardada: () -> Unit,
+    onGuardado: () -> Unit,
     onRegresar: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    // Cargar la entrada al entrar
+    LaunchedEffect(entradaId) {
+        viewModel.limpiarFormulario()
+        viewModel.cargarEntradaParaEditar(entradaId)
+    }
+
+    // Navegar cuando se guarda
+    LaunchedEffect(uiState.entradaActualizada) {
+        if (uiState.entradaActualizada) onGuardado()
+    }
+
+    val entrada = uiState.entradaActual
     val tipoEntrada = try {
-        TipoEntrada.valueOf(tipo)
+        TipoEntrada.valueOf(entrada?.tipo ?: TipoEntrada.MI_DIA.name)
     } catch (e: Exception) {
         TipoEntrada.MI_DIA
     }
 
-    // Formato de fecha legible
-    val formatoEntrada = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    val formatoVisible = SimpleDateFormat("EEEE d 'de' MMMM", Locale("es", "MX"))
-    val fechaVisible = try {
-        formatoVisible.format(formatoEntrada.parse(fecha)!!)
-            .replaceFirstChar { it.uppercase() }
-    } catch (e: Exception) { fecha }
-
-    // URIs temporales para cámara y video
+    // URIs temporales
     var uriCameraTemp by remember { mutableStateOf<Uri?>(null) }
     var uriVideoTemp by remember { mutableStateOf<Uri?>(null) }
     var mostrarDialogoMedia by remember { mutableStateOf(false) }
-
-    // Acción pendiente hasta que se conceda el permiso
     var accionPendiente by remember { mutableStateOf<(() -> Unit)?>(null) }
 
-    // Función para crear URI temporal
     fun crearUriTemporal(carpeta: String, extension: String): Uri {
         val dir = File(context.cacheDir, carpeta).also { it.mkdirs() }
         val archivo = File(dir, "${UUID.randomUUID()}.$extension")
@@ -85,71 +83,41 @@ fun CrearEntradaScreen(
         )
     }
 
-    // Launchers
-    // Permiso de cámara, ejecuta la acción pendiente si se concede
-    val launcherPermisoCamara = rememberLauncherForActivityResult(
+    val launcherPermiso = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { concedido ->
-        if (concedido) {
-            accionPendiente?.invoke()
-        }
+        if (concedido) accionPendiente?.invoke()
         accionPendiente = null
     }
 
-    // Helper para pedir permiso y luego ejecutar
     fun pedirPermisoYEjecutar(accion: () -> Unit) {
         accionPendiente = accion
-        launcherPermisoCamara.launch(android.Manifest.permission.CAMERA)
+        launcherPermiso.launch(android.Manifest.permission.CAMERA)
     }
 
-    // Galería, no necesita permiso de cámara
     val launcherGaleria = rememberLauncherForActivityResult(
         ActivityResultContracts.GetMultipleContents()
-    ) { uris ->
-        uris.forEach { uri -> viewModel.agregarFoto(uri.toString()) }
-    }
+    ) { uris -> uris.forEach { viewModel.agregarFoto(it.toString()) } }
 
-    // Cámara
     val launcherCamara = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { exito ->
-        if (exito) {
-            uriCameraTemp?.let { viewModel.agregarFoto(it.toString()) }
-        }
+        if (exito) uriCameraTemp?.let { viewModel.agregarFoto(it.toString()) }
     }
 
-    // Video
     val launcherVideo = rememberLauncherForActivityResult(
         ActivityResultContracts.CaptureVideo()
     ) { exito ->
-        if (exito) {
-            uriVideoTemp?.let { viewModel.agregarVideo(it.toString()) }
-        }
+        if (exito) uriVideoTemp?.let { viewModel.agregarVideo(it.toString()) }
     }
 
-    //Efectos
-
-    LaunchedEffect(Unit) {
-        viewModel.limpiarFormulario()
-        if (tipoEntrada == TipoEntrada.RECUERDO && parejaId != null) {
-            viewModel.toggleCompartir()
-        }
-    }
-
-    LaunchedEffect(uiState.entradaCreada) {
-        if (uiState.entradaCreada) onEntradaGuardada()
-    }
-
-    // Diálogo para elegir fuente de media
-
+    // Diálogo media
     if (mostrarDialogoMedia) {
         AlertDialog(
             onDismissRequest = { mostrarDialogoMedia = false },
             title = { Text("Agregar media") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-
-                    // Galería
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -162,17 +130,11 @@ fun CrearEntradaScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Outlined.PhotoLibrary,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Outlined.PhotoLibrary, null,
+                            tint = MaterialTheme.colorScheme.primary)
                         Text("Galería de fotos")
                     }
-
                     HorizontalDivider()
-
-                    // Cámara — pide permiso primero
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -189,17 +151,11 @@ fun CrearEntradaScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Outlined.PhotoCamera,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Outlined.PhotoCamera, null,
+                            tint = MaterialTheme.colorScheme.primary)
                         Text("Tomar foto")
                     }
-
                     HorizontalDivider()
-
-                    // Video, pide permiso primero
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -216,11 +172,8 @@ fun CrearEntradaScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Outlined.Videocam,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Outlined.Videocam, null,
+                            tint = MaterialTheme.colorScheme.primary)
                         Text("Grabar video")
                     }
                 }
@@ -234,38 +187,34 @@ fun CrearEntradaScreen(
         )
     }
 
-    // Scaffold principal
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Column {
                         Text(
-                            text = "${tipoEntrada.emoji} ${tipoEntrada.etiqueta}",
+                            text = "✏️ Editar ${tipoEntrada.etiqueta.lowercase()}",
                             style = MaterialTheme.typography.titleMedium
                         )
-                        Text(
-                            text = fechaVisible,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface
-                                .copy(alpha = 0.6f)
-                        )
+                        if (entrada != null) {
+                            Text(
+                                text = entrada.fecha,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                                    .copy(alpha = 0.6f)
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onRegresar) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Regresar"
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Regresar")
                     }
                 },
                 actions = {
                     IconButton(
-                        onClick = {
-                            viewModel.guardarEntrada(usuarioId, parejaId, fecha, tipo)
-                        },
-                        enabled = !uiState.cargando
+                        onClick = { viewModel.guardarEdicion(parejaId) },
+                        enabled = !uiState.cargando && entrada != null
                     ) {
                         if (uiState.cargando) {
                             CircularProgressIndicator(
@@ -288,6 +237,17 @@ fun CrearEntradaScreen(
         }
     ) { padding ->
 
+        if (uiState.cargando && entrada == null) {
+            // Cargando la entrada por primera vez
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+            return@Scaffold
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -297,10 +257,10 @@ fun CrearEntradaScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
 
-            // ── Etiquetas (Evento y Día especial) ─────────────
+            //Etiquetas
             if (tipoEntrada == TipoEntrada.EVENTO ||
                 tipoEntrada == TipoEntrada.DIA_ESPECIAL) {
-                SeccionEtiquetas(
+                SeccionEtiquetasEditar(
                     tipo = tipoEntrada,
                     etiquetaSeleccionada = uiState.etiqueta,
                     etiquetaPersonalizada = uiState.etiquetaPersonalizada,
@@ -316,22 +276,20 @@ fun CrearEntradaScreen(
                 value = uiState.titulo,
                 onValueChange = { viewModel.actualizarTitulo(it) },
                 label = {
-                    Text(
-                        when (tipoEntrada) {
-                            TipoEntrada.MI_DIA      -> "¿Cómo fue tu día?"
-                            TipoEntrada.RECUERDO    -> "¿Cuál es el recuerdo?"
-                            TipoEntrada.EVENTO      -> "Nombre del evento"
-                            TipoEntrada.DIA_ESPECIAL -> "¿Qué celebran?"
-                        }
-                    )
+                    Text(when (tipoEntrada) {
+                        TipoEntrada.MI_DIA       -> "¿Cómo fue tu día?"
+                        TipoEntrada.RECUERDO     -> "¿Cuál es el recuerdo?"
+                        TipoEntrada.EVENTO       -> "Nombre del evento"
+                        TipoEntrada.DIA_ESPECIAL -> "¿Qué celebran?"
+                    })
                 },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
 
-            // ──  (odo excepto Evento)
+            //Emociones
             if (tipoEntrada != TipoEntrada.EVENTO) {
-                SeccionEmociones(
+                SeccionEmocionesEditar(
                     emocionesSeleccionadas = uiState.emocionesSeleccionadas,
                     onToggle = { viewModel.toggleEmocion(it) }
                 )
@@ -342,22 +300,24 @@ fun CrearEntradaScreen(
                 value = uiState.detalles,
                 onValueChange = { viewModel.actualizarDetalles(it) },
                 label = { Text("Cuéntame más...") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(140.dp),
+                modifier = Modifier.fillMaxWidth().height(140.dp),
                 maxLines = 8
             )
 
-            // Fotos y videos
-            SeccionMedia(
-                fotos = uiState.fotosSeleccionadas,
-                videos = uiState.videosSeleccionados,
+            //Media existente mas nueva
+            SeccionMediaEditar(
+                fotosExistentes = entrada?.fotos ?: emptyList(),
+                videosExistentes = entrada?.videos ?: emptyList(),
+                fotosNuevas = uiState.fotosSeleccionadas,
+                videosNuevos = uiState.videosSeleccionados,
                 onAgregarMedia = { mostrarDialogoMedia = true },
-                onEliminarFoto = { viewModel.eliminarFoto(it) },
-                onEliminarVideo = { viewModel.eliminarVideo(it) }
+                onEliminarFotoExistente = { viewModel.eliminarFotoExistente(it) },
+                onEliminarVideoExistente = { viewModel.eliminarVideoExistente(it) },
+                onEliminarFotoNueva = { viewModel.eliminarFoto(it) },
+                onEliminarVideoNuevo = { viewModel.eliminarVideo(it) }
             )
 
-            //Compartir con pareja
+            //Compartir
             if (parejaId != null) {
                 Row(
                     modifier = Modifier
@@ -377,8 +337,7 @@ fun CrearEntradaScreen(
                         Text(
                             text = if (uiState.compartir)
                                 "Tu pareja podrá ver esto"
-                            else
-                                "Solo tú puedes verlo",
+                            else "Solo tú puedes verlo",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface
                                 .copy(alpha = 0.6f)
@@ -396,7 +355,6 @@ fun CrearEntradaScreen(
                 Text(
                     text = uiState.error!!,
                     color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -407,197 +365,39 @@ fun CrearEntradaScreen(
     }
 }
 
-//Sección de etiquetas
+// Sección media con dos grupos: existente y nueva
 
 @Composable
-private fun SeccionEtiquetas(
-    tipo: TipoEntrada,
-    etiquetaSeleccionada: String,
-    etiquetaPersonalizada: String,
-    onEtiquetaSeleccionada: (String) -> Unit,
-    onEtiquetaPersonalizada: (String) -> Unit
-) {
-    val etiquetas: List<Pair<String, String>> = when (tipo) {
-        TipoEntrada.EVENTO ->
-            EtiquetaEvento.entries.map { Pair(it.etiqueta, it.emoji) }
-        TipoEntrada.DIA_ESPECIAL ->
-            EtiquetaDiaEspecial.entries.map { Pair(it.etiqueta, it.emoji) }
-        else -> emptyList()
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = "Tipo de ${tipo.etiqueta.lowercase()}",
-            style = MaterialTheme.typography.titleMedium
-        )
-
-        val filas = etiquetas.chunked(3)
-        filas.forEach { fila ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                fila.forEach { (etiqueta, emoji) ->
-                    val seleccionada = etiquetaSeleccionada == etiqueta
-                    Box(modifier = Modifier.weight(1f)) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(50.dp))
-                                .background(
-                                    if (seleccionada)
-                                        MaterialTheme.colorScheme.primaryContainer
-                                    else
-                                        MaterialTheme.colorScheme.surface
-                                )
-                                .border(
-                                    1.dp,
-                                    if (seleccionada)
-                                        MaterialTheme.colorScheme.primary
-                                    else
-                                        MaterialTheme.colorScheme.outline,
-                                    RoundedCornerShape(50.dp)
-                                )
-                                .clickable { onEtiquetaSeleccionada(etiqueta) }
-                                .padding(horizontal = 10.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(text = emoji, fontSize = 14.sp)
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = etiqueta,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (seleccionada)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-                repeat(3 - fila.size) {
-                    Box(modifier = Modifier.weight(1f))
-                }
-            }
-        }
-
-        // Campo personalizado si eligió "Otra..."
-        val etiquetaPersonalizadaLabel = when (tipo) {
-            TipoEntrada.EVENTO -> EtiquetaEvento.PERSONALIZADA.etiqueta
-            TipoEntrada.DIA_ESPECIAL -> EtiquetaDiaEspecial.PERSONALIZADA.etiqueta
-            else -> ""
-        }
-
-        if (etiquetaSeleccionada == etiquetaPersonalizadaLabel) {
-            OutlinedTextField(
-                value = etiquetaPersonalizada,
-                onValueChange = onEtiquetaPersonalizada,
-                label = { Text("¿Cuál?") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    }
-}
-
-// Sección de emociones
-
-@Composable
-private fun SeccionEmociones(
-    emocionesSeleccionadas: List<Emocion>,
-    onToggle: (Emocion) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = "¿Cómo te sentiste?",
-            style = MaterialTheme.typography.titleMedium
-        )
-
-        val filas = Emocion.entries.chunked(4)
-        filas.forEach { fila ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                fila.forEach { emocion ->
-                    val seleccionada = emocionesSeleccionadas.contains(emocion)
-                    Box(modifier = Modifier.weight(1f)) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(
-                                    if (seleccionada)
-                                        MaterialTheme.colorScheme.primaryContainer
-                                    else
-                                        MaterialTheme.colorScheme.surfaceVariant
-                                )
-                                .border(
-                                    1.dp,
-                                    if (seleccionada)
-                                        MaterialTheme.colorScheme.primary
-                                    else
-                                        Color.Transparent,
-                                    RoundedCornerShape(12.dp)
-                                )
-                                .clickable { onToggle(emocion) }
-                                .padding(8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(text = emocion.emoji, fontSize = 22.sp)
-                            Text(
-                                text = emocion.etiqueta,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (seleccionada)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    MaterialTheme.colorScheme.onSurface,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-                repeat(4 - fila.size) {
-                    Box(modifier = Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
-
-//Sección de media
-
-@Composable
-private fun SeccionMedia(
-    fotos: List<String>,
-    videos: List<String>,
+private fun SeccionMediaEditar(
+    fotosExistentes: List<String>,
+    videosExistentes: List<String>,
+    fotosNuevas: List<String>,
+    videosNuevos: List<String>,
     onAgregarMedia: () -> Unit,
-    onEliminarFoto: (String) -> Unit,
-    onEliminarVideo: (String) -> Unit
+    onEliminarFotoExistente: (String) -> Unit,
+    onEliminarVideoExistente: (String) -> Unit,
+    onEliminarFotoNueva: (String) -> Unit,
+    onEliminarVideoNuevo: (String) -> Unit
 ) {
+    val hayMedia = fotosExistentes.isNotEmpty() || videosExistentes.isNotEmpty() ||
+            fotosNuevas.isNotEmpty() || videosNuevos.isNotEmpty()
+
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Fotos y videos",
-                style = MaterialTheme.typography.titleMedium
-            )
+            Text("Fotos y videos", style = MaterialTheme.typography.titleMedium)
             TextButton(onClick = onAgregarMedia) {
-                Icon(
-                    Icons.Outlined.PhotoCamera,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
+                Icon(Icons.Outlined.PhotoCamera, null,
+                    modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(4.dp))
                 Text("Agregar")
             }
         }
 
-        if (fotos.isEmpty() && videos.isEmpty()) {
+        if (!hayMedia) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -609,21 +409,36 @@ private fun SeccionMedia(
             ) {
                 Text(
                     text = "📷 Toca para agregar fotos o videos",
-                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
             }
         } else {
-            val todosLosArchivos = fotos.map { Pair(it, false) } +
-                    videos.map { Pair(it, true) }
+            // Combinar todo en un solo grid
+            // false = foto, true = video
+            // "existente" vs "nueva" determina qué función de eliminar usar
+            data class ItemMedia(
+                val uri: String,
+                val esVideo: Boolean,
+                val esExistente: Boolean
+            )
 
-            val filas = todosLosArchivos.chunked(3)
+            val todosLosItems = fotosExistentes.map {
+                ItemMedia(it, false, true)
+            } + videosExistentes.map {
+                ItemMedia(it, true, true)
+            } + fotosNuevas.map {
+                ItemMedia(it, false, false)
+            } + videosNuevos.map {
+                ItemMedia(it, true, false)
+            }
+
+            val filas = todosLosItems.chunked(3)
             filas.forEach { fila ->
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    fila.forEach { (uri, esVideo) ->
+                    fila.forEach { item ->
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -631,13 +446,35 @@ private fun SeccionMedia(
                                 .clip(RoundedCornerShape(8.dp))
                         ) {
                             AsyncImage(
-                                model = uri,
+                                model = item.uri,
                                 contentDescription = null,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
 
-                            if (esVideo) {
+                            // Badge "Nueva" para fotos recién agregadas
+                            if (!item.esExistente) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .padding(4.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(
+                                            MaterialTheme.colorScheme.primary
+                                                .copy(alpha = 0.8f)
+                                        )
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "Nueva",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+
+                            // Ícono video
+                            if (item.esVideo) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -646,17 +483,26 @@ private fun SeccionMedia(
                                 ) {
                                     Icon(
                                         Icons.Outlined.Videocam,
-                                        contentDescription = "Video",
+                                        contentDescription = null,
                                         tint = Color.White,
                                         modifier = Modifier.size(28.dp)
                                     )
                                 }
                             }
 
+                            // Botón eliminar
                             IconButton(
                                 onClick = {
-                                    if (esVideo) onEliminarVideo(uri)
-                                    else onEliminarFoto(uri)
+                                    when {
+                                        item.esExistente && !item.esVideo ->
+                                            onEliminarFotoExistente(item.uri)
+                                        item.esExistente && item.esVideo ->
+                                            onEliminarVideoExistente(item.uri)
+                                        !item.esExistente && !item.esVideo ->
+                                            onEliminarFotoNueva(item.uri)
+                                        else ->
+                                            onEliminarVideoNuevo(item.uri)
+                                    }
                                 },
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
@@ -675,9 +521,7 @@ private fun SeccionMedia(
                             }
                         }
                     }
-                    repeat(3 - fila.size) {
-                        Box(modifier = Modifier.weight(1f))
-                    }
+                    repeat(3 - fila.size) { Box(modifier = Modifier.weight(1f)) }
                 }
             }
 
@@ -686,6 +530,144 @@ private fun SeccionMedia(
                 modifier = Modifier.align(Alignment.End)
             ) {
                 Text("+ Agregar más")
+            }
+        }
+    }
+}
+
+// Etiquetas y emociones reutilizadas
+// Son idénticas a CrearEntradaScreen — las extraemos para no duplicar
+
+@Composable
+private fun SeccionEtiquetasEditar(
+    tipo: TipoEntrada,
+    etiquetaSeleccionada: String,
+    etiquetaPersonalizada: String,
+    onEtiquetaSeleccionada: (String) -> Unit,
+    onEtiquetaPersonalizada: (String) -> Unit
+) {
+    val etiquetas = when (tipo) {
+        TipoEntrada.EVENTO ->
+            EtiquetaEvento.entries.map { Pair(it.etiqueta, it.emoji) }
+        TipoEntrada.DIA_ESPECIAL ->
+            EtiquetaDiaEspecial.entries.map { Pair(it.etiqueta, it.emoji) }
+        else -> emptyList()
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Tipo de ${tipo.etiqueta.lowercase()}",
+            style = MaterialTheme.typography.titleMedium
+        )
+        etiquetas.chunked(3).forEach { fila ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                fila.forEach { (etiqueta, emoji) ->
+                    val seleccionada = etiquetaSeleccionada == etiqueta
+                    Box(modifier = Modifier.weight(1f)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(50.dp))
+                                .background(
+                                    if (seleccionada)
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surface
+                                )
+                                .border(
+                                    1.dp,
+                                    if (seleccionada)
+                                        MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.outline,
+                                    RoundedCornerShape(50.dp)
+                                )
+                                .clickable { onEtiquetaSeleccionada(etiqueta) }
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(emoji, fontSize = 14.sp)
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                etiqueta,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (seleccionada)
+                                    MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+                repeat(3 - fila.size) { Box(modifier = Modifier.weight(1f)) }
+            }
+        }
+        val labelPersonalizada = when (tipo) {
+            TipoEntrada.EVENTO -> EtiquetaEvento.PERSONALIZADA.etiqueta
+            TipoEntrada.DIA_ESPECIAL -> EtiquetaDiaEspecial.PERSONALIZADA.etiqueta
+            else -> ""
+        }
+        if (etiquetaSeleccionada == labelPersonalizada) {
+            OutlinedTextField(
+                value = etiquetaPersonalizada,
+                onValueChange = onEtiquetaPersonalizada,
+                label = { Text("¿Cuál?") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
+private fun SeccionEmocionesEditar(
+    emocionesSeleccionadas: List<Emocion>,
+    onToggle: (Emocion) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("¿Cómo te sentiste?", style = MaterialTheme.typography.titleMedium)
+        Emocion.entries.chunked(4).forEach { fila ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                fila.forEach { emocion ->
+                    val seleccionada = emocionesSeleccionadas.contains(emocion)
+                    Box(modifier = Modifier.weight(1f)) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (seleccionada)
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surfaceVariant
+                                )
+                                .border(
+                                    1.dp,
+                                    if (seleccionada)
+                                        MaterialTheme.colorScheme.primary
+                                    else Color.Transparent,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .clickable { onToggle(emocion) }
+                                .padding(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(emocion.emoji, fontSize = 22.sp)
+                            Text(
+                                emocion.etiqueta,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (seleccionada)
+                                    MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+                repeat(4 - fila.size) { Box(modifier = Modifier.weight(1f)) }
             }
         }
     }

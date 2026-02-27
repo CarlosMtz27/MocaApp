@@ -58,7 +58,7 @@ class ParejaRepositoryImpl(
                 "estado" to "activa"
             )
 
-            // Guardamos todo en una transacción atómica
+            // Guardamostodo en una transacción atomica
             // Una transacción garantiza que o todo se guarda
             // o nada se guarda, nunca queda a medias
             firestore.runTransaction { transaction ->

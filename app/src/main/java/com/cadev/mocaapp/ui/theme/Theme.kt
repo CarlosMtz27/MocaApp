@@ -12,7 +12,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 
-// ── Paleta modo claro ────────────────────────────────────────
+//Paleta modo claro
 private val LightColors = lightColorScheme(
     primary          = RosaPrimario,
     onPrimary        = Blanco,
@@ -27,7 +27,7 @@ private val LightColors = lightColorScheme(
     surfaceVariant   = RosaClaro,
 )
 
-// ── Paleta modo oscuro ───────────────────────────────────────
+//Paleta modo oscuro
 private val DarkColors = darkColorScheme(
     primary          = RosaSecundario,
     onPrimary        = RosaOscuro,

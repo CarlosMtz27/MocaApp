@@ -4,34 +4,41 @@ import com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario
 
 interface DiarioRepository {
 
-    // Obtener todas las entradas de un mes
-    // Devuelve un Flow para que la UI se actualice automaticamente
     suspend fun obtenerEntradasDelMes(
         usuarioId: String,
         anio: Int,
         mes: Int
     ): Result<List<EntradaDiario>>
 
-    // Obtener entradas de un dia específico
-    // Incluye las de la pareja si están compartidas
     suspend fun obtenerEntradasDelDia(
         usuarioId: String,
         parejaId: String?,
         fecha: String
     ): Result<List<EntradaDiario>>
 
-    // Crear nueva entrada
+    // incluye videosLocales
     suspend fun crearEntrada(
         entrada: EntradaDiario,
-        fotosLocales: List<String>  // rutas locales de las fotos
+        fotosLocales: List<String>,
+        videosLocales: List<String>
     ): Result<EntradaDiario>
 
-    // Obtener días del mes que tienen entradas (para marcar en calendario)
     suspend fun obtenerDiasConEntrada(
         usuarioId: String,
         parejaId: String?,
         anio: Int,
         mes: Int
     ): Result<Map<String, List<String>>>
-    // String = fecha YYYY-MM-DD, Boolean = si es de la pareja
+
+
+    suspend fun obtenerEntradaPorId(entradaId: String): Result<EntradaDiario>
+
+    // Actualizar una entrada existente
+    suspend fun actualizarEntrada(
+        entrada: EntradaDiario,
+        fotosNuevas: List<String>,      // rutas locales de fotos nuevas
+        videosNuevos: List<String>,     // rutas locales de videos nuevos
+        fotosEliminar: List<String>,    // URLs de fotos a eliminar de Storage
+        videosEliminar: List<String>    // URLs de videos a eliminar de Storage
+    ): Result<EntradaDiario>
 }

@@ -154,7 +154,7 @@ private fun DiasDelaSemana() {
 @Composable
 private fun CuadriculaMes(
     calendario: Calendar,
-    diasConEntrada: Map<String, List<String>>,   // ← tipo correcto
+    diasConEntrada: Map<String, List<String>>,
     onDiaClick: (String) -> Unit
 ) {
     val formatoFecha = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -184,13 +184,13 @@ private fun CuadriculaMes(
                             }
                             val fechaStr = formatoFecha.format(fechaCelda.time)
                             val tipos = diasConEntrada[fechaStr]
-                                ?: emptyList()   // ← lista de tipos del día
+                                ?: emptyList()
                             val esHoy = fechaStr == hoy
 
                             CeldaDia(
                                 dia = dia,
                                 esHoy = esHoy,
-                                tipos = tipos,   // ← parámetro correcto
+                                tipos = tipos,
                                 onClick = { onDiaClick(fechaStr) }
                             )
                         }

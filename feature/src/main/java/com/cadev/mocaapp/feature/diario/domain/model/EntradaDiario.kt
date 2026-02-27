@@ -9,12 +9,12 @@ enum class TipoEntrada(
     MI_DIA(
         etiqueta = "Mi día",
         emoji = "📝",
-        colorHex = "C2185B"    // rosa —
+        colorHex = "C2185B"    // rosa
     ),
     RECUERDO(
         etiqueta = "Recuerdo",
         emoji = "📸",
-        colorHex = "7B1FA2"    // lila —
+        colorHex = "7B1FA2"    // lila
     ),
     EVENTO(
         etiqueta = "Evento",
@@ -32,10 +32,12 @@ data class EntradaDiario(
     val usuarioId: String = "",
     val fecha: String = "",          // formato YYYY-MM-DD
     val tipo: String = TipoEntrada.MI_DIA.name,
+    val etiqueta: String = "",
     val titulo: String = "",
     val detalles: String = "",
     val emociones: List<String> = emptyList(),
     val fotos: List<String> = emptyList(),  // URLs de Storage
+    val videos: List<String> = emptyList(),
     val compartida: Boolean = false,
     val parejaId: String? = null,
     val creadaEn: Date = Date()
