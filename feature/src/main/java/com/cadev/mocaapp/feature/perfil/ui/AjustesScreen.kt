@@ -1,7 +1,8 @@
 package com.cadev.mocaapp.feature.perfil.ui
 
-
-import androidx.compose.foundation.clickable
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,7 +14,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -23,20 +25,59 @@ import androidx.compose.ui.unit.dp
 fun AjustesScreen(
     viewModel: PerfilViewModel,
     usuarioId: String,
+    parejaId: String?,
     onRegresar: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // Navegar al guardar con éxito
-    LaunchedEffect(uiState.ajusteExitoso) {
-        if (uiState.ajusteExitoso) {
-            viewModel.limpiarMensajes()
+    LaunchedEffect(usuarioId) {
+        if (uiState.usuario == null) {
+            viewModel.cargarPerfil(usuarioId, parejaId)
         }
     }
+    val context = LocalContext.current
 
-    // Qué sección está expandida
-    var seccionAbierta by remember {
-        mutableStateOf<String?>(null)
+    // Estados de edicion por campo
+    var editandoNombre by remember { mutableStateOf(false) }
+    var editandoEmail by remember { mutableStateOf(false) }
+    var editandoPassword by remember { mutableStateOf(false) }
+    var editandoFecha by remember { mutableStateOf(false) }
+
+    // Valores locales de edicion
+    var valorNombre by remember(uiState.usuario?.nombre) {
+        mutableStateOf(uiState.usuario?.nombre ?: "")
+    }
+    var valorEmail by remember(uiState.usuario?.email) {
+        mutableStateOf(uiState.usuario?.email ?: "")
+    }
+    var valorPasswordActual by remember { mutableStateOf("") }
+    var valorPasswordNuevo by remember { mutableStateOf("") }
+    var valorPasswordConfirmar by remember { mutableStateOf("") }
+
+    // Fecha
+    val partesF = (uiState.fechaRelacion ?: "").split("-")
+    var valorAnio by remember(uiState.fechaRelacion) {
+        mutableStateOf(partesF.getOrNull(0) ?: "")
+    }
+    var valorMes by remember(uiState.fechaRelacion) {
+        mutableStateOf(partesF.getOrNull(1) ?: "")
+    }
+    var valorDia by remember(uiState.fechaRelacion) {
+        mutableStateOf(partesF.getOrNull(2) ?: "")
+    }
+
+    // Cerrar edicion y limpiar al guardar con exito
+    LaunchedEffect(uiState.ajusteExitoso) {
+        if (uiState.ajusteExitoso) {
+            editandoNombre = false
+            editandoEmail = false
+            editandoPassword = false
+            editandoFecha = false
+            valorPasswordActual = ""
+            valorPasswordNuevo = ""
+            valorPasswordConfirmar = ""
+            viewModel.limpiarMensajes()
+        }
     }
 
     Scaffold(
@@ -45,10 +86,7 @@ fun AjustesScreen(
                 title = { Text("Ajustes") },
                 navigationIcon = {
                     IconButton(onClick = onRegresar) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            "Regresar"
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Regresar")
                     }
                 }
             )
@@ -63,156 +101,405 @@ fun AjustesScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            // Mensaje de error
+            //Banner error
             if (uiState.error != null) {
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme
-                            .errorContainer
+                        containerColor = MaterialTheme.colorScheme.errorContainer
                     )
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Filled.Error,
-                            null,
+                            Icons.Filled.Error, null,
                             tint = MaterialTheme.colorScheme.error
                         )
                         Text(
-                            text = uiState.error!!,
+                            uiState.error!!,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
                     }
                 }
             }
 
-            //Mensaje de éxito
+            //Banner exito
             if (uiState.ajusteExitoso) {
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme
-                            .primaryContainer
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
                     )
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Filled.CheckCircle,
-                            null,
+                            Icons.Filled.CheckCircle, null,
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "✅ Cambios guardados",
+                            "Cambios guardados",
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                 }
             }
 
-            // Cambiar nombre
-            SeccionAjuste(
+            Text(
+                "Información personal",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+            )
+
+            //Nombre
+            CampoEditable(
                 icono = Icons.Filled.Person,
-                titulo = "Nombre",
-                subtitulo = uiState.usuario?.nombre ?: "",
-                expandida = seccionAbierta == "nombre",
-                onToggle = {
-                    seccionAbierta = if (seccionAbierta == "nombre")
-                        null else "nombre"
+                etiqueta = "Nombre",
+                valor = valorNombre,
+                editando = editandoNombre,
+                cargando = uiState.guardandoAjuste,
+                onValorChange = { valorNombre = it },
+                onEditar = {
+                    editandoNombre = true
+                    editandoEmail = false
+                    editandoPassword = false
+                    editandoFecha = false
                     viewModel.limpiarMensajes()
+                },
+                onCancelar = {
+                    editandoNombre = false
+                    valorNombre = uiState.usuario?.nombre ?: ""
+                },
+                onGuardar = {
+                    viewModel.actualizarNombre(usuarioId, valorNombre)
                 }
-            ) {
-                CampoNombre(
-                    nombreActual = uiState.usuario?.nombre ?: "",
-                    cargando = uiState.guardandoAjuste,
-                    onGuardar = { nuevo ->
-                        viewModel.actualizarNombre(usuarioId, nuevo)
-                    }
-                )
-            }
+            )
 
-            //Cambiar email
-            SeccionAjuste(
+            //Email
+            CampoEditable(
                 icono = Icons.Filled.Email,
-                titulo = "Correo electrónico",
-                subtitulo = uiState.usuario?.email ?: "",
-                expandida = seccionAbierta == "email",
-                onToggle = {
-                    seccionAbierta = if (seccionAbierta == "email")
-                        null else "email"
+                etiqueta = "Correo electrónico",
+                valor = valorEmail,
+                editando = editandoEmail,
+                cargando = uiState.guardandoAjuste,
+                onValorChange = { valorEmail = it },
+                onEditar = {
+                    editandoEmail = true
+                    editandoNombre = false
+                    editandoPassword = false
+                    editandoFecha = false
                     viewModel.limpiarMensajes()
-                }
-            ) {
-                CampoEmail(
-                    emailActual = uiState.usuario?.email ?: "",
-                    cargando = uiState.guardandoAjuste,
-                    onGuardar = { nuevoEmail, password ->
-                        viewModel.actualizarEmail(
-                            usuarioId, nuevoEmail, password
+                },
+                onCancelar = {
+                    editandoEmail = false
+                    valorEmail = uiState.usuario?.email ?: ""
+                },
+                onGuardar = {
+                    viewModel.actualizarEmail(
+                        usuarioId, valorEmail, valorPasswordActual
+                    )
+                },
+                //Campo extra: contraseña para confirmar cambio de email
+                contenidoExtra = if (editandoEmail) {
+                    {
+                        OutlinedTextField(
+                            value = valorPasswordActual,
+                            onValueChange = { valorPasswordActual = it },
+                            label = { Text("Contraseña actual") },
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
-                )
-            }
+                } else null
+            )
 
-            //Cambiar contraseña
-            SeccionAjuste(
-                icono = Icons.Filled.Lock,
-                titulo = "Contraseña",
-                subtitulo = "••••••••",
-                expandida = seccionAbierta == "password",
-                onToggle = {
-                    seccionAbierta = if (seccionAbierta == "password")
-                        null else "password"
-                    viewModel.limpiarMensajes()
-                }
+            //Contraseña
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
             ) {
-                CampoPassword(
-                    email = uiState.usuario?.email ?: "",
-                    cargando = uiState.guardandoAjuste,
-                    onGuardar = { actual, nueva, confirmar ->
-                        viewModel.actualizarPassword(
-                            uiState.usuario?.email ?: "",
-                            actual, nueva, confirmar
-                        )
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.Lock, null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Column {
+                                Text(
+                                    "Contraseña",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                        .copy(alpha = 0.5f)
+                                )
+                                Text(
+                                    "••••••••",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                        IconButton(onClick = {
+                            editandoPassword = !editandoPassword
+                            editandoNombre = false
+                            editandoEmail = false
+                            editandoFecha = false
+                            valorPasswordActual = ""
+                            valorPasswordNuevo = ""
+                            valorPasswordConfirmar = ""
+                            viewModel.limpiarMensajes()
+                        }) {
+                            Icon(
+                                if (editandoPassword) Icons.Filled.Close
+                                else Icons.Filled.Edit,
+                                null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
-                )
-            }
 
-            //Fecha de aniversario
-            SeccionAjuste(
-                icono = Icons.Filled.Favorite,
-                titulo = "Fecha de aniversario",
-                subtitulo = uiState.fechaRelacion ?: "No configurada",
-                expandida = seccionAbierta == "fecha",
-                onToggle = {
-                    seccionAbierta = if (seccionAbierta == "fecha")
-                        null else "fecha"
-                    viewModel.limpiarMensajes()
+                    if (editandoPassword) {
+                        Spacer(Modifier.height(12.dp))
+                        HorizontalDivider()
+                        Spacer(Modifier.height(12.dp))
+
+                        var verActual by remember { mutableStateOf(false) }
+                        var verNuevo by remember { mutableStateOf(false) }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = valorPasswordActual,
+                                onValueChange = { valorPasswordActual = it },
+                                label = { Text("Contraseña actual") },
+                                singleLine = true,
+                                visualTransformation = if (verActual)
+                                    VisualTransformation.None
+                                else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    TextButton(onClick = { verActual = !verActual }) {
+                                        Text(if (verActual) "Ocultar" else "Ver")
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = valorPasswordNuevo,
+                                onValueChange = { valorPasswordNuevo = it },
+                                label = { Text("Nueva contraseña") },
+                                singleLine = true,
+                                visualTransformation = if (verNuevo)
+                                    VisualTransformation.None
+                                else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    TextButton(onClick = { verNuevo = !verNuevo }) {
+                                        Text(if (verNuevo) "Ocultar" else "Ver")
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = valorPasswordConfirmar,
+                                onValueChange = { valorPasswordConfirmar = it },
+                                label = { Text("Confirmar nueva contraseña") },
+                                singleLine = true,
+                                visualTransformation = PasswordVisualTransformation(),
+                                isError = valorPasswordConfirmar.isNotEmpty() &&
+                                        valorPasswordNuevo != valorPasswordConfirmar,
+                                supportingText = {
+                                    if (valorPasswordConfirmar.isNotEmpty() &&
+                                        valorPasswordNuevo != valorPasswordConfirmar
+                                    )
+                                        Text("Las contraseñas no coinciden")
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(
+                                    onClick = { editandoPassword = false },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text("Cancelar") }
+                                Button(
+                                    onClick = {
+                                        viewModel.actualizarPassword(
+                                            uiState.usuario?.email ?: "",
+                                            valorPasswordActual,
+                                            valorPasswordNuevo,
+                                            valorPasswordConfirmar
+                                        )
+                                    },
+                                    enabled = !uiState.guardandoAjuste &&
+                                            valorPasswordActual.isNotBlank() &&
+                                            valorPasswordNuevo.isNotBlank() &&
+                                            valorPasswordConfirmar.isNotBlank(),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    if (uiState.guardandoAjuste) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    } else Text("Guardar")
+                                }
+                            }
+                        }
+                    }
                 }
-            ) {
-                CampoFecha(
-                    fechaActual = uiState.fechaRelacion ?: "",
-                    cargando = uiState.guardandoAjuste,
-                    onGuardar = { fecha ->
-                        viewModel.actualizarFechaRelacion(usuarioId, fecha)
-                    }
-                )
             }
 
-            //Codigo de pareja
+            //Fecha aniversario
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.Favorite, null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Column {
+                                Text(
+                                    "Fecha de aniversario",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                        .copy(alpha = 0.5f)
+                                )
+                                Text(
+                                    text = uiState.fechaRelacion ?: "No configurada",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                        IconButton(onClick = {
+                            editandoFecha = !editandoFecha
+                            editandoNombre = false
+                            editandoEmail = false
+                            editandoPassword = false
+                            viewModel.limpiarMensajes()
+                        }) {
+                            Icon(
+                                if (editandoFecha) Icons.Filled.Close
+                                else Icons.Filled.Edit,
+                                null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    if (editandoFecha) {
+                        Spacer(Modifier.height(12.dp))
+                        HorizontalDivider()
+                        Spacer(Modifier.height(12.dp))
+
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = valorDia,
+                                    onValueChange = {
+                                        if (it.length <= 2)
+                                            valorDia = it.filter { c -> c.isDigit() }
+                                    },
+                                    label = { Text("Día") },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                OutlinedTextField(
+                                    value = valorMes,
+                                    onValueChange = {
+                                        if (it.length <= 2)
+                                            valorMes = it.filter { c -> c.isDigit() }
+                                    },
+                                    label = { Text("Mes") },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                OutlinedTextField(
+                                    value = valorAnio,
+                                    onValueChange = {
+                                        if (it.length <= 4)
+                                            valorAnio = it.filter { c -> c.isDigit() }
+                                    },
+                                    label = { Text("Año") },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(2f)
+                                )
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(
+                                    onClick = { editandoFecha = false },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text("Cancelar") }
+                                Button(
+                                    onClick = {
+                                        val fecha = "$valorAnio-${
+                                            valorMes.padStart(
+                                                2,
+                                                '0'
+                                            )
+                                        }-${valorDia.padStart(2, '0')}"
+                                        viewModel.actualizarFechaRelacion(usuarioId, fecha)
+                                    },
+                                    enabled = !uiState.guardandoAjuste &&
+                                            valorAnio.length == 4 &&
+                                            valorMes.isNotBlank() &&
+                                            valorDia.isNotBlank(),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    if (uiState.guardandoAjuste) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    } else Text("Guardar")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Cuenta",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                modifier = Modifier.padding(start = 4.dp)
+            )
+
+            //Código de pareja
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme
-                        .secondaryContainer
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
                 )
             ) {
                 Row(
@@ -227,28 +514,37 @@ fun AjustesScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Icon(
-                            Icons.Filled.Link,
-                            null,
-                            tint = MaterialTheme.colorScheme
-                                .onSecondaryContainer
+                            Icons.Filled.Link, null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                         Column {
                             Text(
-                                text = "Código de pareja",
-                                style = MaterialTheme.typography
-                                    .labelMedium
+                                "Código de pareja",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    .copy(alpha = 0.7f)
                             )
                             Text(
                                 text = uiState.usuario?.codigoPareja ?: "---",
-                                style = MaterialTheme.typography
-                                    .headlineSmall,
-                                color = MaterialTheme.colorScheme
-                                    .onSecondaryContainer
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         }
                     }
-                    IconButton(onClick = { /* Copiar al portapapeles */ }) {
-                        Icon(Icons.Filled.ContentCopy, "Copiar")
+                    IconButton(onClick = {
+                        val codigo = uiState.usuario?.codigoPareja ?: return@IconButton
+                        val clipboard = context.getSystemService(
+                            Context.CLIPBOARD_SERVICE
+                        ) as ClipboardManager
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText("Código pareja", codigo)
+                        )
+                    }) {
+                        Icon(
+                            Icons.Filled.ContentCopy, "Copiar",
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
                     }
                 }
             }
@@ -256,307 +552,98 @@ fun AjustesScreen(
     }
 }
 
-//Seccion colapsable
+//Campo editable generico
+
 @Composable
-private fun SeccionAjuste(
+private fun CampoEditable(
     icono: androidx.compose.ui.graphics.vector.ImageVector,
-    titulo: String,
-    subtitulo: String,
-    expandida: Boolean,
-    onToggle: () -> Unit,
-    contenido: @Composable () -> Unit
+    etiqueta: String,
+    valor: String,
+    editando: Boolean,
+    cargando: Boolean,
+    onValorChange: (String) -> Unit,
+    onEditar: () -> Unit,
+    onCancelar: () -> Unit,
+    onGuardar: () -> Unit,
+    contenidoExtra: (@Composable () -> Unit)? = null
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Column {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .clickable(onClick = onToggle)
-                    .padding(16.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Icon(
-                        icono,
-                        null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Column {
+                    Icon(icono, null, tint = MaterialTheme.colorScheme.primary)
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = titulo,
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Text(
-                            text = subtitulo,
-                            style = MaterialTheme.typography.bodySmall,
+                            etiqueta,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface
                                 .copy(alpha = 0.5f)
                         )
+                        if (!editando) {
+                            // ← Valor actual visible
+                            Text(
+                                text = valor.ifBlank { "No configurado" },
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
-                Icon(
-                    if (expandida) Icons.Filled.ExpandLess
-                    else Icons.Filled.ExpandMore,
-                    null,
-                    tint = MaterialTheme.colorScheme.onSurface
-                        .copy(alpha = 0.4f)
-                )
+                IconButton(onClick = if (editando) onCancelar else onEditar) {
+                    Icon(
+                        if (editando) Icons.Filled.Close else Icons.Filled.Edit,
+                        null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
 
-            if (expandida) {
+            // Campo de edición
+            if (editando) {
+                Spacer(Modifier.height(12.dp))
                 HorizontalDivider()
-                Box(modifier = Modifier.padding(16.dp)) {
-                    contenido()
+                Spacer(Modifier.height(12.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = valor,
+                        onValueChange = onValorChange,
+                        label = { Text(etiqueta) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    contenidoExtra?.invoke()
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = onCancelar,
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Cancelar") }
+                        Button(
+                            onClick = onGuardar,
+                            enabled = !cargando && valor.isNotBlank(),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            if (cargando) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            } else Text("Guardar")
+                        }
+                    }
                 }
-            }
-        }
-    }
-}
-
-//Campos de ajuste
-
-@Composable
-private fun CampoNombre(
-    nombreActual: String,
-    cargando: Boolean,
-    onGuardar: (String) -> Unit
-) {
-    var nombre by remember(nombreActual) { mutableStateOf(nombreActual) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
-            value = nombre,
-            onValueChange = { nombre = it },
-            label = { Text("Nuevo nombre") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Button(
-            onClick = { onGuardar(nombre) },
-            enabled = !cargando && nombre.isNotBlank(),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            if (cargando) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Text("Guardar nombre")
-            }
-        }
-    }
-}
-
-@Composable
-private fun CampoEmail(
-    emailActual: String,
-    cargando: Boolean,
-    onGuardar: (String, String) -> Unit
-) {
-    var email by remember(emailActual) { mutableStateOf(emailActual) }
-    var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Nuevo correo") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Contraseña actual (para confirmar)") },
-            singleLine = true,
-            visualTransformation = if (passwordVisible)
-                VisualTransformation.None
-            else PasswordVisualTransformation(),
-            trailingIcon = {
-                TextButton(onClick = { passwordVisible = !passwordVisible }) {
-                    Text(if (passwordVisible) "Ocultar" else "Ver")
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Button(
-            onClick = { onGuardar(email, password) },
-            enabled = !cargando && email.isNotBlank() && password.isNotBlank(),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            if (cargando) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Text("Guardar correo")
-            }
-        }
-    }
-}
-
-@Composable
-private fun CampoPassword(
-    email: String,
-    cargando: Boolean,
-    onGuardar: (String, String, String) -> Unit
-) {
-    var passwordActual by remember { mutableStateOf("") }
-    var passwordNuevo by remember { mutableStateOf("") }
-    var passwordConfirmar by remember { mutableStateOf("") }
-    var verActual by remember { mutableStateOf(false) }
-    var verNuevo by remember { mutableStateOf(false) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
-            value = passwordActual,
-            onValueChange = { passwordActual = it },
-            label = { Text("Contraseña actual") },
-            singleLine = true,
-            visualTransformation = if (verActual)
-                VisualTransformation.None
-            else PasswordVisualTransformation(),
-            trailingIcon = {
-                TextButton(onClick = { verActual = !verActual }) {
-                    Text(if (verActual) "Ocultar" else "Ver")
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = passwordNuevo,
-            onValueChange = { passwordNuevo = it },
-            label = { Text("Nueva contraseña") },
-            singleLine = true,
-            visualTransformation = if (verNuevo)
-                VisualTransformation.None
-            else PasswordVisualTransformation(),
-            trailingIcon = {
-                TextButton(onClick = { verNuevo = !verNuevo }) {
-                    Text(if (verNuevo) "Ocultar" else "Ver")
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = passwordConfirmar,
-            onValueChange = { passwordConfirmar = it },
-            label = { Text("Confirmar nueva contraseña") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            isError = passwordConfirmar.isNotEmpty() &&
-                    passwordNuevo != passwordConfirmar,
-            supportingText = {
-                if (passwordConfirmar.isNotEmpty() &&
-                    passwordNuevo != passwordConfirmar) {
-                    Text("Las contraseñas no coinciden")
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Button(
-            onClick = {
-                onGuardar(passwordActual, passwordNuevo, passwordConfirmar)
-            },
-            enabled = !cargando &&
-                    passwordActual.isNotBlank() &&
-                    passwordNuevo.isNotBlank() &&
-                    passwordConfirmar.isNotBlank(),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            if (cargando) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Text("Cambiar contraseña")
-            }
-        }
-    }
-}
-
-@Composable
-private fun CampoFecha(
-    fechaActual: String,
-    cargando: Boolean,
-    onGuardar: (String) -> Unit
-) {
-    // Parsear fecha actual
-    val partes = fechaActual.split("-")
-    var anio by remember(fechaActual) {
-        mutableStateOf(partes.getOrNull(0) ?: "")
-    }
-    var mes by remember(fechaActual) {
-        mutableStateOf(partes.getOrNull(1) ?: "")
-    }
-    var dia by remember(fechaActual) {
-        mutableStateOf(partes.getOrNull(2) ?: "")
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = dia,
-                onValueChange = {
-                    if (it.length <= 2) dia = it.filter { c -> c.isDigit() }
-                },
-                label = { Text("Día") },
-                singleLine = true,
-                modifier = Modifier.weight(1f)
-            )
-            OutlinedTextField(
-                value = mes,
-                onValueChange = {
-                    if (it.length <= 2) mes = it.filter { c -> c.isDigit() }
-                },
-                label = { Text("Mes") },
-                singleLine = true,
-                modifier = Modifier.weight(1f)
-            )
-            OutlinedTextField(
-                value = anio,
-                onValueChange = {
-                    if (it.length <= 4) anio = it.filter { c -> c.isDigit() }
-                },
-                label = { Text("Año") },
-                singleLine = true,
-                modifier = Modifier.weight(2f)
-            )
-        }
-        Button(
-            onClick = {
-                val fecha = "$anio-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}"
-                onGuardar(fecha)
-            },
-            enabled = !cargando &&
-                    anio.length == 4 &&
-                    mes.isNotBlank() &&
-                    dia.isNotBlank(),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            if (cargando) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Text("Guardar fecha")
             }
         }
     }

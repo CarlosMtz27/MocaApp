@@ -3,6 +3,7 @@ package com.cadev.mocaapp.feature.home.ui
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -11,16 +12,20 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.cadev.mocaapp.core.ui.BottomNavItem
 import com.cadev.mocaapp.core.ui.NavRoutes
 import com.cadev.mocaapp.core.ui.PlaceholderScreen
 import com.cadev.mocaapp.feature.pareja.data.UsuarioHelper
 import com.cadev.mocaapp.feature.diario.ui.CalendarioScreen
 import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
+import com.cadev.mocaapp.feature.perfil.ui.AjustesScreen
+import com.cadev.mocaapp.feature.perfil.ui.PerfilParejaScreen
 import com.cadev.mocaapp.feature.perfil.ui.PerfilScreen
 import com.cadev.mocaapp.feature.perfil.ui.PerfilViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -117,15 +122,69 @@ fun MainScreen(factory: ViewModelProvider.Factory,
                 val parejaId = remember(uid) {
                     runBlocking { UsuarioHelper.obtenerParejaId(uid) }
                 }
+                LaunchedEffect(uid) {
+                    android.util.Log.d("MainScreen", "Perfil tab uid=$uid parejaId=$parejaId")
+                    viewModel.cargarPerfil(uid, parejaId)
+                }
                 PerfilScreen(
                     viewModel = viewModel,
                     usuarioId = uid,
                     parejaId = parejaId,
                     onIrAjustes = {
                         navController.navigate(NavRoutes.Ajustes.route)
+                    },
+                    onVerPerfilPareja = { id ->
+                        navController.navigate(NavRoutes.PerfilPareja.crearRuta(id))
                     }
                 )
             }
+
+            composable(NavRoutes.Ajustes.route) {
+                // Obtener el ViewModel del entry de Main para compartirlo
+                val mainEntry = remember(it) {
+                    navController.getBackStackEntry(NavRoutes.Main.route)
+                }
+                val viewModel: PerfilViewModel = viewModel(
+                    viewModelStoreOwner = mainEntry,
+                    factory = factory
+                )
+                val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                val parejaId = remember(uid) {
+                    runBlocking { UsuarioHelper.obtenerParejaId(uid) }
+                }
+                LaunchedEffect(uid) {
+                    if (viewModel.uiState.value.usuario == null) {
+                        viewModel.cargarPerfil(uid, parejaId)
+                    }
+                }
+                AjustesScreen(
+                    viewModel = viewModel,
+                    usuarioId = uid,
+                    parejaId = parejaId,
+                    onRegresar = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = NavRoutes.PerfilPareja.route,
+                arguments = listOf(
+                    navArgument("parejaId") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val parejaId = backStackEntry.arguments?.getString("parejaId") ?: ""
+                val mainEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(NavRoutes.Main.route)
+                }
+                val viewModel: PerfilViewModel = viewModel(
+                    viewModelStoreOwner = mainEntry,
+                    factory = factory
+                )
+                PerfilParejaScreen(
+                    viewModel = viewModel,
+                    parejaId = parejaId,
+                    onRegresar = { navController.popBackStack() }
+                )
+            }
+
         }
     }
 }

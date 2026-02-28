@@ -20,9 +20,7 @@ class PerfilRepositoryImpl(
     private val firestore: FirebaseFirestore
 ) : PerfilRepository {
 
-    override suspend fun obtenerUsuario(
-        usuarioId: String
-    ): Result<Usuario> {
+    override suspend fun obtenerUsuario(usuarioId: String): Result<Usuario> {
         return try {
             val doc = firestore
                 .collection("usuarios")
@@ -30,19 +28,42 @@ class PerfilRepositoryImpl(
                 .get()
                 .await()
 
+            android.util.Log.d("PerfilRepo", "Doc existe: ${doc.exists()}")
+            android.util.Log.d("PerfilRepo", "Datos: ${doc.data}")
+
             val usuario = doc.toObject(Usuario::class.java)
-                ?: return Result.failure(Exception("Usuario no encontrado"))
+            android.util.Log.d("PerfilRepo", "Usuario mapeado: $usuario")
+
+            if (usuario == null)
+                return Result.failure(Exception("Usuario no encontrado"))
 
             Result.success(usuario)
         } catch (e: Exception) {
+            android.util.Log.e("PerfilRepo", "Error: ${e.message}")
             Result.failure(e)
         }
     }
 
-    override suspend fun obtenerPareja(
-        parejaId: String
-    ): Result<Usuario> = obtenerUsuario(parejaId)
+    override suspend fun obtenerPareja(parejaId: String): Result<Usuario> {
+        return try {
+            val doc = firestore
+                .collection("usuarios")
+                .document(parejaId)
+                .get()
+                .await()
 
+            android.util.Log.d("PerfilRepo", "PAREJA doc existe: ${doc.exists()}")
+            android.util.Log.d("PerfilRepo", "PAREJA datos: ${doc.data}")
+
+            val usuario = doc.toObject(Usuario::class.java)
+                ?: return Result.failure(Exception("Pareja no encontrada"))
+
+            Result.success(usuario)
+        } catch (e: Exception) {
+            android.util.Log.e("PerfilRepo", "PAREJA error: ${e.message}")
+            Result.failure(e)
+        }
+    }
     override suspend fun actualizarNombre(
         usuarioId: String,
         nuevoNombre: String
@@ -153,18 +174,34 @@ class PerfilRepositoryImpl(
         usuarioId: String
     ): Result<String?> {
         return try {
-            // Buscar en relaciones donde el usuario es parte
-            val relacion = firestore
+            // Buscar por usuario1Id o usuario2Id
+            var snapshot = firestore
                 .collection("relaciones")
-                .whereArrayContains("participantes", usuarioId)
-                .get()
-                .await()
-                .documents
-                .firstOrNull()
+                .whereEqualTo("usuario1Id", usuarioId)
+                .get().await()
 
-            val fecha = relacion?.getString("fechaInicio")
+            if (snapshot.documents.isEmpty()) {
+                snapshot = firestore
+                    .collection("relaciones")
+                    .whereEqualTo("usuario2Id", usuarioId)
+                    .get().await()
+            }
+
+            val doc = snapshot.documents.firstOrNull()
+
+            // ← Leer como Timestamp y convertir a String "yyyy-MM-dd"
+            val timestamp = doc?.getTimestamp("fechaInicio")
+            val fecha = timestamp?.toDate()?.let { date ->
+                java.text.SimpleDateFormat(
+                    "yyyy-MM-dd",
+                    java.util.Locale.getDefault()
+                ).format(date)
+            }
+
+            android.util.Log.d("PerfilRepo", "Fecha convertida: $fecha")
             Result.success(fecha)
         } catch (e: Exception) {
+            android.util.Log.e("PerfilRepo", "Error fecha: ${e.message}")
             Result.failure(e)
         }
     }
@@ -174,19 +211,34 @@ class PerfilRepositoryImpl(
         fecha: String
     ): Result<Unit> {
         return try {
-            val relacionDoc = firestore
+            // Convertir String a Timestamp
+            val sdf = java.text.SimpleDateFormat(
+                "yyyy-MM-dd", java.util.Locale.getDefault()
+            )
+            val date = sdf.parse(fecha)
+                ?: return Result.failure(Exception("Fecha inválida"))
+            val timestamp = com.google.firebase.Timestamp(date)
+
+            // Buscar la relacion por usuario1Id o usuario2Id
+            var snapshot = firestore
                 .collection("relaciones")
-                .whereArrayContains("participantes", usuarioId)
-                .get()
-                .await()
-                .documents
-                .firstOrNull()
+                .whereEqualTo("usuario1Id", usuarioId)
+                .get().await()
+
+            if (snapshot.documents.isEmpty()) {
+                snapshot = firestore
+                    .collection("relaciones")
+                    .whereEqualTo("usuario2Id", usuarioId)
+                    .get().await()
+            }
+
+            val relacionDoc = snapshot.documents.firstOrNull()
                 ?: return Result.failure(Exception("Relación no encontrada"))
 
             firestore
                 .collection("relaciones")
                 .document(relacionDoc.id)
-                .update("fechaInicio", fecha)
+                .update("fechaInicio", timestamp)
                 .await()
 
             Result.success(Unit)

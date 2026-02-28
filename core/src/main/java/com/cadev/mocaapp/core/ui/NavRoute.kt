@@ -39,6 +39,10 @@ sealed class NavRoutes(val route: String) {
         fun crearRuta(entradaId: String) = "detalle_entrada/$entradaId"
     }
 
+    object PerfilPareja : NavRoutes("perfil_pareja/{parejaId}") {
+        fun crearRuta(parejaId: String) = "perfil_pareja/$parejaId"
+    }
+
     //Eventos
     object Eventos     : NavRoutes("eventos")
     object CrearEvento : NavRoutes("crear_evento")

@@ -21,11 +21,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
+import com.cadev.mocaapp.feature.auth.domain.model.Usuario
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -35,7 +35,8 @@ fun PerfilScreen(
     viewModel: PerfilViewModel,
     usuarioId: String,
     parejaId: String?,
-    onIrAjustes: () -> Unit
+    onIrAjustes: () -> Unit,
+    onVerPerfilPareja: (parejaId: String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -65,7 +66,6 @@ fun PerfilScreen(
         ActivityResultContracts.RequestPermission()
     ) { concedido ->
         if (concedido) {
-            // Ahora context está disponible porque lo capturamos arriba
             val dir = File(context.cacheDir, "camera").also { it.mkdirs() }
             val archivo = File(dir, "${UUID.randomUUID()}.jpg")
             val uri = FileProvider.getUriForFile(
@@ -78,7 +78,6 @@ fun PerfilScreen(
         }
     }
 
-    // Diálogo opciones de foto
     if (mostrarOpcionesFoto) {
         AlertDialog(
             onDismissRequest = { mostrarOpcionesFoto = false },
@@ -87,9 +86,7 @@ fun PerfilScreen(
                 Column {
                     ListItem(
                         headlineContent = { Text("Elegir de galería") },
-                        leadingContent = {
-                            Icon(Icons.Filled.PhotoLibrary, null)
-                        },
+                        leadingContent = { Icon(Icons.Filled.PhotoLibrary, null) },
                         modifier = Modifier.clickable {
                             mostrarOpcionesFoto = false
                             launcherGaleria.launch("image/*")
@@ -98,14 +95,10 @@ fun PerfilScreen(
                     HorizontalDivider()
                     ListItem(
                         headlineContent = { Text("Tomar foto") },
-                        leadingContent = {
-                            Icon(Icons.Filled.PhotoCamera, null)
-                        },
+                        leadingContent = { Icon(Icons.Filled.PhotoCamera, null) },
                         modifier = Modifier.clickable {
                             mostrarOpcionesFoto = false
-                            launcherPermiso.launch(
-                                android.Manifest.permission.CAMERA
-                            )
+                            launcherPermiso.launch(android.Manifest.permission.CAMERA)
                         }
                     )
                 }
@@ -124,18 +117,15 @@ fun PerfilScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        //Header con gradiente
         HeaderPerfil(
             usuario = uiState.usuario,
             cargandoFoto = uiState.guardandoAjuste,
             onFotoClick = { mostrarOpcionesFoto = true },
-            onGaleriaClick = { launcherGaleria.launch("image/*") },
             onAjustesClick = onIrAjustes
         )
 
         Spacer(Modifier.height(24.dp))
 
-        // Estadísticas
         SeccionEstadisticas(
             diasJuntos = uiState.diasJuntos,
             totalEntradas = uiState.totalEntradas,
@@ -144,13 +134,14 @@ fun PerfilScreen(
 
         Spacer(Modifier.height(24.dp))
 
-        //Info de pareja
         if (uiState.pareja != null) {
-            SeccionPareja(pareja = uiState.pareja!!)
+            SeccionPareja(
+                pareja = uiState.pareja!!,
+                onVerPerfil = { onVerPerfilPareja(uiState.pareja!!.id) }
+            )
             Spacer(Modifier.height(24.dp))
         }
 
-        //Botón logout
         Button(
             onClick = { viewModel.logout() },
             modifier = Modifier
@@ -170,13 +161,11 @@ fun PerfilScreen(
     }
 }
 
-// Header
 @Composable
 private fun HeaderPerfil(
-    usuario: com.cadev.mocaapp.feature.auth.domain.model.Usuario?,
+    usuario: Usuario?,
     cargandoFoto: Boolean,
     onFotoClick: () -> Unit,
-    onGaleriaClick: () -> Unit,
     onAjustesClick: () -> Unit
 ) {
     Box(
@@ -186,7 +175,6 @@ private fun HeaderPerfil(
             .padding(top = 48.dp, bottom = 32.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Botón ajustes arriba a la derecha
         IconButton(
             onClick = onAjustesClick,
             modifier = Modifier
@@ -204,7 +192,6 @@ private fun HeaderPerfil(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Foto de perfil
             Box(
                 modifier = Modifier
                     .size(96.dp)
@@ -227,17 +214,14 @@ private fun HeaderPerfil(
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    // Inicial del nombre
                     Text(
-                        text = usuario?.nombre?.firstOrNull()
-                            ?.uppercase() ?: "?",
+                        text = usuario?.nombre?.firstOrNull()?.uppercase() ?: "?",
                         fontSize = 40.sp,
                         color = Color.White,
                         fontWeight = FontWeight.Bold
                     )
                 }
 
-                // Badge cámara
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -266,15 +250,12 @@ private fun HeaderPerfil(
                 Text(
                     text = usuario?.email ?: "",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                        .copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                 )
             }
         }
     }
 }
-
-//Estadísticas
 
 @Composable
 private fun SeccionEstadisticas(
@@ -282,15 +263,14 @@ private fun SeccionEstadisticas(
     totalEntradas: Int,
     fechaRelacion: String?
 ) {
-    val formatoFechaLegible = SimpleDateFormat(
-        "d 'de' MMMM, yyyy", Locale("es", "MX")
-    )
+    val formatoFechaLegible = SimpleDateFormat("d 'de' MMMM, yyyy", Locale("es", "MX"))
     val fechaVisible = fechaRelacion?.let {
         try {
             val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            formatoFechaLegible.format(sdf.parse(it)!!)
-                .replaceFirstChar { c -> c.uppercase() }
-        } catch (e: Exception) { it }
+            formatoFechaLegible.format(sdf.parse(it)!!).replaceFirstChar { c -> c.uppercase() }
+        } catch (e: Exception) {
+            it
+        }
     }
 
     Column(
@@ -309,15 +289,12 @@ private fun SeccionEstadisticas(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Días juntos
             TarjetaStat(
                 modifier = Modifier.weight(1f),
                 emoji = "💕",
                 valor = diasJuntos.toString(),
                 etiqueta = "Días juntos"
             )
-
-            // Total entradas
             TarjetaStat(
                 modifier = Modifier.weight(1f),
                 emoji = "📝",
@@ -332,9 +309,7 @@ private fun SeccionEstadisticas(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        MaterialTheme.colorScheme.secondaryContainer
-                    )
+                    .background(MaterialTheme.colorScheme.secondaryContainer)
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -345,12 +320,11 @@ private fun SeccionEstadisticas(
                         text = "Juntos desde",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
-                            .copy(alpha = 0.7f)
                     )
                     Text(
                         text = fechaVisible,
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
@@ -368,33 +342,31 @@ private fun TarjetaStat(
 ) {
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(vertical = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text(emoji, fontSize = 28.sp)
-        Spacer(Modifier.height(4.dp))
+        Text(text = emoji, fontSize = 28.sp)
         Text(
             text = valor,
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
         Text(
             text = etiqueta,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            textAlign = TextAlign.Center
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
         )
     }
 }
 
-//Info de pareja
-
 @Composable
-private fun SeccionPareja(
-    pareja: com.cadev.mocaapp.feature.auth.domain.model.Usuario
+fun SeccionPareja(
+    pareja: Usuario,
+    onVerPerfil: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -413,54 +385,55 @@ private fun SeccionPareja(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clickable(onClick = onVerPerfil)
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Foto o inicial de la pareja
+            // Foto
             Box(
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(
-                        MaterialTheme.colorScheme.secondary
-                            .copy(alpha = 0.2f)
-                    ),
+                    .background(MaterialTheme.colorScheme.primary),
                 contentAlignment = Alignment.Center
             ) {
                 if (!pareja.fotoPerfil.isNullOrBlank()) {
                     AsyncImage(
                         model = pareja.fotoPerfil,
-                        contentDescription = null,
+                        contentDescription = "Foto de perfil de pareja",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
                     Text(
-                        text = pareja.nombre.firstOrNull()
-                            ?.uppercase() ?: "?",
+                        text = pareja.nombre.firstOrNull()?.uppercase() ?: "?",
                         fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.secondary
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
 
+            // Nombre y email
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = pareja.nombre,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = pareja.email,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                        .copy(alpha = 0.6f)
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
             }
 
-            Text("💕", fontSize = 24.sp)
+            Icon(
+                Icons.Filled.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+            )
         }
     }
 }

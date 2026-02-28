@@ -13,7 +13,9 @@ object UsuarioHelper {
                 .await()
                 .getString("parejaId")
         } catch (e: Exception) {
+            e.printStackTrace()
             null
+
         }
     }
 }

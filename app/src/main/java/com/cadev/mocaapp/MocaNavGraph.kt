@@ -1,6 +1,7 @@
 package com.cadev.mocaapp
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -15,7 +16,6 @@ import com.cadev.mocaapp.feature.auth.ui.AuthViewModel
 import com.cadev.mocaapp.feature.auth.ui.LoginScreen
 import com.cadev.mocaapp.feature.auth.ui.RegistroScreen
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
-import com.cadev.mocaapp.feature.diario.ui.CalendarioScreen
 import com.cadev.mocaapp.feature.diario.ui.CrearEntradaScreen
 import com.cadev.mocaapp.feature.diario.ui.DetalleDiaScreen
 import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
@@ -30,7 +30,7 @@ import kotlinx.coroutines.runBlocking
 import com.cadev.mocaapp.feature.diario.ui.DetalleEntradaScreen
 import com.cadev.mocaapp.feature.perfil.ui.AjustesScreen
 import com.cadev.mocaapp.feature.perfil.ui.PerfilViewModel
-
+import com.cadev.mocaapp.feature.perfil.ui.PerfilParejaScreen
 
 @Composable
 fun MocaNavGraph(
@@ -44,7 +44,6 @@ fun MocaNavGraph(
     ) {
 
         //Auth
-
         composable(NavRoutes.Login.route) {
             val viewModel: AuthViewModel = viewModel(factory = factory)
             LoginScreen(
@@ -116,7 +115,6 @@ fun MocaNavGraph(
         }
 
         //Diario
-
         composable(
             route = NavRoutes.DetalleDia.route,
             arguments = listOf(
@@ -220,12 +218,62 @@ fun MocaNavGraph(
             )
         }
 
-        composable(NavRoutes.Ajustes.route) {
-            val viewModel: PerfilViewModel = viewModel(factory = factory)
+        composable(NavRoutes.Ajustes.route) { backStackEntry ->
+            //Compartir el ViewModel con Main para no perder los datos
+            val mainEntry = remember(backStackEntry) {
+                try {
+                    navController.getBackStackEntry(NavRoutes.Main.route)
+                } catch (e: Exception) {
+                    backStackEntry
+                }
+            }
+            val viewModel: PerfilViewModel = viewModel(
+                viewModelStoreOwner = mainEntry,
+                factory = factory
+            )
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            val parejaId = remember(uid) {
+                runBlocking { UsuarioHelper.obtenerParejaId(uid) }
+            }
+            // Cargar solo si no hay datos todavía
+            LaunchedEffect(uid) {
+                if (viewModel.uiState.value.usuario == null) {
+                    viewModel.cargarPerfil(uid, parejaId)
+                }
+            }
             AjustesScreen(
                 viewModel = viewModel,
                 usuarioId = uid,
+                parejaId = parejaId,
+                onRegresar = { navController.popBackStack() }
+            )
+        }
+
+
+        composable(
+            route = NavRoutes.PerfilPareja.route,
+            arguments = listOf(
+                navArgument("parejaId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val parejaId = backStackEntry.arguments?.getString("parejaId") ?: ""
+
+            // Compartir el ViewModel con Main para reusar datos ya cargados
+            val mainEntry = remember(backStackEntry) {
+                try {
+                    navController.getBackStackEntry(NavRoutes.Main.route)
+                } catch (e: Exception) {
+                    backStackEntry
+                }
+            }
+            val viewModel: PerfilViewModel = viewModel(
+                viewModelStoreOwner = mainEntry,
+                factory = factory
+            )
+
+            PerfilParejaScreen(
+                viewModel = viewModel,
+                parejaId = parejaId,
                 onRegresar = { navController.popBackStack() }
             )
         }

@@ -26,7 +26,8 @@ data class PerfilUiState(
     val fechaRelacion: String? = null,
     //Ajustes
     val guardandoAjuste: Boolean = false,
-    val ajusteExitoso: Boolean = false
+    val ajusteExitoso: Boolean = false,
+    val entradasPareja: Int = 0
 )
 
 class PerfilViewModel(
@@ -41,38 +42,45 @@ class PerfilViewModel(
     )
 
     fun cargarPerfil(usuarioId: String, parejaId: String?) {
+        android.util.Log.d("PerfilVM", "cargarPerfil uid=$usuarioId parejaId=$parejaId")
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(cargando = true)
 
-            // Cargar usuario
             repository.obtenerUsuario(usuarioId).fold(
                 onSuccess = { usuario ->
+                    android.util.Log.d("PerfilVM", "Usuario cargado: ${usuario.nombre}")
                     _uiState.value = _uiState.value.copy(usuario = usuario)
                 },
-                onFailure = { }
+                onFailure = { android.util.Log.e("PerfilVM", "Error usuario: ${it.message}") }
             )
 
-            // Cargar pareja
             if (parejaId != null) {
+                android.util.Log.d("PerfilVM", "Cargando pareja: $parejaId")
                 repository.obtenerPareja(parejaId).fold(
                     onSuccess = { pareja ->
+                        android.util.Log.d("PerfilVM", "Pareja cargada: ${pareja.nombre}")
                         _uiState.value = _uiState.value.copy(pareja = pareja)
+                    },
+                    onFailure = { android.util.Log.e("PerfilVM", "Error pareja: ${it.message}") }
+                )
+
+                repository.contarEntradas(parejaId).fold(
+                    onSuccess = { count ->
+                        _uiState.value = _uiState.value.copy(entradasPareja = count)
                     },
                     onFailure = { }
                 )
+            } else {
+                android.util.Log.w("PerfilVM", "parejaId es null — no se cargará pareja")
             }
 
-            // Contar entradas
             repository.contarEntradas(usuarioId).fold(
                 onSuccess = { count ->
-                    _uiState.value = _uiState.value.copy(
-                        totalEntradas = count
-                    )
+                    _uiState.value = _uiState.value.copy(totalEntradas = count)
                 },
                 onFailure = { }
             )
 
-            // Fecha de relación, calcular días juntos
             repository.obtenerFechaRelacion(usuarioId).fold(
                 onSuccess = { fecha ->
                     val dias = calcularDiasJuntos(fecha)
@@ -83,9 +91,7 @@ class PerfilViewModel(
                     )
                 },
                 onFailure = {
-                    _uiState.value = _uiState.value.copy(
-                        cargando = false
-                    )
+                    _uiState.value = _uiState.value.copy(cargando = false)
                 }
             )
         }
@@ -263,7 +269,9 @@ class PerfilViewModel(
             val hoy = Date()
             val diff = hoy.time - inicio.time
             TimeUnit.MILLISECONDS.toDays(diff)
-        } catch (e: Exception) { 0 }
+        } catch (e: Exception) {
+            0
+        }
     }
 
     private fun traducirError(mensaje: String): String = when {

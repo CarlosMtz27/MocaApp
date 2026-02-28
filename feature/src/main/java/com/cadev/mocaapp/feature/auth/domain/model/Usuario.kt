@@ -4,10 +4,9 @@ data class Usuario(
     val id: String = "",
     val nombre: String = "",
     val email: String = "",
-    val fotoUrl: String? = null,
     val codigoPareja: String = "",
-    val parejaId: String? = null,
-    val relacionId: String? = null,
+    val parejaId: String = "",
+    val relacionId: String = "",
+    val fotoUrl: String? = null,
     val fotoPerfil: String = ""
-
 )
