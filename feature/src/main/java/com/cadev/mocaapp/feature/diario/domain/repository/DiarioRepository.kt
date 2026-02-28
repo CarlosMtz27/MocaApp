@@ -1,5 +1,6 @@
 package com.cadev.mocaapp.feature.diario.domain.repository
 
+import com.cadev.mocaapp.feature.diario.domain.model.Comentario
 import com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario
 
 interface DiarioRepository {
@@ -41,4 +42,20 @@ interface DiarioRepository {
         fotosEliminar: List<String>,    // URLs de fotos a eliminar de Storage
         videosEliminar: List<String>    // URLs de videos a eliminar de Storage
     ): Result<EntradaDiario>
+
+
+    // Obtener comentarios de una entrada
+    suspend fun obtenerComentarios(
+        entradaId: String
+    ): Result<List<Comentario>>
+
+    // Agregar comentario
+    suspend fun agregarComentario(
+        comentario: Comentario
+    ): Result<Comentario>
+
+    // Eliminar comentario
+    suspend fun eliminarComentario(
+        comentarioId: String
+    ): Result<Unit>
 }

@@ -35,6 +35,10 @@ sealed class NavRoutes(val route: String) {
         fun crearRuta(entradaId: String) = "editar_entrada/$entradaId"
     }
 
+    object DetalleEntrada : NavRoutes("detalle_entrada/{entradaId}") {
+        fun crearRuta(entradaId: String) = "detalle_entrada/$entradaId"
+    }
+
     //Eventos
     object Eventos     : NavRoutes("eventos")
     object CrearEvento : NavRoutes("crear_evento")

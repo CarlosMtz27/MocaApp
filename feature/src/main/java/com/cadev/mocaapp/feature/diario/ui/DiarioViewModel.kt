@@ -2,16 +2,19 @@ package com.cadev.mocaapp.feature.diario.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cadev.mocaapp.feature.diario.domain.model.Comentario
 import com.cadev.mocaapp.feature.diario.domain.model.Emocion
 import com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario
 import com.cadev.mocaapp.feature.diario.domain.model.EtiquetaDiaEspecial
 import com.cadev.mocaapp.feature.diario.domain.model.EtiquetaEvento
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
 import com.cadev.mocaapp.feature.diario.domain.repository.DiarioRepository
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -22,7 +25,7 @@ data class DiarioUiState(
     val entradas: List<EntradaDiario> = emptyList(),
     val diasConEntrada: Map<String, List<String>> = emptyMap(),
     val entradaCreada: Boolean = false,
-    // ── Formulario ────────────────────────────────────────────
+    // Formulario
     val titulo: String = "",
     val detalles: String = "",
     val etiqueta: String = "",
@@ -31,11 +34,16 @@ data class DiarioUiState(
     val fotosSeleccionadas: List<String> = emptyList(),
     val videosSeleccionados: List<String> = emptyList(),
     val compartir: Boolean = false,
+    // Edicion
     val entradaActual: EntradaDiario? = null,
     val entradaActualizada: Boolean = false,
-    // Fotos/videos que el usuario eliminó (para borrarlos de Storage)
     val fotosAEliminar: List<String> = emptyList(),
-    val videosAEliminar: List<String> = emptyList()
+    val videosAEliminar: List<String> = emptyList(),
+    // Detalle + comentarios
+    val entradaDetalle: EntradaDiario? = null,
+    val comentarios: List<Comentario> = emptyList(),
+    val nuevoComentario: String = "",
+    val nombreUsuario: String = ""
 )
 
 class DiarioViewModel(
@@ -47,8 +55,24 @@ class DiarioViewModel(
 
     private val formatoFecha = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
-    //Calendario
+    // Nombre de usuario
+    fun cargarNombreUsuario(usuarioId: String) {
+        viewModelScope.launch {
+            try {
+                val doc = FirebaseFirestore.getInstance()
+                    .collection("usuarios")
+                    .document(usuarioId)
+                    .get()
+                    .await()
+                val nombre = doc.getString("nombre") ?: "Usuario"
+                _uiState.value = _uiState.value.copy(nombreUsuario = nombre)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(nombreUsuario = "Usuario")
+            }
+        }
+    }
 
+    //Calendario
     fun cargarMes(usuarioId: String, parejaId: String?, anio: Int, mes: Int) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(cargando = true)
@@ -99,7 +123,7 @@ class DiarioViewModel(
         }
     }
 
-    //Formulario
+    //Formulario nueva entrada
 
     fun actualizarTitulo(valor: String) {
         _uiState.value = _uiState.value.copy(titulo = valor)
@@ -167,15 +191,10 @@ class DiarioViewModel(
             return
         }
 
-        // Si eligió "Otra", usar el texto personalizado
         val etiquetaFinal = if (
             estado.etiqueta == EtiquetaEvento.PERSONALIZADA.etiqueta ||
             estado.etiqueta == EtiquetaDiaEspecial.PERSONALIZADA.etiqueta
-        ) {
-            estado.etiquetaPersonalizada
-        } else {
-            estado.etiqueta
-        }
+        ) estado.etiquetaPersonalizada else estado.etiqueta
 
         viewModelScope.launch {
             _uiState.value = estado.copy(cargando = true, error = null)
@@ -214,6 +233,25 @@ class DiarioViewModel(
         }
     }
 
+    fun limpiarFormulario() {
+        _uiState.value = _uiState.value.copy(
+            titulo = "",
+            detalles = "",
+            etiqueta = "",
+            etiquetaPersonalizada = "",
+            emocionesSeleccionadas = emptyList(),
+            fotosSeleccionadas = emptyList(),
+            videosSeleccionados = emptyList(),
+            compartir = false,
+            entradaCreada = false,
+            entradaActualizada = false,
+            entradaActual = null,
+            fotosAEliminar = emptyList(),
+            videosAEliminar = emptyList(),
+            error = null
+        )
+    }
+
     //Edición
 
     fun cargarEntradaParaEditar(entradaId: String) {
@@ -222,7 +260,6 @@ class DiarioViewModel(
 
             repository.obtenerEntradaPorId(entradaId).fold(
                 onSuccess = { entrada ->
-                    // Pre-cargar el formulario con los datos existentes
                     val emociones = entrada.emociones.mapNotNull { nombre ->
                         try { Emocion.valueOf(nombre) } catch (e: Exception) { null }
                     }
@@ -233,8 +270,6 @@ class DiarioViewModel(
                         detalles = entrada.detalles,
                         etiqueta = entrada.etiqueta,
                         emocionesSeleccionadas = emociones,
-                        // Las fotos/videos existentes van en el estado
-                        // pero como URLs remotas, no rutas locales
                         compartir = entrada.compartida,
                         entradaActualizada = false
                     )
@@ -251,7 +286,6 @@ class DiarioViewModel(
 
     fun eliminarFotoExistente(url: String) {
         val entrada = _uiState.value.entradaActual ?: return
-        // Quitar de la entrada actual y marcar para eliminar de Storage
         _uiState.value = _uiState.value.copy(
             entradaActual = entrada.copy(
                 fotos = entrada.fotos.filter { it != url }
@@ -287,7 +321,6 @@ class DiarioViewModel(
         viewModelScope.launch {
             _uiState.value = estado.copy(cargando = true, error = null)
 
-            // Entrada con los cambios del formulario
             val entradaActualizada = entradaOriginal.copy(
                 titulo = estado.titulo,
                 detalles = estado.detalles,
@@ -295,7 +328,6 @@ class DiarioViewModel(
                 emociones = estado.emocionesSeleccionadas.map { it.name },
                 compartida = estado.compartir,
                 parejaId = if (estado.compartir) parejaId else null
-                // fotos y videos se manejan en el repositorio
             )
 
             repository.actualizarEntrada(
@@ -321,23 +353,123 @@ class DiarioViewModel(
         }
     }
 
-    fun limpiarFormulario() {
-        _uiState.value = _uiState.value.copy(
-            titulo = "",
-            detalles = "",
-            etiqueta = "",
-            etiquetaPersonalizada = "",
-            emocionesSeleccionadas = emptyList(),
-            fotosSeleccionadas = emptyList(),
-            videosSeleccionados = emptyList(),
-            compartir = false,
-            entradaCreada = false,
-            entradaActualizada = false,
-            entradaActual = null,
-            fotosAEliminar = emptyList(),
-            videosAEliminar = emptyList(),
-            error = null
-        )
+    // Detalle mas comentarios
+
+    fun cargarDetalle(entradaId: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                cargando = true,
+                comentarios = emptyList(),
+                entradaDetalle = null
+            )
+
+            repository.obtenerEntradaPorId(entradaId).fold(
+                onSuccess = { entrada ->
+                    _uiState.value = _uiState.value.copy(
+                        entradaDetalle = entrada,
+                        cargando = false
+                    )
+                },
+                onFailure = {
+                    _uiState.value = _uiState.value.copy(
+                        cargando = false,
+                        error = "No se pudo cargar la entrada"
+                    )
+                }
+            )
+
+            cargarComentarios(entradaId)
+        }
+    }
+
+    fun cargarComentarios(entradaId: String) {
+        viewModelScope.launch {
+            repository.obtenerComentarios(entradaId).fold(
+                onSuccess = { comentarios ->
+                    // Obtener nombres de todos los usuarios únicos
+                    val usuariosUnicos = comentarios
+                        .map { it.usuarioId }
+                        .distinct()
+
+                    // Cargar nombres de Firestore para los que no tienen nombre
+                    val nombresMap = mutableMapOf<String, String>()
+                    usuariosUnicos.forEach { uid ->
+                        try {
+                            val doc = FirebaseFirestore.getInstance()
+                                .collection("usuarios")
+                                .document(uid)
+                                .get()
+                                .await()
+                            nombresMap[uid] = doc.getString("nombre") ?: "Usuario"
+                        } catch (e: Exception) {
+                            nombresMap[uid] = "Usuario"
+                        }
+                    }
+
+                    // Enriquecer comentarios con nombres correctos
+                    val comentariosConNombre = comentarios.map { comentario ->
+                        if (comentario.nombreUsuario.isBlank()) {
+                            comentario.copy(
+                                nombreUsuario = nombresMap[comentario.usuarioId] ?: "Usuario"
+                            )
+                        } else comentario
+                    }
+
+                    _uiState.value = _uiState.value.copy(
+                        comentarios = comentariosConNombre
+                    )
+                },
+                onFailure = { }
+            )
+        }
+    }
+
+    fun actualizarNuevoComentario(valor: String) {
+        _uiState.value = _uiState.value.copy(nuevoComentario = valor)
+    }
+
+    fun publicarComentario(usuarioId: String, nombreUsuario: String) {
+        val texto = _uiState.value.nuevoComentario.trim()
+        val entradaId = _uiState.value.entradaDetalle?.id ?: return
+
+        if (texto.isBlank()) return
+
+        viewModelScope.launch {
+            val comentario = Comentario(
+                entradaId = entradaId,
+                usuarioId = usuarioId,
+                nombreUsuario = nombreUsuario,
+                texto = texto,
+                creadoEn = Date()
+            )
+
+            repository.agregarComentario(comentario).fold(
+                onSuccess = {
+                    _uiState.value = _uiState.value.copy(
+                        nuevoComentario = ""
+                    )
+                    cargarComentarios(entradaId)
+                },
+                onFailure = {
+                    _uiState.value = _uiState.value.copy(
+                        error = "No se pudo publicar el comentario"
+                    )
+                }
+            )
+        }
+    }
+
+    fun eliminarComentario(comentarioId: String) {
+        val entradaId = _uiState.value.entradaDetalle?.id ?: return
+        viewModelScope.launch {
+            repository.eliminarComentario(comentarioId).fold(
+                onSuccess = {
+                    // Recargar lista en lugar de filtrar localmente
+                    cargarComentarios(entradaId)
+                },
+                onFailure = { }
+            )
+        }
     }
 
     fun fechaHoy(): String = formatoFecha.format(Date())

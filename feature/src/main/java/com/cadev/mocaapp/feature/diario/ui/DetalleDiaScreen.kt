@@ -1,6 +1,7 @@
 package com.cadev.mocaapp.feature.diario.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -32,7 +33,8 @@ fun DetalleDiaScreen(
     fecha: String,
     onRegresar: () -> Unit,
     onEditarEntrada: (entradaId: String) -> Unit,
-    onCrearEntrada: (fecha: String, tipo: String) -> Unit
+    onCrearEntrada: (fecha: String, tipo: String) -> Unit,
+    onVerDetalle: (entradaId: String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -140,7 +142,8 @@ fun DetalleDiaScreen(
                     TarjetaEntrada(
                         entrada = entrada,
                         esMia = entrada.usuarioId == usuarioId,
-                        onEditar = { onEditarEntrada(entrada.id) }
+                        onEditar = { onEditarEntrada(entrada.id) },
+                        onVerDetalle = { onVerDetalle(entrada.id) }
                     )
                 }
             }
@@ -263,7 +266,8 @@ private fun OpcionFab(
 private fun TarjetaEntrada(
     entrada: EntradaDiario,
     esMia: Boolean,
-    onEditar: () -> Unit
+    onEditar: () -> Unit,
+    onVerDetalle: () -> Unit
 ) {
     val tipo = try {
         TipoEntrada.valueOf(entrada.tipo)
@@ -276,7 +280,9 @@ private fun TarjetaEntrada(
     )
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onVerDetalle),  // ← agregar esto
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {

@@ -31,7 +31,7 @@ class AuthViewModel(
         }
 
         // viewModelScope: el trabajo se cancela si el usuario
-        // sale de la pantalla — evita memory leaks
+        // sale de la pantalla, evita memory leaks
         viewModelScope.launch {
             _uiState.value = AuthUiState(cargando = true)
 

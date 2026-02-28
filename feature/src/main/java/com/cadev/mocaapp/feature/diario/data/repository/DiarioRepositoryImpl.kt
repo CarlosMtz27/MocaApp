@@ -1,6 +1,7 @@
 package com.cadev.mocaapp.feature.diario.data.repository
 
 import android.net.Uri
+import com.cadev.mocaapp.feature.diario.domain.model.Comentario
 import com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
 import com.cadev.mocaapp.feature.diario.domain.repository.DiarioRepository
@@ -189,13 +190,13 @@ class DiarioRepositoryImpl(
             val prefijo = "$anio-$mesFormateado"
             val diasConEntrada = mutableMapOf<String, MutableList<String>>()
 
+            //Solo un whereEqualTo — no requiere índice compuesto
             firestore.collection("entradas")
                 .whereEqualTo("usuarioId", usuarioId)
-                .whereGreaterThanOrEqualTo("fecha", "$prefijo-01")
-                .whereLessThanOrEqualTo("fecha", "$prefijo-31")
                 .get().await()
                 .documents.forEach { doc ->
                     val fecha = doc.getString("fecha") ?: return@forEach
+                    if (!fecha.startsWith(prefijo)) return@forEach  // filtro en memoria
                     val tipo = doc.getString("tipo") ?: TipoEntrada.MI_DIA.name
                     diasConEntrada.getOrPut(fecha) { mutableListOf() }.add(tipo)
                 }
@@ -204,11 +205,10 @@ class DiarioRepositoryImpl(
                 firestore.collection("entradas")
                     .whereEqualTo("usuarioId", parejaId)
                     .whereEqualTo("compartida", true)
-                    .whereGreaterThanOrEqualTo("fecha", "$prefijo-01")
-                    .whereLessThanOrEqualTo("fecha", "$prefijo-31")
                     .get().await()
                     .documents.forEach { doc ->
                         val fecha = doc.getString("fecha") ?: return@forEach
+                        if (!fecha.startsWith(prefijo)) return@forEach
                         val tipo = doc.getString("tipo") ?: TipoEntrada.MI_DIA.name
                         diasConEntrada.getOrPut(fecha) { mutableListOf() }.add(tipo)
                     }
@@ -221,7 +221,6 @@ class DiarioRepositoryImpl(
     }
 
     //Cloudinary: subir archivo
-
     private suspend fun subirArchivo(
         rutaLocal: String,
         usuarioId: String,
@@ -276,5 +275,60 @@ class DiarioRepositoryImpl(
             .substringAfter("/upload/")
             .substringAfter("/")  // quita la versión v123
             .substringBeforeLast(".")  // quita la extensión
+    }
+
+    override suspend fun obtenerComentarios(
+        entradaId: String
+    ): Result<List<Comentario>> {
+        return try {
+            val snapshot = firestore
+                .collection("comentarios")
+                .whereEqualTo("entradaId", entradaId)
+                .get()
+                .await()
+
+            val comentarios = snapshot.documents
+                .mapNotNull { it.toObject(Comentario::class.java) }
+                .sortedBy { it.creadoEn }  //Ordenamos en memoria
+
+            Result.success(comentarios)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun agregarComentario(
+        comentario: Comentario
+    ): Result<Comentario> {
+        return try {
+            val id = firestore.collection("comentarios").document().id
+            val comentarioFinal = comentario.copy(id = id)
+
+            firestore
+                .collection("comentarios")
+                .document(id)
+                .set(comentarioFinal)
+                .await()
+
+            Result.success(comentarioFinal)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun eliminarComentario(
+        comentarioId: String
+    ): Result<Unit> {
+        return try {
+            firestore
+                .collection("comentarios")
+                .document(comentarioId)
+                .delete()
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

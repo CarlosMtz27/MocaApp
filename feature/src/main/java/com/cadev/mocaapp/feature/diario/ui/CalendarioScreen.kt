@@ -17,6 +17,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
 import java.text.SimpleDateFormat
 import java.util.*
@@ -37,8 +39,21 @@ fun CalendarioScreen(
     val anio = calendario.get(Calendar.YEAR)
     val mes = calendario.get(Calendar.MONTH) + 1
 
+    // Cargar mes al entrar o al cambiar de mes
     LaunchedEffect(anio, mes) {
         viewModel.cargarMes(usuarioId, parejaId, anio, mes)
+    }
+
+    // Recargar cuando la pantalla vuelve a ser visible
+    // por ejemplo al regresar de CrearEntrada o DetalleDia
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(lifecycle) {
+        snapshotFlow { lifecycle.currentState }
+            .collect { state ->
+                if (state == Lifecycle.State.RESUMED) {
+                    viewModel.cargarMes(usuarioId, parejaId, anio, mes)
+                }
+            }
     }
 
     Column(
@@ -66,11 +81,9 @@ fun CalendarioScreen(
 
         Spacer(Modifier.height(8.dp))
 
-        if (uiState.cargando) {
+        if (uiState.cargando && uiState.diasConEntrada.isEmpty()) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp),
+                modifier = Modifier.fillMaxWidth().height(300.dp),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(
@@ -108,7 +121,7 @@ private fun EncabezadoMes(
     ) {
         IconButton(onClick = onMesAnterior) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Mes anterior",
                 tint = MaterialTheme.colorScheme.primary
             )
@@ -123,7 +136,7 @@ private fun EncabezadoMes(
 
         IconButton(onClick = onMesSiguiente) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = "Mes siguiente",
                 tint = MaterialTheme.colorScheme.primary
             )
@@ -131,7 +144,7 @@ private fun EncabezadoMes(
     }
 }
 
-// Dias de la semana
+//Días de la semana
 
 @Composable
 private fun DiasDelaSemana() {
@@ -183,14 +196,15 @@ private fun CuadriculaMes(
                                 set(anio, mes, dia)
                             }
                             val fechaStr = formatoFecha.format(fechaCelda.time)
-                            val tipos = diasConEntrada[fechaStr]
-                                ?: emptyList()
+                            val tipos = diasConEntrada[fechaStr] ?: emptyList()
                             val esHoy = fechaStr == hoy
+                            val tieneEntrada = tipos.isNotEmpty()
 
                             CeldaDia(
                                 dia = dia,
                                 esHoy = esHoy,
                                 tipos = tipos,
+                                tieneEntrada = tieneEntrada,
                                 onClick = { onDiaClick(fechaStr) }
                             )
                         }
@@ -208,13 +222,24 @@ private fun CeldaDia(
     dia: Int,
     esHoy: Boolean,
     tipos: List<String>,
+    tieneEntrada: Boolean,
     onClick: () -> Unit
 ) {
+    // Color de fondo si tiene entradas, usa el color del primer tipo
+    val colorFondo = if (tieneEntrada) {
+        val primerTipo = try {
+            TipoEntrada.valueOf(tipos.first())
+        } catch (e: Exception) { TipoEntrada.MI_DIA }
+        Color(android.graphics.Color.parseColor("#${primerTipo.colorHex}"))
+            .copy(alpha = 0.15f)
+    } else Color.Transparent
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .padding(2.dp)
             .clip(RoundedCornerShape(8.dp))
+            .background(colorFondo)
             .clickable(onClick = onClick)
             .padding(vertical = 6.dp)
     ) {
@@ -224,39 +249,41 @@ private fun CeldaDia(
                 .size(32.dp)
                 .clip(CircleShape)
                 .background(
-                    if (esHoy) MaterialTheme.colorScheme.primaryContainer
-                    else Color.Transparent
+                    when {
+                        esHoy -> MaterialTheme.colorScheme.primaryContainer
+                        else -> Color.Transparent
+                    }
                 )
         ) {
             Text(
                 text = dia.toString(),
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (esHoy) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurface,
+                color = when {
+                    esHoy -> MaterialTheme.colorScheme.primary
+                    tieneEntrada -> MaterialTheme.colorScheme.onSurface
+                    else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                },
                 textAlign = TextAlign.Center
             )
         }
 
         Spacer(Modifier.height(3.dp))
 
-        // Un punto por cada tipo único — máximo 3
+        // Puntos de colores, uno por cada tipo único
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             tipos.distinct().take(3).forEach { tipoNombre ->
                 val tipo = try {
                     TipoEntrada.valueOf(tipoNombre)
-                } catch (e: Exception) {
-                    TipoEntrada.MI_DIA
-                }
+                } catch (e: Exception) { TipoEntrada.MI_DIA }
+
                 Box(
                     modifier = Modifier
                         .size(5.dp)
                         .clip(CircleShape)
                         .background(
-                            Color(
-                                android.graphics.Color.parseColor(
-                                    "#${tipo.colorHex}"
-                                )
-                            )
+                            Color(android.graphics.Color.parseColor(
+                                "#${tipo.colorHex}"
+                            ))
                         )
                 )
             }
@@ -268,7 +295,6 @@ private fun CeldaDia(
 
 @Composable
 private fun Leyenda() {
-    // Dividimos los 4 tipos en 2 filas de 2
     val tiposFilas = TipoEntrada.entries.chunked(2)
 
     Column(
@@ -291,11 +317,9 @@ private fun Leyenda() {
                                 .size(8.dp)
                                 .clip(CircleShape)
                                 .background(
-                                    Color(
-                                        android.graphics.Color.parseColor(
-                                            "#${tipo.colorHex}"
-                                        )
-                                    )
+                                    Color(android.graphics.Color.parseColor(
+                                        "#${tipo.colorHex}"
+                                    ))
                                 )
                         )
                         Text(
