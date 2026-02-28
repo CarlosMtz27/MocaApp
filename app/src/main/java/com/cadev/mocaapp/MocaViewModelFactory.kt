@@ -6,15 +6,12 @@ import com.cadev.mocaapp.feature.auth.data.repository.AuthRepositoryImpl
 import com.cadev.mocaapp.feature.auth.ui.AuthViewModel
 import com.cadev.mocaapp.feature.diario.data.repository.DiarioRepositoryImpl
 import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 import com.cadev.mocaapp.feature.pareja.data.repository.ParejaRepositoryImpl
 import com.cadev.mocaapp.feature.pareja.ui.ParejaViewModel
-import com.google.firebase.storage.FirebaseStorage
-
-
-// Este Factory vive en app/el único módulo que puede,
-// conocer todos los demás.
+import com.cadev.mocaapp.feature.perfil.data.repository.PerfilRepositoryImpl
+import com.cadev.mocaapp.feature.perfil.ui.PerfilViewModel
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 class MocaViewModelFactory : ViewModelProvider.Factory {
 
@@ -24,16 +21,24 @@ class MocaViewModelFactory : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when {
             modelClass.isAssignableFrom(AuthViewModel::class.java) ->
-                AuthViewModel(AuthRepositoryImpl(auth, firestore)) as T
+                AuthViewModel(
+                    AuthRepositoryImpl(auth, firestore)
+                ) as T
 
             modelClass.isAssignableFrom(ParejaViewModel::class.java) ->
-                ParejaViewModel(ParejaRepositoryImpl(firestore)) as T
+                ParejaViewModel(
+                    ParejaRepositoryImpl(firestore)
+                ) as T
 
             modelClass.isAssignableFrom(DiarioViewModel::class.java) ->
                 DiarioViewModel(
                     DiarioRepositoryImpl(firestore)
                 ) as T
 
+            modelClass.isAssignableFrom(PerfilViewModel::class.java) ->
+                PerfilViewModel(
+                    PerfilRepositoryImpl(auth, firestore)
+                ) as T
 
             else -> throw IllegalArgumentException(
                 "ViewModel no registrado: ${modelClass.name}"

@@ -21,6 +21,8 @@ import com.cadev.mocaapp.core.ui.PlaceholderScreen
 import com.cadev.mocaapp.feature.pareja.data.UsuarioHelper
 import com.cadev.mocaapp.feature.diario.ui.CalendarioScreen
 import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
+import com.cadev.mocaapp.feature.perfil.ui.PerfilScreen
+import com.cadev.mocaapp.feature.perfil.ui.PerfilViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.runBlocking
 
@@ -110,7 +112,19 @@ fun MainScreen(factory: ViewModelProvider.Factory,
                 PlaceholderScreen("📋 Cuestionarios")
             }
             composable(NavRoutes.Perfil.route) {
-                PlaceholderScreen("👤 Perfil")
+                val viewModel: PerfilViewModel = viewModel(factory = factory)
+                val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                val parejaId = remember(uid) {
+                    runBlocking { UsuarioHelper.obtenerParejaId(uid) }
+                }
+                PerfilScreen(
+                    viewModel = viewModel,
+                    usuarioId = uid,
+                    parejaId = parejaId,
+                    onIrAjustes = {
+                        navController.navigate(NavRoutes.Ajustes.route)
+                    }
+                )
             }
         }
     }

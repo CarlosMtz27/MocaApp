@@ -7,5 +7,7 @@ data class Usuario(
     val fotoUrl: String? = null,
     val codigoPareja: String = "",
     val parejaId: String? = null,
-    val relacionId: String? = null
+    val relacionId: String? = null,
+    val fotoPerfil: String = ""
+
 )

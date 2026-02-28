@@ -28,6 +28,8 @@ import com.cadev.mocaapp.feature.pareja.ui.ParejaViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.runBlocking
 import com.cadev.mocaapp.feature.diario.ui.DetalleEntradaScreen
+import com.cadev.mocaapp.feature.perfil.ui.AjustesScreen
+import com.cadev.mocaapp.feature.perfil.ui.PerfilViewModel
 
 
 @Composable
@@ -155,7 +157,7 @@ fun MocaNavGraph(
             route = NavRoutes.CrearEntrada.route,
             arguments = listOf(
                 navArgument("fecha") { type = NavType.StringType },
-                navArgument("tipo") { type = NavType.StringType }  // ← clave
+                navArgument("tipo") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val fecha = backStackEntry.arguments?.getString("fecha") ?: ""
@@ -215,6 +217,16 @@ fun MocaNavGraph(
                 onEditar = { id ->
                     navController.navigate(NavRoutes.EditarEntrada.crearRuta(id))
                 }
+            )
+        }
+
+        composable(NavRoutes.Ajustes.route) {
+            val viewModel: PerfilViewModel = viewModel(factory = factory)
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            AjustesScreen(
+                viewModel = viewModel,
+                usuarioId = uid,
+                onRegresar = { navController.popBackStack() }
             )
         }
 
