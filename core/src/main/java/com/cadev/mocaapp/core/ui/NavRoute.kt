@@ -1,5 +1,5 @@
 package com.cadev.mocaapp.core.ui
-
+import android.net.Uri
 sealed class NavRoutes(val route: String) {
 
     //Auth
@@ -18,7 +18,6 @@ sealed class NavRoutes(val route: String) {
     //Tabs
     object Home          : NavRoutes("home")
     object Calendario    : NavRoutes("calendario")
-    object Chat          : NavRoutes("chat")
     object Cuestionarios : NavRoutes("cuestionarios")
     object Perfil        : NavRoutes("perfil")
 
@@ -41,6 +40,11 @@ sealed class NavRoutes(val route: String) {
 
     object PerfilPareja : NavRoutes("perfil_pareja/{parejaId}") {
         fun crearRuta(parejaId: String) = "perfil_pareja/$parejaId"
+    }
+
+    object Chat : NavRoutes("chat_screen/{parejaId}/{nombrePareja}") {
+        fun crearRuta(parejaId: String, nombrePareja: String) =
+            "chat_screen/$parejaId/${Uri.encode(nombrePareja)}"
     }
 
     //Eventos

@@ -1,9 +1,12 @@
 package com.cadev.mocaapp.feature.home.ui
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -30,8 +33,10 @@ import com.cadev.mocaapp.feature.perfil.ui.PerfilScreen
 import com.cadev.mocaapp.feature.perfil.ui.PerfilViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.runBlocking
+import com.cadev.mocaapp.feature.chat.ui.ChatScreen
+import com.cadev.mocaapp.feature.chat.ui.ChatViewModel
 
-
+@RequiresApi(Build.VERSION_CODES.S)
 @Composable
 fun MainScreen(factory: ViewModelProvider.Factory,
                navController: NavHostController
@@ -111,8 +116,35 @@ fun MainScreen(factory: ViewModelProvider.Factory,
                 )
             }
             composable(NavRoutes.Chat.route) {
-                PlaceholderScreen("💬 Chat")
+                // Chat va en el NavGraph principal, no en tabs
+                // Aquí solo mostramos la pantalla de lista/preview
+                val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                val parejaId = remember(uid) {
+                    runBlocking { UsuarioHelper.obtenerParejaId(uid) }
+                }
+                if (parejaId != null) {
+                    val viewModel: ChatViewModel = viewModel(factory = factory)
+                    // Obtener nombre de la pareja del PerfilViewModel
+                    val perfilViewModel: PerfilViewModel = viewModel(factory = factory)
+                    val perfilState by perfilViewModel.uiState.collectAsState()
+
+                    LaunchedEffect(uid) {
+                        perfilViewModel.cargarPerfil(uid, parejaId)
+                    }
+
+                    ChatScreen(
+                        viewModel = viewModel,
+                        usuarioId = uid,
+                        parejaId = parejaId,
+                        nombrePareja = perfilState.pareja?.nombre ?: "Mi pareja",
+                        fotoPareja = perfilState.pareja?.fotoPerfil,
+                        onRegresar = { /* tab no navega atrás */ }
+                    )
+                } else {
+                    PlaceholderScreen("💬 Vincula tu pareja primero")
+                }
             }
+
             composable(NavRoutes.Cuestionarios.route) {
                 PlaceholderScreen("📋 Cuestionarios")
             }
