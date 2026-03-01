@@ -14,6 +14,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.cadev.mocaapp.feature.chat.data.repository.ChatRepositoryImpl
 import com.cadev.mocaapp.feature.chat.ui.ChatViewModel
+import com.cadev.mocaapp.feature.cuestionarios.data.repository.CuestionarioRepositoryImpl
+import com.cadev.mocaapp.feature.cuestionarios.ui.CuestionarioViewModel
 
 class MocaViewModelFactory : ViewModelProvider.Factory {
 
@@ -44,6 +46,9 @@ class MocaViewModelFactory : ViewModelProvider.Factory {
 
             modelClass.isAssignableFrom(ChatViewModel::class.java) ->
                 ChatViewModel(ChatRepositoryImpl(firestore)) as T
+
+            modelClass.isAssignableFrom(CuestionarioViewModel::class.java) ->
+                CuestionarioViewModel(CuestionarioRepositoryImpl(firestore)) as T
 
             else -> throw IllegalArgumentException(
                 "ViewModel no registrado: ${modelClass.name}"

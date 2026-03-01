@@ -7,11 +7,12 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
@@ -68,7 +71,6 @@ fun ChatScreen(
         viewModel.inicializar(usuarioId, parejaId)
     }
 
-    // Auto-scroll al último mensaje
     LaunchedEffect(uiState.mensajes.size) {
         if (uiState.mensajes.isNotEmpty()) {
             listState.animateScrollToItem(uiState.mensajes.size - 1)
@@ -90,7 +92,7 @@ fun ChatScreen(
     var uriCameraTemp by remember { mutableStateOf<Uri?>(null) }
     var uriVideoTemp by remember { mutableStateOf<Uri?>(null) }
 
-    // Helper para crear URI temporal
+    //Helper URI temporal
     fun crearUri(carpeta: String, ext: String): Uri {
         val dir = File(context.cacheDir, carpeta).also { it.mkdirs() }
         val archivo = File(dir, "${UUID.randomUUID()}.$ext")
@@ -99,7 +101,7 @@ fun ChatScreen(
         )
     }
 
-    // Launchers de resultado
+    //Launchers
     val launcherGaleria = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri -> uri?.let { viewModel.enviarFoto(it.toString()) } }
@@ -116,7 +118,7 @@ fun ChatScreen(
         if (exito) uriVideoTemp?.let { viewModel.enviarVideo(it.toString()) }
     }
 
-    //Permiso de camara: lanza la accion dentro del callback
+    //Cámara: acción DENTRO del callback, nunca antes
     val launcherPermisoCamara = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { concedido ->
@@ -137,7 +139,7 @@ fun ChatScreen(
         }
     }
 
-    // Permiso de audio: inicia grabación denttro del callback
+    //Audio: grabación DENTRO del callback
     val launcherPermisoAudio = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { concedido ->
@@ -156,7 +158,6 @@ fun ChatScreen(
                     start()
                 }
                 grabandoAudio = true
-                // Contador de tiempo
                 scope.launch {
                     while (grabandoAudio) {
                         delay(1000)
@@ -169,7 +170,7 @@ fun ChatScreen(
         }
     }
 
-    // Visor de foto full pantalla
+    //Visor foto fullscreen
     if (fotoVisor != null) {
         Dialog(
             onDismissRequest = { fotoVisor = null },
@@ -199,7 +200,7 @@ fun ChatScreen(
         }
     }
 
-    //Panel de reacciones, eliminar
+    //Panel reacciones / eliminar
     if (uiState.mostrarReacciones && uiState.mensajeSeleccionado != null) {
         val esMio = uiState.mensajeSeleccionado!!.remitenteId == usuarioId
         AlertDialog(
@@ -217,7 +218,12 @@ fun ChatScreen(
                                 fontSize = 28.sp,
                                 modifier = Modifier
                                     .clip(CircleShape)
-                                    .clickable { viewModel.reaccionar(emoji) }
+                                    .clickable(
+                                        interactionSource = remember {
+                                            MutableInteractionSource()
+                                        },
+                                        indication = ripple()
+                                    ) { viewModel.reaccionar(emoji) }
                                     .padding(8.dp)
                             )
                         }
@@ -228,7 +234,12 @@ fun ChatScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
-                                .clickable {
+                                .clickable(
+                                    interactionSource = remember {
+                                        MutableInteractionSource()
+                                    },
+                                    indication = ripple()
+                                ) {
                                     viewModel.eliminarMensaje(
                                         uiState.mensajeSeleccionado!!.id
                                     )
@@ -258,7 +269,7 @@ fun ChatScreen(
         )
     }
 
-    //Menú adjuntar media
+    //Menú media
     if (mostrarMenuMedia) {
         AlertDialog(
             onDismissRequest = { mostrarMenuMedia = false },
@@ -267,10 +278,11 @@ fun ChatScreen(
                 Column {
                     ListItem(
                         headlineContent = { Text("Foto de galería") },
-                        leadingContent = {
-                            Icon(Icons.Filled.PhotoLibrary, null)
-                        },
-                        modifier = Modifier.clickable {
+                        leadingContent = { Icon(Icons.Filled.PhotoLibrary, null) },
+                        modifier = Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple()
+                        ) {
                             mostrarMenuMedia = false
                             launcherGaleria.launch("image/*")
                         }
@@ -278,10 +290,11 @@ fun ChatScreen(
                     HorizontalDivider()
                     ListItem(
                         headlineContent = { Text("Tomar foto") },
-                        leadingContent = {
-                            Icon(Icons.Filled.PhotoCamera, null)
-                        },
-                        modifier = Modifier.clickable {
+                        leadingContent = { Icon(Icons.Filled.PhotoCamera, null) },
+                        modifier = Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple()
+                        ) {
                             mostrarMenuMedia = false
                             accionPendiente = "foto"
                             launcherPermisoCamara.launch(
@@ -292,12 +305,13 @@ fun ChatScreen(
                     HorizontalDivider()
                     ListItem(
                         headlineContent = { Text("Grabar video") },
-                        leadingContent = {
-                            Icon(Icons.Filled.Videocam, null)
-                        },
-                        modifier = Modifier.clickable {
+                        leadingContent = { Icon(Icons.Filled.Videocam, null) },
+                        modifier = Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple()
+                        ) {
                             mostrarMenuMedia = false
-                            accionPendiente = "video" //guardar antes de pedir permiso
+                            accionPendiente = "video"
                             launcherPermisoCamara.launch(
                                 android.Manifest.permission.CAMERA
                             )
@@ -314,7 +328,7 @@ fun ChatScreen(
         )
     }
 
-    // Scaffold principal
+    //Scaffold principal
     Scaffold(
         topBar = {
             TopAppBar(
@@ -382,17 +396,13 @@ fun ChatScreen(
                 onEnviar = { viewModel.enviarTexto() },
                 onAbrirMedia = { mostrarMenuMedia = true },
                 onIniciarGrabacion = {
-                    //Pedir permiso primero, grabar en el callback
                     launcherPermisoAudio.launch(
                         android.Manifest.permission.RECORD_AUDIO
                     )
                 },
                 onDetenerGrabacion = {
                     try {
-                        mediaRecorder?.apply {
-                            stop()
-                            release()
-                        }
+                        mediaRecorder?.apply { stop(); release() }
                         mediaRecorder = null
                         grabandoAudio = false
                         archivoAudio?.let { archivo ->
@@ -406,12 +416,8 @@ fun ChatScreen(
                     }
                 },
                 onCancelarGrabacion = {
-                    try {
-                        mediaRecorder?.apply {
-                            stop()
-                            release()
-                        }
-                    } catch (e: Exception) { }
+                    try { mediaRecorder?.apply { stop(); release() } }
+                    catch (e: Exception) { }
                     mediaRecorder = null
                     grabandoAudio = false
                     archivoAudio?.delete()
@@ -436,21 +442,17 @@ fun ChatScreen(
             }
 
             grupos.forEach { (fecha, mensajesDelDia) ->
-                item {
-                    FechaHeader(fecha = fecha)
-                }
-                items(
-                    items = mensajesDelDia,
-                    key = { it.id }
-                ) { mensaje ->
+                item { FechaHeader(fecha = fecha) }
+                items(items = mensajesDelDia, key = { it.id }) { mensaje ->
                     BurbujaMensaje(
                         mensaje = mensaje,
                         esMio = mensaje.remitenteId == usuarioId,
                         onLongPress = { viewModel.seleccionarMensaje(mensaje) },
                         onFotoClick = { fotoVisor = it },
                         onEnlaceClick = { url ->
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                            context.startActivity(intent)
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                            )
                         }
                     )
                 }
@@ -477,14 +479,14 @@ fun ChatScreen(
 }
 
 //Fecha separadora
+
 @Composable
 private fun FechaHeader(fecha: String) {
     val hoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-    val ayer = Calendar.getInstance().apply {
-        add(Calendar.DAY_OF_YEAR, -1)
-    }.let { cal ->
-        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.time)
-    }
+    val ayer = Calendar.getInstance()
+        .apply { add(Calendar.DAY_OF_YEAR, -1) }
+        .let { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(it.time) }
+
     val texto = when (fecha) {
         hoy -> "Hoy"
         ayer -> "Ayer"
@@ -494,6 +496,7 @@ private fun FechaHeader(fecha: String) {
             )
         } catch (e: Exception) { fecha }
     }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -515,6 +518,7 @@ private fun FechaHeader(fecha: String) {
 }
 
 //Burbuja de mensaje
+
 @Composable
 private fun BurbujaMensaje(
     mensaje: Mensaje,
@@ -570,6 +574,8 @@ private fun BurbujaMensaje(
                 )
             ) {
                 when (mensaje.tipo) {
+
+                    //Foto
                     TipoMensaje.FOTO.name -> {
                         if (mensaje.mediaUrl.isNotBlank()) {
                             AsyncImage(
@@ -579,61 +585,61 @@ private fun BurbujaMensaje(
                                 modifier = Modifier
                                     .size(200.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .clickable { onFotoClick(mensaje.mediaUrl) }
+                                    .clickable(
+                                        interactionSource = remember {
+                                            MutableInteractionSource()
+                                        },
+                                        indication = ripple()
+                                    ) { onFotoClick(mensaje.mediaUrl) }
                             )
                         }
                     }
+
+                    //Video
                     TipoMensaje.VIDEO.name -> {
-                        Box(
-                            modifier = Modifier
-                                .size(200.dp, 120.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color.Black.copy(alpha = 0.7f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (mensaje.mediaUrl.isNotBlank()) {
-                                AsyncImage(
-                                    model = mensaje.mediaUrl,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-                            Icon(
-                                Icons.Filled.PlayCircle,
-                                null,
-                                tint = Color.White,
-                                modifier = Modifier.size(48.dp)
-                            )
-                        }
-                    }
-                    TipoMensaje.AUDIO.name, TipoMensaje.VOZ.name -> {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.width(180.dp)
-                        ) {
-                            Icon(
-                                Icons.Filled.Mic, null,
-                                tint = colorTexto,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
+                        if (mensaje.mediaUrl.isNotBlank()) {
+                            // ← Reproductor completo con dialog
+                            ReproductorVideo(url = mensaje.mediaUrl)
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(Icons.Filled.Videocam, null, tint = colorTexto)
                                 Text(
-                                    "Audio",
+                                    "Cargando video...",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = colorTexto
                                 )
-                                if (mensaje.duracionSegundos > 0) {
-                                    Text(
-                                        "${mensaje.duracionSegundos}s",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = colorTexto.copy(alpha = 0.6f)
-                                    )
-                                }
                             }
                         }
                     }
+
+                    //Audio, Voz
+                    TipoMensaje.AUDIO.name, TipoMensaje.VOZ.name -> {
+                        if (mensaje.mediaUrl.isNotBlank()) {
+                            //Reproductor con barra de progreso
+                            ReproductorAudio(
+                                url = mensaje.mediaUrl,
+                                duracion = mensaje.duracionSegundos,
+                                colorTexto = colorTexto
+                            )
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(Icons.Filled.Mic, null, tint = colorTexto)
+                                Text(
+                                    "Cargando audio...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = colorTexto
+                                )
+                            }
+                        }
+                    }
+
+                    //Enlace
                     TipoMensaje.ENLACE.name -> {
                         Text(
                             text = mensaje.texto,
@@ -641,11 +647,16 @@ private fun BurbujaMensaje(
                                 textDecoration = TextDecoration.Underline
                             ),
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.clickable {
-                                onEnlaceClick(mensaje.texto)
-                            }
+                            modifier = Modifier.clickable(
+                                interactionSource = remember {
+                                    MutableInteractionSource()
+                                },
+                                indication = ripple()
+                            ) { onEnlaceClick(mensaje.texto) }
                         )
                     }
+
+                    //Texto
                     else -> {
                         Text(
                             text = mensaje.texto,
@@ -655,7 +666,7 @@ private fun BurbujaMensaje(
                     }
                 }
 
-                // Hora mas estado
+                //Hora mas estado
                 Row(
                     modifier = Modifier.align(Alignment.End),
                     verticalAlignment = Alignment.CenterVertically,
@@ -668,16 +679,13 @@ private fun BurbujaMensaje(
                         color = colorTexto.copy(alpha = 0.5f)
                     )
                     if (esMio) {
-                        EstadoIcon(
-                            estado = mensaje.estado,
-                            color = colorTexto
-                        )
+                        EstadoIcon(estado = mensaje.estado, color = colorTexto)
                     }
                 }
             }
         }
 
-        // Reacciones
+        //Reacciones
         if (mensaje.reacciones.isNotEmpty()) {
             Row(
                 modifier = Modifier
@@ -705,6 +713,7 @@ private fun BurbujaMensaje(
 }
 
 //Icono de estado
+
 @Composable
 private fun EstadoIcon(estado: String, color: Color) {
     when (estado) {
@@ -726,9 +735,7 @@ private fun EstadoIcon(estado: String, color: Color) {
             )
             Icon(
                 Icons.Filled.Check, null,
-                modifier = Modifier
-                    .size(12.dp)
-                    .offset(x = (-4).dp),
+                modifier = Modifier.size(12.dp).offset(x = (-4).dp),
                 tint = color.copy(alpha = 0.5f)
             )
         }
@@ -740,16 +747,15 @@ private fun EstadoIcon(estado: String, color: Color) {
             )
             Icon(
                 Icons.Filled.Check, null,
-                modifier = Modifier
-                    .size(12.dp)
-                    .offset(x = (-4).dp),
+                modifier = Modifier.size(12.dp).offset(x = (-4).dp),
                 tint = MaterialTheme.colorScheme.primary
             )
         }
     }
 }
 
-// Barra de input
+//Barra de input
+
 @Composable
 private fun InputBar(
     texto: String,
@@ -776,7 +782,6 @@ private fun InputBar(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (!grabando) {
-                // Botón adjuntar
                 IconButton(onClick = onAbrirMedia) {
                     Icon(
                         Icons.Filled.AttachFile, null,
@@ -784,7 +789,6 @@ private fun InputBar(
                     )
                 }
 
-                // Campo de texto
                 OutlinedTextField(
                     value = texto,
                     onValueChange = onTextoChange,
@@ -794,7 +798,6 @@ private fun InputBar(
                     shape = RoundedCornerShape(24.dp)
                 )
 
-                // Enviar o micrófono
                 if (texto.isNotBlank()) {
                     IconButton(
                         onClick = onEnviar,
@@ -802,8 +805,7 @@ private fun InputBar(
                         modifier = Modifier
                             .size(48.dp)
                             .background(
-                                MaterialTheme.colorScheme.primary,
-                                CircleShape
+                                MaterialTheme.colorScheme.primary, CircleShape
                             )
                     ) {
                         Icon(
@@ -830,7 +832,7 @@ private fun InputBar(
                     }
                 }
             } else {
-                // Modo grabación
+                //Modo grabacion
                 IconButton(onClick = onCancelarGrabacion) {
                     Icon(
                         Icons.Filled.Delete, null,
@@ -868,16 +870,194 @@ private fun InputBar(
                     modifier = Modifier
                         .size(48.dp)
                         .background(
-                            MaterialTheme.colorScheme.primary,
-                            CircleShape
+                            MaterialTheme.colorScheme.primary, CircleShape
                         )
                 ) {
-                    Icon(
-                        Icons.Filled.Stop, null,
-                        tint = Color.White
-                    )
+                    Icon(Icons.Filled.Stop, null, tint = Color.White)
                 }
             }
         }
     }
+}
+
+//Reproductor de Video
+
+@Composable
+private fun ReproductorVideo(url: String) {
+    val context = LocalContext.current
+    var mostrarReproductor by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .size(200.dp, 120.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.Black)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple()
+            ) { mostrarReproductor = true },
+        contentAlignment = Alignment.Center
+    ) {
+        AsyncImage(
+            model = url,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.6f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Filled.PlayArrow, null,
+                tint = Color.White,
+                modifier = Modifier.size(32.dp)
+            )
+        }
+    }
+
+    if (mostrarReproductor) {
+        Dialog(
+            onDismissRequest = { mostrarReproductor = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            ) {
+                val exoPlayer = remember {
+                    androidx.media3.exoplayer.ExoPlayer.Builder(context)
+                        .build().apply {
+                            setMediaItem(
+                                androidx.media3.common.MediaItem.fromUri(url)
+                            )
+                            prepare()
+                            playWhenReady = true
+                        }
+                }
+
+                DisposableEffect(Unit) {
+                    onDispose { exoPlayer.release() }
+                }
+
+                AndroidView(
+                    factory = {
+                        androidx.media3.ui.PlayerView(it).apply {
+                            player = exoPlayer
+                            useController = true
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                IconButton(
+                    onClick = { mostrarReproductor = false },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(16.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                ) {
+                    Icon(Icons.Filled.Close, null, tint = Color.White)
+                }
+            }
+        }
+    }
+}
+
+//Reproductor de Audio, Voz
+
+@Composable
+private fun ReproductorAudio(
+    url: String,
+    duracion: Int,
+    colorTexto: Color
+) {
+    val context = LocalContext.current
+    var reproduciendo by remember { mutableStateOf(false) }
+    var progreso by remember { mutableStateOf(0f) }
+    var duracionReal by remember { mutableStateOf(duracion) }
+
+    val exoPlayer = remember {
+        androidx.media3.exoplayer.ExoPlayer.Builder(context).build().apply {
+            setMediaItem(androidx.media3.common.MediaItem.fromUri(url))
+            prepare()
+        }
+    }
+
+    LaunchedEffect(reproduciendo) {
+        while (reproduciendo) {
+            delay(200)
+            val duration = exoPlayer.duration.takeIf { it > 0 } ?: 1L
+            val position = exoPlayer.currentPosition
+            progreso = position.toFloat() / duration.toFloat()
+            duracionReal = (duration / 1000).toInt()
+
+            if (exoPlayer.playbackState ==
+                androidx.media3.common.Player.STATE_ENDED) {
+                reproduciendo = false
+                progreso = 0f
+                exoPlayer.seekTo(0)
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { exoPlayer.release() }
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.width(200.dp)
+    ) {
+        IconButton(
+            onClick = {
+                if (reproduciendo) {
+                    exoPlayer.pause()
+                    reproduciendo = false
+                } else {
+                    exoPlayer.play()
+                    reproduciendo = true
+                }
+            },
+            modifier = Modifier.size(36.dp)
+        ) {
+            Icon(
+                if (reproduciendo) Icons.Filled.Pause
+                else Icons.Filled.PlayArrow,
+                null,
+                tint = colorTexto,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            LinearProgressIndicator(
+                progress = { progreso },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(50.dp)),
+                color = colorTexto,
+                trackColor = colorTexto.copy(alpha = 0.2f)
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = formatearDuracion(duracionReal),
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = 10.sp,
+                color = colorTexto.copy(alpha = 0.6f)
+            )
+        }
+    }
+}
+
+private fun formatearDuracion(segundos: Int): String {
+    val min = segundos / 60
+    val seg = segundos % 60
+    return "%d:%02d".format(min, seg)
 }

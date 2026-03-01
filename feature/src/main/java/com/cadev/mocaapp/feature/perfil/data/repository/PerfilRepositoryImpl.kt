@@ -189,7 +189,7 @@ class PerfilRepositoryImpl(
 
             val doc = snapshot.documents.firstOrNull()
 
-            // ← Leer como Timestamp y convertir a String "yyyy-MM-dd"
+            //Leer como Timestamp y convertir a String "yyyy-MM-dd"
             val timestamp = doc?.getTimestamp("fechaInicio")
             val fecha = timestamp?.toDate()?.let { date ->
                 java.text.SimpleDateFormat(
@@ -256,6 +256,7 @@ class PerfilRepositoryImpl(
             .upload(Uri.parse(rutaLocal))
             .option("folder", "perfiles/$usuarioId")
             .option("public_id", UUID.randomUUID().toString())
+            .option("resource_type", "image")
             .callback(object : UploadCallback {
                 override fun onStart(requestId: String) {}
                 override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}

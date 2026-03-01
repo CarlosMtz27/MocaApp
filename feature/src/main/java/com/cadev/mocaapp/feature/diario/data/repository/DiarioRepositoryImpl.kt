@@ -227,10 +227,17 @@ class DiarioRepositoryImpl(
         carpeta: String  // "fotos" o "videos"
     ): String = suspendCancellableCoroutine { continuation ->
 
+        val resourceType = when (carpeta) {
+            "fotos" -> "image"
+            "videos" -> "video"
+            else -> "auto"
+        }
+
         val requestId = MediaManager.get()
             .upload(Uri.parse(rutaLocal))
             .option("folder", "entradas/$usuarioId/$carpeta")
             .option("public_id", UUID.randomUUID().toString())
+            .option("resource_type", resourceType)
             .callback(object : UploadCallback {
                 override fun onStart(requestId: String) {}
                 override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}

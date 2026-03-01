@@ -3,6 +3,8 @@ package com.cadev.mocaapp.feature.perfil.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,9 +38,10 @@ fun AjustesScreen(
             viewModel.cargarPerfil(usuarioId, parejaId)
         }
     }
+
     val context = LocalContext.current
 
-    // Estados de edicion por campo
+    //Estados de edición por campo
     var editandoNombre by remember { mutableStateOf(false) }
     var editandoEmail by remember { mutableStateOf(false) }
     var editandoPassword by remember { mutableStateOf(false) }
@@ -54,7 +58,7 @@ fun AjustesScreen(
     var valorPasswordNuevo by remember { mutableStateOf("") }
     var valorPasswordConfirmar by remember { mutableStateOf("") }
 
-    // Fecha
+    //Fecha
     val partesF = (uiState.fechaRelacion ?: "").split("-")
     var valorAnio by remember(uiState.fechaRelacion) {
         mutableStateOf(partesF.getOrNull(0) ?: "")
@@ -66,7 +70,7 @@ fun AjustesScreen(
         mutableStateOf(partesF.getOrNull(2) ?: "")
     }
 
-    // Cerrar edicion y limpiar al guardar con exito
+    //Cerrar edición y limpiar al guardar con éxito
     LaunchedEffect(uiState.ajusteExitoso) {
         if (uiState.ajusteExitoso) {
             editandoNombre = false
@@ -101,7 +105,7 @@ fun AjustesScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            //Banner error
+            //Banner de error
             if (uiState.error != null) {
                 Card(
                     colors = CardDefaults.cardColors(
@@ -127,7 +131,7 @@ fun AjustesScreen(
                 }
             }
 
-            //Banner exito
+            //Banner de exito
             if (uiState.ajusteExitoso) {
                 Card(
                     colors = CardDefaults.cardColors(
@@ -160,7 +164,7 @@ fun AjustesScreen(
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)
             )
 
-            //Nombre
+            // Nombre
             CampoEditable(
                 icono = Icons.Filled.Person,
                 etiqueta = "Nombre",
@@ -208,7 +212,6 @@ fun AjustesScreen(
                         usuarioId, valorEmail, valorPasswordActual
                     )
                 },
-                //Campo extra: contraseña para confirmar cambio de email
                 contenidoExtra = if (editandoEmail) {
                     {
                         OutlinedTextField(
@@ -223,7 +226,7 @@ fun AjustesScreen(
                 } else null
             )
 
-            //Contraseña
+            // Contraseña
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp)
@@ -325,8 +328,7 @@ fun AjustesScreen(
                                 supportingText = {
                                     if (valorPasswordConfirmar.isNotEmpty() &&
                                         valorPasswordNuevo != valorPasswordConfirmar
-                                    )
-                                        Text("Las contraseñas no coinciden")
+                                    ) Text("Las contraseñas no coinciden")
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -459,12 +461,11 @@ fun AjustesScreen(
                                 Button(
                                     onClick = {
                                         val fecha = "$valorAnio-${
-                                            valorMes.padStart(
-                                                2,
-                                                '0'
-                                            )
+                                            valorMes.padStart(2, '0')
                                         }-${valorDia.padStart(2, '0')}"
-                                        viewModel.actualizarFechaRelacion(usuarioId, fecha)
+                                        viewModel.actualizarFechaRelacion(
+                                            usuarioId, fecha
+                                        )
                                     },
                                     enabled = !uiState.guardandoAjuste &&
                                             valorAnio.length == 4 &&
@@ -487,6 +488,7 @@ fun AjustesScreen(
             }
 
             Spacer(Modifier.height(4.dp))
+
             Text(
                 "Cuenta",
                 style = MaterialTheme.typography.labelMedium,
@@ -533,7 +535,8 @@ fun AjustesScreen(
                         }
                     }
                     IconButton(onClick = {
-                        val codigo = uiState.usuario?.codigoPareja ?: return@IconButton
+                        val codigo =
+                            uiState.usuario?.codigoPareja ?: return@IconButton
                         val clipboard = context.getSystemService(
                             Context.CLIPBOARD_SERVICE
                         ) as ClipboardManager
@@ -552,7 +555,7 @@ fun AjustesScreen(
     }
 }
 
-//Campo editable generico
+//Campo editable genérico
 
 @Composable
 private fun CampoEditable(
@@ -571,7 +574,16 @@ private fun CampoEditable(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                // clickable con ripple explícito para evitar conflicto M2,M3
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = ripple()
+                ) { if (!editando) onEditar() }
+                .padding(16.dp)
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -582,7 +594,10 @@ private fun CampoEditable(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(icono, null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(
+                        icono, null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             etiqueta,
@@ -591,7 +606,6 @@ private fun CampoEditable(
                                 .copy(alpha = 0.5f)
                         )
                         if (!editando) {
-                            // ← Valor actual visible
                             Text(
                                 text = valor.ifBlank { "No configurado" },
                                 style = MaterialTheme.typography.bodyLarge,
@@ -609,7 +623,6 @@ private fun CampoEditable(
                 }
             }
 
-            // Campo de edición
             if (editando) {
                 Spacer(Modifier.height(12.dp))
                 HorizontalDivider()

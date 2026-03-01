@@ -47,6 +47,8 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.material3)
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation(platform("androidx.compose:compose-bom:2024.02.00"))
     // ViewModel
@@ -74,6 +76,11 @@ dependencies {
 
     //Para el storage
     implementation("com.cloudinary:cloudinary-android:2.3.1")
+
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-ui:1.3.1")
+    implementation("androidx.compose.material3:material3:...")
+
 
 
 

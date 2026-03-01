@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.cadev.mocaapp.feature.auth.domain.model.Usuario
 import com.cadev.mocaapp.feature.perfil.domain.repository.PerfilRepository
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,46 +43,56 @@ class PerfilViewModel(
     )
 
     fun cargarPerfil(usuarioId: String, parejaId: String?) {
+        //Si ya están cargados, no volver a cargar
+        if (_uiState.value.usuario != null &&
+            _uiState.value.usuario?.id == usuarioId) return
+
         android.util.Log.d("PerfilVM", "cargarPerfil uid=$usuarioId parejaId=$parejaId")
+
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(cargando = true)
 
-            repository.obtenerUsuario(usuarioId).fold(
+            //Todas las consultas en paralelo con async
+            val deferredUsuario = async { repository.obtenerUsuario(usuarioId) }
+            val deferredPareja = if (parejaId != null) {
+                async { repository.obtenerPareja(parejaId) }
+            } else null
+            val deferredEntradas = async { repository.contarEntradas(usuarioId) }
+            val deferredEntradasPareja = if (parejaId != null) {
+                async { repository.contarEntradas(parejaId) }
+            } else null
+            val deferredFecha = async { repository.obtenerFechaRelacion(usuarioId) }
+
+            // Esperar resultados
+            deferredUsuario.await().fold(
                 onSuccess = { usuario ->
-                    android.util.Log.d("PerfilVM", "Usuario cargado: ${usuario.nombre}")
                     _uiState.value = _uiState.value.copy(usuario = usuario)
                 },
-                onFailure = { android.util.Log.e("PerfilVM", "Error usuario: ${it.message}") }
+                onFailure = { }
             )
 
-            if (parejaId != null) {
-                android.util.Log.d("PerfilVM", "Cargando pareja: $parejaId")
-                repository.obtenerPareja(parejaId).fold(
-                    onSuccess = { pareja ->
-                        android.util.Log.d("PerfilVM", "Pareja cargada: ${pareja.nombre}")
-                        _uiState.value = _uiState.value.copy(pareja = pareja)
-                    },
-                    onFailure = { android.util.Log.e("PerfilVM", "Error pareja: ${it.message}") }
-                )
+            deferredPareja?.await()?.fold(
+                onSuccess = { pareja ->
+                    _uiState.value = _uiState.value.copy(pareja = pareja)
+                },
+                onFailure = { }
+            )
 
-                repository.contarEntradas(parejaId).fold(
-                    onSuccess = { count ->
-                        _uiState.value = _uiState.value.copy(entradasPareja = count)
-                    },
-                    onFailure = { }
-                )
-            } else {
-                android.util.Log.w("PerfilVM", "parejaId es null — no se cargará pareja")
-            }
-
-            repository.contarEntradas(usuarioId).fold(
+            deferredEntradas.await().fold(
                 onSuccess = { count ->
                     _uiState.value = _uiState.value.copy(totalEntradas = count)
                 },
                 onFailure = { }
             )
 
-            repository.obtenerFechaRelacion(usuarioId).fold(
+            deferredEntradasPareja?.await()?.fold(
+                onSuccess = { count ->
+                    _uiState.value = _uiState.value.copy(entradasPareja = count)
+                },
+                onFailure = { }
+            )
+
+            deferredFecha.await().fold(
                 onSuccess = { fecha ->
                     val dias = calcularDiasJuntos(fecha)
                     _uiState.value = _uiState.value.copy(

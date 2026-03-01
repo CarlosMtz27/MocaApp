@@ -19,6 +19,13 @@ sealed class NavRoutes(val route: String) {
     object Home          : NavRoutes("home")
     object Calendario    : NavRoutes("calendario")
     object Cuestionarios : NavRoutes("cuestionarios")
+    object ResponderCuestionario : NavRoutes("responder/{cuestionarioId}") {
+        fun crearRuta(id: String) = "responder/$id"
+    }
+    object ResultadosCuestionario : NavRoutes("resultados_cuestionario/{cuestionarioId}") {
+        fun crearRuta(id: String) = "resultados_cuestionario/$id"
+    }
+    object CrearCuestionario : NavRoutes("crear_cuestionario")
     object Perfil        : NavRoutes("perfil")
 
     //Diario
