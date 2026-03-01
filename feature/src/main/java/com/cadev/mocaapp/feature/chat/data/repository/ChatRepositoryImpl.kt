@@ -28,9 +28,7 @@ class ChatRepositoryImpl(
         return listOf(uid1, uid2).sorted().joinToString("_")
     }
 
-    override fun escucharMensajes(
-        conversacionId: String
-    ): Flow<List<Mensaje>> = callbackFlow {
+    override fun escucharMensajes(conversacionId: String): Flow<List<Mensaje>> = callbackFlow {
         val listener = firestore
             .collection("conversaciones")
             .document(conversacionId)
@@ -38,7 +36,7 @@ class ChatRepositoryImpl(
             .orderBy("creadoEn", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    close()
                     return@addSnapshotListener
                 }
                 val mensajes = snapshot?.documents
@@ -46,7 +44,6 @@ class ChatRepositoryImpl(
                     ?: emptyList()
                 trySend(mensajes)
             }
-
         awaitClose { listener.remove() }
     }
 
@@ -172,9 +169,12 @@ class ChatRepositoryImpl(
         val listener = firestore
             .collection("typing")
             .document(conversacionId)
-            .addSnapshotListener { snapshot, _ ->
-                val escribiendo = snapshot?.getBoolean(parejaId) ?: false
-                trySend(escribiendo)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close()
+                    return@addSnapshotListener
+                }
+                trySend(snapshot?.getBoolean(parejaId) ?: false)
             }
         awaitClose { listener.remove() }
     }

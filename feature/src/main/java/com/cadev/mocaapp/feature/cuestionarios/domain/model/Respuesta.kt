@@ -7,6 +7,7 @@ data class Respuesta(
     val cuestionarioId: String = "",
     val usuarioId: String = "",
     val preguntaId: String = "",
-    val valor: String = "",       // texto, "si"/"no", "7", o opción elegida
+    val valor: String = "",
+    val imagenUrl: String = "",   // para respuestas tipo FOTO
     val creadoEn: Timestamp = Timestamp.now()
 )

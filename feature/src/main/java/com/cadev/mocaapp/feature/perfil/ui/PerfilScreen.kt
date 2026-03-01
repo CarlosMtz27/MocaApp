@@ -36,7 +36,8 @@ fun PerfilScreen(
     usuarioId: String,
     parejaId: String?,
     onIrAjustes: () -> Unit,
-    onVerPerfilPareja: (parejaId: String) -> Unit
+    onVerPerfilPareja: (parejaId: String) -> Unit,
+    onLogout: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -143,7 +144,7 @@ fun PerfilScreen(
         }
 
         Button(
-            onClick = { viewModel.logout() },
+            onClick = onLogout,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp),

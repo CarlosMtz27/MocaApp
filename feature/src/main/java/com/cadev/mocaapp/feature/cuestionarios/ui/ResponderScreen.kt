@@ -1,5 +1,7 @@
 package com.cadev.mocaapp.feature.cuestionarios.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,16 +13,19 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.cadev.mocaapp.feature.cuestionarios.domain.model.TipoPregunta
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,7 +45,7 @@ fun ResponderScreen(
         viewModel.iniciarCuestionario(cuestionarioId)
     }
 
-    // Navegar a resultados cuando ambos completen
+    //Ir a resultados inmediatamente al completar
     LaunchedEffect(uiState.completado) {
         if (uiState.completado) {
             onCompletado(cuestionarioId)
@@ -62,6 +67,15 @@ fun ResponderScreen(
     val respuestaActual = uiState.respuestas[pregunta.id] ?: ""
     val progreso = (indice + 1).toFloat() / preguntas.size.toFloat()
     val esUltima = indice == preguntas.size - 1
+
+    // Launcher para galería (respuestas tipo FOTO)
+    val launcherGaleria = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            viewModel.subirFotoRespuesta(pregunta.id, it.toString())
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -125,17 +139,34 @@ fun ResponderScreen(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
             ) {
-                Text(
-                    text = pregunta.texto,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                Column(
                     modifier = Modifier.padding(20.dp),
-                    textAlign = TextAlign.Center
-                )
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = pregunta.texto,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        textAlign = TextAlign.Center
+                    )
+                    //Imagen opcional en la pregunta
+                    if (pregunta.imagenUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = pregunta.imagenUrl,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                        )
+                    }
+                }
             }
 
-            //Opciones según tipo
+            // Opciones según tipo
             when (pregunta.tipo) {
 
                 TipoPregunta.OPCION_MULTIPLE.name -> {
@@ -149,8 +180,7 @@ fun ResponderScreen(
                                     .background(
                                         if (seleccionada)
                                             MaterialTheme.colorScheme.primaryContainer
-                                        else
-                                            MaterialTheme.colorScheme.surfaceVariant
+                                        else MaterialTheme.colorScheme.surfaceVariant
                                     )
                                     .border(
                                         width = if (seleccionada) 2.dp else 0.dp,
@@ -165,7 +195,9 @@ fun ResponderScreen(
                                         },
                                         indication = ripple()
                                     ) {
-                                        viewModel.responderPregunta(pregunta.id, opcion)
+                                        viewModel.responderPregunta(
+                                            pregunta.id, opcion
+                                        )
                                     }
                                     .padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -174,7 +206,9 @@ fun ResponderScreen(
                                 RadioButton(
                                     selected = seleccionada,
                                     onClick = {
-                                        viewModel.responderPregunta(pregunta.id, opcion)
+                                        viewModel.responderPregunta(
+                                            pregunta.id, opcion
+                                        )
                                     }
                                 )
                                 Text(
@@ -197,27 +231,23 @@ fun ResponderScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         listOf("Sí" to "si", "No" to "no").forEach { (etiqueta, valor) ->
-                            val seleccionado = respuestaActual == valor
+                            val sel = respuestaActual == valor
                             Button(
                                 onClick = {
                                     viewModel.responderPregunta(pregunta.id, valor)
                                 },
                                 modifier = Modifier.weight(1f).height(56.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (seleccionado)
+                                    containerColor = if (sel)
                                         MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor = if (seleccionado)
+                                    contentColor = if (sel)
                                         MaterialTheme.colorScheme.onPrimary
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 ),
                                 shape = RoundedCornerShape(14.dp)
                             ) {
-                                Text(
-                                    etiqueta,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Text(etiqueta, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -280,11 +310,108 @@ fun ResponderScreen(
                         maxLines = 5
                     )
                 }
+
+                //FOTO
+                TipoPregunta.FOTO.name -> {
+                    val fotoUrl = uiState.respuestasFoto[pregunta.id]
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (fotoUrl != null) {
+                            // ← Foto seleccionada
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(220.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                            ) {
+                                AsyncImage(
+                                    model = fotoUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                // Botón cambiar
+                                FilledTonalButton(
+                                    onClick = { launcherGaleria.launch("image/*") },
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(12.dp),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Filled.Edit, null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Cambiar")
+                                }
+                            }
+                        } else if (uiState.subiendoFoto) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(140.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    CircularProgressIndicator()
+                                    Text("Subiendo foto...")
+                                }
+                            }
+                        } else {
+                            // ← Sin foto aún
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(140.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                    .clickable(
+                                        interactionSource = remember {
+                                            MutableInteractionSource()
+                                        },
+                                        indication = ripple()
+                                    ) { launcherGaleria.launch("image/*") },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Filled.AddPhotoAlternate,
+                                        null,
+                                        modifier = Modifier.size(48.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        "Toca para elegir una foto",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             Spacer(Modifier.height(8.dp))
 
-            //Botones navegación
+            //Botones de navegación
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -307,14 +434,13 @@ fun ResponderScreen(
                 Button(
                     onClick = {
                         if (esUltima) {
-                            viewModel.enviarRespuestas(
-                                usuarioId, parejaId, relacionId
-                            )
+                            viewModel.enviarRespuestas(usuarioId, parejaId, relacionId)
                         } else {
                             viewModel.siguientePregunta()
                         }
                     },
-                    enabled = respuestaActual.isNotBlank() && !uiState.enviando,
+                    enabled = respuestaActual.isNotBlank() &&
+                            !uiState.enviando && !uiState.subiendoFoto,
                     modifier = Modifier.weight(1f).height(52.dp),
                     shape = RoundedCornerShape(14.dp)
                 ) {

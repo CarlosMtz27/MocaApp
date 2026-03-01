@@ -20,7 +20,7 @@ data class ChatUiState(
     val enviando: Boolean = false,
     val parejaEscribiendo: Boolean = false,
     val error: String? = null,
-    val mensajeSeleccionado: Mensaje? = null,  // para reacciones,eliminar
+    val mensajeSeleccionado: Mensaje? = null,
     val mostrarReacciones: Boolean = false
 )
 
@@ -39,25 +39,38 @@ class ChatViewModel(
         usuarioId = uid
         conversacionId = repository.obtenerConversacionId(uid, parejaId)
 
-        // Escuchar mensajes en tiempo real
+        //Escuchar mensajes en tiempo real
         viewModelScope.launch {
-            repository.escucharMensajes(conversacionId).collect { mensajes ->
-                _uiState.value = _uiState.value.copy(mensajes = mensajes)
-                // Marcar como entregados los mensajes de la pareja
-                marcarEntregados(mensajes, uid)
+            try {
+                repository.escucharMensajes(conversacionId).collect { mensajes ->
+                    _uiState.value = _uiState.value.copy(mensajes = mensajes)
+                    marcarEntregados(mensajes, uid)
+                }
+            } catch (e: Exception) {
+               e.printStackTrace()
             }
         }
 
-        // Escuchar si la pareja está escribiendo
+        //Escuchar si la pareja está escribiendo
         viewModelScope.launch {
-            repository.escucharEscribiendo(conversacionId, parejaId).collect { escribiendo ->
-                _uiState.value = _uiState.value.copy(parejaEscribiendo = escribiendo)
+            try {
+                repository.escucharEscribiendo(
+                    conversacionId, parejaId
+                ).collect { escribiendo ->
+                    _uiState.value = _uiState.value.copy(
+                        parejaEscribiendo = escribiendo
+                    )
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
 
-        // Marcar como leídos al abrir
+        //Marcar como leídos al abrir
         viewModelScope.launch {
-            repository.marcarComoLeido(conversacionId, uid)
+            try {
+                repository.marcarComoLeido(conversacionId, uid)
+            } catch (e: Exception) { }
         }
     }
 
@@ -67,11 +80,13 @@ class ChatViewModel(
         // Notificar "escribiendo..." con debounce de 2 segundos
         jobEscribiendo?.cancel()
         viewModelScope.launch {
-            repository.actualizarEscribiendo(conversacionId, usuarioId, true)
-            jobEscribiendo = launch {
-                delay(2000)
-                repository.actualizarEscribiendo(conversacionId, usuarioId, false)
-            }
+            try {
+                repository.actualizarEscribiendo(conversacionId, usuarioId, true)
+                jobEscribiendo = launch {
+                    delay(2000)
+                    repository.actualizarEscribiendo(conversacionId, usuarioId, false)
+                }
+            } catch (e: Exception) { }
         }
     }
 
@@ -94,8 +109,9 @@ class ChatViewModel(
                 textoActual = "",
                 enviando = true
             )
-            // Dejar de escribir
-            repository.actualizarEscribiendo(conversacionId, usuarioId, false)
+            try {
+                repository.actualizarEscribiendo(conversacionId, usuarioId, false)
+            } catch (e: Exception) { }
 
             repository.enviarMensaje(mensaje).fold(
                 onSuccess = {
@@ -160,23 +176,29 @@ class ChatViewModel(
     fun reaccionar(emoji: String) {
         val mensaje = _uiState.value.mensajeSeleccionado ?: return
         viewModelScope.launch {
-            repository.agregarReaccion(
-                conversacionId, mensaje.id, usuarioId, emoji
-            )
+            try {
+                repository.agregarReaccion(
+                    conversacionId, mensaje.id, usuarioId, emoji
+                )
+            } catch (e: Exception) { }
             cerrarReacciones()
         }
     }
 
     fun eliminarMensaje(mensajeId: String) {
         viewModelScope.launch {
-            repository.eliminarMensaje(conversacionId, mensajeId)
+            try {
+                repository.eliminarMensaje(conversacionId, mensajeId)
+            } catch (e: Exception) { }
             cerrarReacciones()
         }
     }
 
     fun marcarComoLeido() {
         viewModelScope.launch {
-            repository.marcarComoLeido(conversacionId, usuarioId)
+            try {
+                repository.marcarComoLeido(conversacionId, usuarioId)
+            } catch (e: Exception) { }
         }
     }
 
@@ -215,16 +237,22 @@ class ChatViewModel(
         if (sinEntregar.isEmpty()) return
 
         viewModelScope.launch {
-            val batch = com.google.firebase.firestore.FirebaseFirestore.getInstance().batch()
-            sinEntregar.forEach { msg ->
-                val ref = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                    .collection("conversaciones")
-                    .document(conversacionId)
-                    .collection("mensajes")
-                    .document(msg.id)
-                batch.update(ref, "estado", EstadoMensaje.ENTREGADO.name)
+            try {
+                val firestore = com.google.firebase.firestore.FirebaseFirestore
+                    .getInstance()
+                val batch = firestore.batch()
+                sinEntregar.forEach { msg ->
+                    val ref = firestore
+                        .collection("conversaciones")
+                        .document(conversacionId)
+                        .collection("mensajes")
+                        .document(msg.id)
+                    batch.update(ref, "estado", EstadoMensaje.ENTREGADO.name)
+                }
+                batch.commit().await()
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-            try { batch.commit().await() } catch (e: Exception) { }
         }
     }
 
@@ -236,9 +264,12 @@ class ChatViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        jobEscribiendo?.cancel()
         // Limpiar estado de escribiendo al salir
         viewModelScope.launch {
-            repository.actualizarEscribiendo(conversacionId, usuarioId, false)
+            try {
+                repository.actualizarEscribiendo(conversacionId, usuarioId, false)
+            } catch (e: Exception) { }
         }
     }
 }

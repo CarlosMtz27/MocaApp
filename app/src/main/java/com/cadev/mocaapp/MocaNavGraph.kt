@@ -388,7 +388,7 @@ fun MocaNavGraph(
             )
         }
 
-        //Placeholders pendientes
+        //pendientes xd
         composable(NavRoutes.Eventos.route) {
             PlaceholderScreen("🗓️ Eventos")
         }

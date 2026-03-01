@@ -3,6 +3,7 @@ package com.cadev.mocaapp.feature.cuestionarios.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cadev.mocaapp.feature.cuestionarios.domain.model.Cuestionario
+import com.cadev.mocaapp.feature.cuestionarios.domain.model.EstadoCuestionario
 import com.cadev.mocaapp.feature.cuestionarios.domain.model.ResultadoCuestionario
 import com.cadev.mocaapp.feature.cuestionarios.domain.repository.CuestionarioRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,16 +15,18 @@ data class CuestionarioUiState(
     val cargando: Boolean = false,
     val cuestionarios: List<Cuestionario> = emptyList(),
     val historial: List<Cuestionario> = emptyList(),
+    val estadosCuestionarios: Map<String, EstadoCuestionario> = emptyMap(),
     val cuestionarioActual: Cuestionario? = null,
     val preguntaActual: Int = 0,
     val respuestas: Map<String, String> = emptyMap(),
+    val respuestasFoto: Map<String, String> = emptyMap(),
+    val subiendoFoto: Boolean = false,
     val enviando: Boolean = false,
     val completado: Boolean = false,
-    val parejaCompletó: Boolean = false,
     val resultado: ResultadoCuestionario? = null,
     val respuestasPareja: Map<String, String> = emptyMap(),
+    val respuestasFotoPareja: Map<String, String> = emptyMap(),
     val error: String? = null,
-    // Crear cuestionario
     val creando: Boolean = false,
     val creadoExitoso: Boolean = false
 )
@@ -35,28 +38,70 @@ class CuestionarioViewModel(
     private val _uiState = MutableStateFlow(CuestionarioUiState())
     val uiState: StateFlow<CuestionarioUiState> = _uiState.asStateFlow()
 
-    fun cargarCuestionarios(relacionId: String, usuarioId: String) {
+    fun cargarCuestionarios(
+        relacionId: String,
+        usuarioId: String,
+        parejaId: String
+    ) {
+        // no recargar si ya tenemos datos
+        if (_uiState.value.cuestionarios.isNotEmpty()) return
+
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(cargando = true)
 
-            repository.obtenerCuestionarios(relacionId).fold(
-                onSuccess = { lista ->
-                    _uiState.value = _uiState.value.copy(
-                        cuestionarios = lista,
-                        cargando = false
-                    )
-                },
-                onFailure = {
-                    _uiState.value = _uiState.value.copy(
-                        error = "Error al cargar cuestionarios",
-                        cargando = false
-                    )
-                }
-            )
+            // Cuestionarios e historial en paralelo
+            val jobCuestionarios = launch {
+                repository.obtenerCuestionarios(relacionId).fold(
+                    onSuccess = { lista ->
+                        _uiState.value = _uiState.value.copy(cuestionarios = lista)
 
-            repository.obtenerHistorial(relacionId, usuarioId).fold(
-                onSuccess = { historial ->
-                    _uiState.value = _uiState.value.copy(historial = historial)
+                        // Estados también en paralelo (ya usa async internamente)
+                        repository.obtenerEstadosTodos(
+                            lista, usuarioId, parejaId
+                        ).fold(
+                            onSuccess = { estados ->
+                                _uiState.value = _uiState.value.copy(
+                                    estadosCuestionarios = estados
+                                )
+                            },
+                            onFailure = { }
+                        )
+                    },
+                    onFailure = {
+                        _uiState.value = _uiState.value.copy(
+                            error = "Error al cargar cuestionarios"
+                        )
+                    }
+                )
+            }
+
+            val jobHistorial = launch {
+                repository.obtenerHistorial(relacionId, usuarioId).fold(
+                    onSuccess = { historial ->
+                        _uiState.value = _uiState.value.copy(historial = historial)
+                    },
+                    onFailure = { }
+                )
+            }
+
+            // Esperar ambos para quitar el loading
+            jobCuestionarios.join()
+            jobHistorial.join()
+
+            _uiState.value = _uiState.value.copy(cargando = false)
+        }
+    }
+
+    fun refrescarEstados(usuarioId: String, parejaId: String) {
+        // Para refrescar estados sin mostrar loading (volver de responder)
+        val lista = _uiState.value.cuestionarios
+        if (lista.isEmpty()) return
+        viewModelScope.launch {
+            repository.obtenerEstadosTodos(lista, usuarioId, parejaId).fold(
+                onSuccess = { estados ->
+                    _uiState.value = _uiState.value.copy(
+                        estadosCuestionarios = estados
+                    )
                 },
                 onFailure = { }
             )
@@ -72,6 +117,7 @@ class CuestionarioViewModel(
                         cuestionarioActual = cuestionario,
                         preguntaActual = 0,
                         respuestas = emptyMap(),
+                        respuestasFoto = emptyMap(),
                         completado = false,
                         resultado = null,
                         cargando = false
@@ -88,9 +134,34 @@ class CuestionarioViewModel(
     }
 
     fun responderPregunta(preguntaId: String, valor: String) {
-        val nuevasRespuestas = _uiState.value.respuestas.toMutableMap()
-        nuevasRespuestas[preguntaId] = valor
-        _uiState.value = _uiState.value.copy(respuestas = nuevasRespuestas)
+        val map = _uiState.value.respuestas.toMutableMap()
+        map[preguntaId] = valor
+        _uiState.value = _uiState.value.copy(respuestas = map)
+    }
+
+    fun subirFotoRespuesta(preguntaId: String, rutaLocal: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(subiendoFoto = true)
+            repository.subirFoto(rutaLocal).fold(
+                onSuccess = { url ->
+                    val fotoMap = _uiState.value.respuestasFoto.toMutableMap()
+                    fotoMap[preguntaId] = url
+                    val respMap = _uiState.value.respuestas.toMutableMap()
+                    respMap[preguntaId] = url
+                    _uiState.value = _uiState.value.copy(
+                        respuestasFoto = fotoMap,
+                        respuestas = respMap,
+                        subiendoFoto = false
+                    )
+                },
+                onFailure = {
+                    _uiState.value = _uiState.value.copy(
+                        error = "Error al subir foto",
+                        subiendoFoto = false
+                    )
+                }
+            )
+        }
     }
 
     fun siguientePregunta() {
@@ -118,28 +189,33 @@ class CuestionarioViewModel(
             _uiState.value = _uiState.value.copy(enviando = true)
 
             repository.guardarRespuestas(
-                cuestionario.id, usuarioId, _uiState.value.respuestas
+                cuestionarioId = cuestionario.id,
+                usuarioId = usuarioId,
+                respuestas = _uiState.value.respuestas,
+                respuestasFoto = _uiState.value.respuestasFoto
             ).fold(
                 onSuccess = {
-                    _uiState.value = _uiState.value.copy(completado = true)
+                    val estado = repository.obtenerEstado(
+                        cuestionario.id, usuarioId, parejaId
+                    ).getOrDefault(EstadoCuestionario.YO_RESPONDÍ)
 
-                    // Verificar si la pareja ya respondió
-                    repository.parejaRespondio(cuestionario.id, parejaId).fold(
-                        onSuccess = { yaRespondio ->
-                            _uiState.value = _uiState.value.copy(
-                                parejaCompletó = yaRespondio
-                            )
-                            if (yaRespondio) {
-                                calcularResultado(
-                                    cuestionario.id, relacionId,
-                                    usuarioId, parejaId
+                    if (estado == EstadoCuestionario.AMBOS) {
+                        repository.calcularResultado(
+                            cuestionario.id, relacionId, usuarioId, parejaId
+                        ).fold(
+                            onSuccess = { resultado ->
+                                _uiState.value = _uiState.value.copy(
+                                    resultado = resultado
                                 )
-                            }
-                        },
-                        onFailure = { }
-                    )
+                            },
+                            onFailure = { }
+                        )
+                    }
 
-                    _uiState.value = _uiState.value.copy(enviando = false)
+                    _uiState.value = _uiState.value.copy(
+                        completado = true,
+                        enviando = false
+                    )
                 },
                 onFailure = {
                     _uiState.value = _uiState.value.copy(
@@ -157,42 +233,51 @@ class CuestionarioViewModel(
         parejaId: String
     ) {
         viewModelScope.launch {
-            repository.obtenerResultado(cuestionarioId).fold(
-                onSuccess = { resultado ->
-                    _uiState.value = _uiState.value.copy(resultado = resultado)
-                },
-                onFailure = { }
-            )
-            repository.obtenerRespuestas(cuestionarioId, usuarioId).fold(
-                onSuccess = { resp ->
-                    _uiState.value = _uiState.value.copy(respuestas = resp)
-                },
-                onFailure = { }
-            )
-            repository.obtenerRespuestas(cuestionarioId, parejaId).fold(
-                onSuccess = { resp ->
-                    _uiState.value = _uiState.value.copy(respuestasPareja = resp)
-                },
-                onFailure = { }
-            )
-        }
-    }
-
-    private fun calcularResultado(
-        cuestionarioId: String,
-        relacionId: String,
-        usuarioId: String,
-        parejaId: String
-    ) {
-        viewModelScope.launch {
-            repository.calcularResultado(
-                cuestionarioId, relacionId, usuarioId, parejaId
-            ).fold(
-                onSuccess = { resultado ->
-                    _uiState.value = _uiState.value.copy(resultado = resultado)
-                },
-                onFailure = { }
-            )
+            // Todas en paralelo
+            launch {
+                repository.obtenerResultado(cuestionarioId).fold(
+                    onSuccess = { resultado ->
+                        _uiState.value = _uiState.value.copy(resultado = resultado)
+                    },
+                    onFailure = { }
+                )
+            }
+            launch {
+                repository.obtenerRespuestas(cuestionarioId, usuarioId).fold(
+                    onSuccess = { resp ->
+                        _uiState.value = _uiState.value.copy(respuestas = resp)
+                    },
+                    onFailure = { }
+                )
+            }
+            launch {
+                repository.obtenerRespuestas(cuestionarioId, parejaId).fold(
+                    onSuccess = { resp ->
+                        _uiState.value = _uiState.value.copy(respuestasPareja = resp)
+                    },
+                    onFailure = { }
+                )
+            }
+            launch {
+                repository.obtenerRespuestasFoto(cuestionarioId, usuarioId).fold(
+                    onSuccess = { fotos ->
+                        val map = _uiState.value.respuestasFoto.toMutableMap()
+                        map.putAll(fotos)
+                        _uiState.value = _uiState.value.copy(respuestasFoto = map)
+                    },
+                    onFailure = { }
+                )
+            }
+            launch {
+                repository.obtenerRespuestasFoto(cuestionarioId, parejaId).fold(
+                    onSuccess = { fotos ->
+                        _uiState.value = _uiState.value.copy(
+                            respuestasFotoPareja = fotos
+                        )
+                    },
+                    onFailure = { }
+                )
+            }
         }
     }
 
@@ -203,7 +288,9 @@ class CuestionarioViewModel(
                 onSuccess = {
                     _uiState.value = _uiState.value.copy(
                         creando = false,
-                        creadoExitoso = true
+                        creadoExitoso = true,
+                        //Forzar recarga la próxima vez
+                        cuestionarios = emptyList()
                     )
                 },
                 onFailure = {
@@ -216,10 +303,26 @@ class CuestionarioViewModel(
         }
     }
 
-    fun poblarPredefinidos() {
+    fun subirFotoPregunta(rutaLocal: String, onUrl: (String) -> Unit) {
         viewModelScope.launch {
-            repository.poblarPredefinidos()
+            _uiState.value = _uiState.value.copy(subiendoFoto = true)
+            repository.subirFoto(rutaLocal).fold(
+                onSuccess = { url ->
+                    _uiState.value = _uiState.value.copy(subiendoFoto = false)
+                    onUrl(url)
+                },
+                onFailure = {
+                    _uiState.value = _uiState.value.copy(
+                        subiendoFoto = false,
+                        error = "Error al subir imagen"
+                    )
+                }
+            )
         }
+    }
+
+    fun poblarPredefinidos() {
+        viewModelScope.launch { repository.poblarPredefinidos() }
     }
 
     fun limpiarError() {

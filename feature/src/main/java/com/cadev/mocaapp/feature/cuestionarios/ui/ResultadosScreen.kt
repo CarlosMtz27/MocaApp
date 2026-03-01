@@ -14,10 +14,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.cadev.mocaapp.feature.cuestionarios.domain.model.TipoPregunta
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,7 +36,10 @@ fun ResultadosScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(cuestionarioId) {
-        viewModel.iniciarCuestionario(cuestionarioId)
+        // Cargar cuestionario si viene directo de ResponderScreen
+        if (uiState.cuestionarioActual?.id != cuestionarioId) {
+            viewModel.iniciarCuestionario(cuestionarioId)
+        }
         viewModel.cargarResultado(cuestionarioId, usuarioId, parejaId)
     }
 
@@ -42,6 +47,8 @@ fun ResultadosScreen(
     val resultado = uiState.resultado
     val respuestasUsuario = uiState.respuestas
     val respuestasPareja = uiState.respuestasPareja
+    val fotoUsuario = uiState.respuestasFoto
+    val fotoPareja = uiState.respuestasFotoPareja
     val parejaRespondio = respuestasPareja.isNotEmpty()
 
     Scaffold(
@@ -73,7 +80,7 @@ fun ResultadosScreen(
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
 
-            // Header con puntaje
+            //Header
             item {
                 Box(
                     modifier = Modifier
@@ -84,9 +91,10 @@ fun ResultadosScreen(
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Text(cuestionario.titulo,
+                        Text(
+                            cuestionario.titulo,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
@@ -94,38 +102,36 @@ fun ResultadosScreen(
                         )
 
                         if (!parejaRespondio) {
-                            // Pareja no ha respondido
+                            //Pareja aún no ha respondido
                             Card(
                                 shape = RoundedCornerShape(16.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme
-                                        .secondaryContainer
+                                    containerColor = Color(0xFFFFF3E0)
                                 )
                             ) {
                                 Column(
-                                    modifier = Modifier.padding(16.dp),
+                                    modifier = Modifier.padding(20.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text("⏳", fontSize = 36.sp)
+                                    Text("⏳", fontSize = 40.sp)
                                     Text(
-                                        "¡Respondiste! Esperando a $nombrePareja...",
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        "¡Lo lograste! Respondiste el cuestionario",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
                                         textAlign = TextAlign.Center,
-                                        color = MaterialTheme.colorScheme
-                                            .onSecondaryContainer
+                                        color = Color(0xFFE65100)
                                     )
                                     Text(
-                                        "Los resultados aparecerán cuando ambos completen el cuestionario",
+                                        "Ahora le toca a $nombrePareja responder.\nLos resultados aparecerán aquí en cuanto termine.",
                                         style = MaterialTheme.typography.bodySmall,
                                         textAlign = TextAlign.Center,
-                                        color = MaterialTheme.colorScheme
-                                            .onSecondaryContainer.copy(alpha = 0.7f)
+                                        color = Color(0xFFBF360C)
                                     )
                                 }
                             }
                         } else if (resultado != null) {
-                            // Puntaje de compatibilidad
+                            // ← Resultado con porcentaje
                             val puntaje = resultado.puntajeCompatibilidad
                             val (emoji, mensaje) = when {
                                 puntaje >= 80 -> "💑" to "¡Son muy compatibles!"
@@ -134,10 +140,9 @@ fun ResultadosScreen(
                                 else -> "🌱" to "¡Hay mucho por descubrir!"
                             }
 
-                            // Círculo de puntaje
                             Box(
                                 modifier = Modifier
-                                    .size(120.dp)
+                                    .size(130.dp)
                                     .clip(CircleShape)
                                     .background(MaterialTheme.colorScheme.primary),
                                 contentAlignment = Alignment.Center
@@ -160,7 +165,7 @@ fun ResultadosScreen(
                                 }
                             }
 
-                            Text(emoji, fontSize = 32.sp)
+                            Text(emoji, fontSize = 36.sp)
                             Text(
                                 mensaje,
                                 style = MaterialTheme.typography.titleMedium,
@@ -188,15 +193,17 @@ fun ResultadosScreen(
                 itemsIndexed(cuestionario.preguntas) { _, pregunta ->
                     val rUsuario = respuestasUsuario[pregunta.id] ?: "-"
                     val rPareja = respuestasPareja[pregunta.id] ?: "-"
+                    val esFoto = pregunta.tipo == TipoPregunta.FOTO.name
+                    val esTexto = pregunta.tipo == TipoPregunta.TEXTO_LIBRE.name
 
-                    val coinciden = when (pregunta.tipo) {
-                        TipoPregunta.ESCALA.name -> {
+                    val coinciden: Boolean? = when {
+                        esFoto || esTexto -> null
+                        pregunta.tipo == TipoPregunta.ESCALA.name -> {
                             kotlin.math.abs(
                                 (rUsuario.toIntOrNull() ?: 0) -
                                         (rPareja.toIntOrNull() ?: 0)
                             ) <= 2
                         }
-                        TipoPregunta.TEXTO_LIBRE.name -> null // sin comparar
                         else -> rUsuario == rPareja
                     }
 
@@ -207,29 +214,44 @@ fun ResultadosScreen(
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = when (coinciden) {
-                                true -> Color(0xFF4CAF50).copy(alpha = 0.1f)
+                                true -> Color(0xFF4CAF50).copy(alpha = 0.08f)
                                 false -> MaterialTheme.colorScheme.errorContainer
-                                    .copy(alpha = 0.3f)
+                                    .copy(alpha = 0.2f)
                                 null -> MaterialTheme.colorScheme.surfaceVariant
                             }
                         )
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
+                            // Texto de la pregunta mas imagen opcional
                             Row(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.Top
                             ) {
-                                Text(
-                                    pregunta.texto,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.weight(1f)
-                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        pregunta.texto,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    if (pregunta.imagenUrl.isNotBlank()) {
+                                        Spacer(Modifier.height(8.dp))
+                                        AsyncImage(
+                                            model = pregunta.imagenUrl,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(100.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                        )
+                                    }
+                                }
                                 if (coinciden != null) {
+                                    Spacer(Modifier.width(8.dp))
                                     Text(
                                         if (coinciden) "✅" else "❌",
                                         fontSize = 18.sp
@@ -237,6 +259,7 @@ fun ResultadosScreen(
                                 }
                             }
 
+                            //Respuestas lado a lado
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -249,7 +272,8 @@ fun ResultadosScreen(
                                         .background(
                                             MaterialTheme.colorScheme.primaryContainer
                                         )
-                                        .padding(10.dp)
+                                        .padding(10.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Text(
                                         "Tú",
@@ -257,12 +281,37 @@ fun ResultadosScreen(
                                         color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Bold
                                     )
-                                    Text(
-                                        rUsuario,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme
-                                            .onPrimaryContainer
-                                    )
+                                    Spacer(Modifier.height(6.dp))
+                                    if (esFoto) {
+                                        val url = fotoUsuario[pregunta.id]
+                                        if (url != null) {
+                                            AsyncImage(
+                                                model = url,
+                                                contentDescription = null,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(100.dp)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                            )
+                                        } else {
+                                            Text(
+                                                "Sin foto",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme
+                                                    .onPrimaryContainer
+                                                    .copy(alpha = 0.5f)
+                                            )
+                                        }
+                                    } else {
+                                        Text(
+                                            rUsuario,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme
+                                                .onPrimaryContainer,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
                                 }
 
                                 // Respuesta pareja
@@ -273,7 +322,8 @@ fun ResultadosScreen(
                                         .background(
                                             MaterialTheme.colorScheme.secondaryContainer
                                         )
-                                        .padding(10.dp)
+                                        .padding(10.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Text(
                                         nombrePareja,
@@ -281,12 +331,37 @@ fun ResultadosScreen(
                                         color = MaterialTheme.colorScheme.secondary,
                                         fontWeight = FontWeight.Bold
                                     )
-                                    Text(
-                                        rPareja,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme
-                                            .onSecondaryContainer
-                                    )
+                                    Spacer(Modifier.height(6.dp))
+                                    if (esFoto) {
+                                        val url = fotoPareja[pregunta.id]
+                                        if (url != null) {
+                                            AsyncImage(
+                                                model = url,
+                                                contentDescription = null,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(100.dp)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                            )
+                                        } else {
+                                            Text(
+                                                "Sin foto",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme
+                                                    .onSecondaryContainer
+                                                    .copy(alpha = 0.5f)
+                                            )
+                                        }
+                                    } else {
+                                        Text(
+                                            rPareja,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme
+                                                .onSecondaryContainer,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
                                 }
                             }
                         }

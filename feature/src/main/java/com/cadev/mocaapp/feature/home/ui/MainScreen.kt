@@ -40,12 +40,10 @@ fun MainScreen(
     factory: ViewModelProvider.Factory,
     navController: NavHostController
 ) {
-    //NavController propio para los tabs
     val tabNavController = rememberNavController()
     val navBackStackEntry by tabNavController.currentBackStackEntryAsState()
     val destinoActual = navBackStackEntry?.destination
 
-    // Datos del usuario, definidos UNA sola vez
     val uid = remember {
         FirebaseAuth.getInstance().currentUser?.uid ?: ""
     }
@@ -53,18 +51,33 @@ fun MainScreen(
         runBlocking { UsuarioHelper.obtenerParejaId(uid) }
     }
 
-    //PerfilViewModel compartido entre todas las pantallas
+    //ViewModels compartidos
     val perfilViewModel: PerfilViewModel = viewModel(factory = factory)
 
-    // Precargar perfil al arrancar — cuando el usuario llegue
-    //   a Perfil, Ajustes, Chat o PerfilPareja ya están los datos
+    //CuestionarioViewModel creado a nivel de MainScreen
+    //para que sobreviva cambios de tab y no se recree
+    val cuestionarioViewModel: CuestionarioViewModel = viewModel(factory = factory)
+
+    val perfilState by perfilViewModel.uiState.collectAsState()
+
+    // ── Precarga del perfil ───────────────────────────────────
     LaunchedEffect(uid) {
         perfilViewModel.cargarPerfil(uid, parejaId)
     }
 
-    val perfilState by perfilViewModel.uiState.collectAsState()
+    // Precarga de cuestionarios en cuanto tengamos relacionId
+    //No esperamos a que el usuario entre al tab
+    LaunchedEffect(perfilState.usuario?.relacionId) {
+        val relacionId = perfilState.usuario?.relacionId ?: return@LaunchedEffect
+        cuestionarioViewModel.cargarCuestionarios(
+            relacionId = relacionId,
+            usuarioId = uid,
+            parejaId = parejaId ?: ""
+        )
+        // Poblar predefinidos aqui, solo hace algo si no existen
+        cuestionarioViewModel.poblarPredefinidos()
+    }
 
-    //Tabs de la barra inferior
     val tabs = listOf(
         BottomNavItem.Home,
         BottomNavItem.Calendario,
@@ -85,14 +98,11 @@ fun MainScreen(
                         selected = seleccionado,
                         onClick = {
                             tabNavController.navigate(tab.route) {
-                                // Evita acumular destinos en el back stack
                                 popUpTo(
                                     tabNavController.graph
                                         .findStartDestination().id
                                 ) { saveState = true }
-                                // Evita copias del mismo destino
                                 launchSingleTop = true
-                                // Restaura el estado al regresar a un tab
                                 restoreState = true
                             }
                         },
@@ -120,7 +130,7 @@ fun MainScreen(
                 HomeScreen()
             }
 
-            // Calendario
+            //Calendario
             composable(NavRoutes.Calendario.route) {
                 val diarioViewModel: DiarioViewModel = viewModel(factory = factory)
                 CalendarioScreen(
@@ -135,33 +145,31 @@ fun MainScreen(
                 )
             }
 
-            // Chat
+            //Chat
             composable(NavRoutes.Chat.route) {
                 if (parejaId != null) {
                     val chatViewModel: ChatViewModel = viewModel(factory = factory)
-                    // perfilViewModel ya cargado — nombre y foto disponibles
                     ChatScreen(
                         viewModel = chatViewModel,
                         usuarioId = uid,
                         parejaId = parejaId,
                         nombrePareja = perfilState.pareja?.nombre ?: "Mi pareja",
                         fotoPareja = perfilState.pareja?.fotoPerfil,
-                        onRegresar = { /* tab — sin navegación atrás */ }
+                        onRegresar = { /* tab sin navegacion atras */ }
                     )
                 } else {
                     PlaceholderScreen("💬 Vincula tu pareja primero")
                 }
             }
 
+            //Cuestionarios
             composable(NavRoutes.Cuestionarios.route) {
-                val cuestionarioViewModel: CuestionarioViewModel = viewModel(factory = factory)
-                val relacionId = perfilState.usuario?.relacionId ?: ""
-
+                // Reusar el viewModel ya cargado, sin nueva instancia
                 CuestionariosScreen(
                     viewModel = cuestionarioViewModel,
                     usuarioId = uid,
                     parejaId = parejaId ?: "",
-                    relacionId = relacionId,
+                    relacionId = perfilState.usuario?.relacionId ?: "",
                     onIniciarCuestionario = { id ->
                         navController.navigate(
                             NavRoutes.ResponderCuestionario.crearRuta(id)
@@ -180,7 +188,6 @@ fun MainScreen(
 
             //Perfil
             composable(NavRoutes.Perfil.route) {
-                //Misma instancia — datos ya cargados
                 PerfilScreen(
                     viewModel = perfilViewModel,
                     usuarioId = uid,
@@ -192,13 +199,18 @@ fun MainScreen(
                         navController.navigate(
                             NavRoutes.PerfilPareja.crearRuta(id)
                         )
+                    },
+                    onLogout = {
+                        navController.navigate(NavRoutes.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                        FirebaseAuth.getInstance().signOut()
                     }
                 )
             }
 
-            // Ajustes
+            //Ajustes
             composable(NavRoutes.Ajustes.route) {
-                //Misma instancia — datos ya cargados sin consulta extra
                 AjustesScreen(
                     viewModel = perfilViewModel,
                     usuarioId = uid,
@@ -207,7 +219,7 @@ fun MainScreen(
                 )
             }
 
-            // Perfil de pareja
+            //Perfil de pareja
             composable(
                 route = NavRoutes.PerfilPareja.route,
                 arguments = listOf(
@@ -216,7 +228,6 @@ fun MainScreen(
             ) { backStackEntry ->
                 val pId = backStackEntry.arguments
                     ?.getString("parejaId") ?: ""
-                //Misma instancia — pareja ya cargada desde el inicio
                 PerfilParejaScreen(
                     viewModel = perfilViewModel,
                     parejaId = pId,

@@ -1,12 +1,12 @@
 package com.cadev.mocaapp.feature.cuestionarios.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -23,6 +23,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cadev.mocaapp.feature.cuestionarios.domain.model.CategoriaCuestionario
 import com.cadev.mocaapp.feature.cuestionarios.domain.model.Cuestionario
+import com.cadev.mocaapp.feature.cuestionarios.domain.model.EstadoCuestionario
+
+// Colores de estado
+private val colorYoRespondí = Color(0xFFFFF3E0)
+private val colorBordeYoRespondí = Color(0xFFFF9800)
+private val colorParejaRespondió = Color(0xFFE8F5E9)
+private val colorBordeParejaRespondió = Color(0xFF4CAF50)
+private val colorAmbos = Color(0xFFE3F2FD)
+private val colorBordeAmbos = Color(0xFF2196F3)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,8 +47,7 @@ fun CuestionariosScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(relacionId) {
-        viewModel.cargarCuestionarios(relacionId, usuarioId)
-        // Poblar predefinidos la primera vez (si no existen)
+        viewModel.cargarCuestionarios(relacionId, usuarioId, parejaId)
         viewModel.poblarPredefinidos()
     }
 
@@ -59,7 +67,7 @@ fun CuestionariosScreen(
                     IconButton(onClick = onCrearCuestionario) {
                         Icon(
                             Icons.Filled.Add,
-                            "Crear cuestionario",
+                            "Crear",
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -70,14 +78,12 @@ fun CuestionariosScreen(
             )
         }
     ) { padding ->
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
 
-            //Tabs Disponibles / Historial
             TabRow(selectedTabIndex = tabSeleccionado) {
                 Tab(
                     selected = tabSeleccionado == 0,
@@ -100,17 +106,12 @@ fun CuestionariosScreen(
             }
 
             if (tabSeleccionado == 0) {
-                //Lista de disponibles
-                val completadosIds = uiState.historial.map { it.id }.toSet()
-
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Agrupar por categoría
-                    val porCategoria = uiState.cuestionarios
-                        .groupBy { it.categoria }
+                    val porCategoria = uiState.cuestionarios.groupBy { it.categoria }
 
                     porCategoria.forEach { (categoria, lista) ->
                         item {
@@ -124,20 +125,22 @@ fun CuestionariosScreen(
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(
-                                    top = 8.dp, bottom = 4.dp
-                                )
+                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                             )
                         }
                         items(lista) { cuestionario ->
+                            val estado = uiState.estadosCuestionarios[cuestionario.id]
+                                ?: EstadoCuestionario.NINGUNO
                             TarjetaCuestionario(
                                 cuestionario = cuestionario,
-                                completado = cuestionario.id in completadosIds,
+                                estado = estado,
                                 onClick = {
-                                    if (cuestionario.id in completadosIds) {
-                                        onVerResultados(cuestionario.id)
-                                    } else {
-                                        onIniciarCuestionario(cuestionario.id)
+                                    when (estado) {
+                                        EstadoCuestionario.AMBOS,
+                                        EstadoCuestionario.YO_RESPONDÍ ->
+                                            onVerResultados(cuestionario.id)
+                                        else ->
+                                            onIniciarCuestionario(cuestionario.id)
                                     }
                                 }
                             )
@@ -162,7 +165,6 @@ fun CuestionariosScreen(
                     }
                 }
             } else {
-                // Historial de completados
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
@@ -191,9 +193,11 @@ fun CuestionariosScreen(
                         }
                     } else {
                         items(uiState.historial) { cuestionario ->
+                            val estado = uiState.estadosCuestionarios[cuestionario.id]
+                                ?: EstadoCuestionario.AMBOS
                             TarjetaCuestionario(
                                 cuestionario = cuestionario,
-                                completado = true,
+                                estado = estado,
                                 onClick = { onVerResultados(cuestionario.id) }
                             )
                         }
@@ -204,76 +208,133 @@ fun CuestionariosScreen(
     }
 }
 
-//Tarjeta de cuestionario
+//Tarjeta con indicador de estado
+
 @Composable
 private fun TarjetaCuestionario(
     cuestionario: Cuestionario,
-    completado: Boolean,
+    estado: EstadoCuestionario,
     onClick: () -> Unit
 ) {
     val categoria = try {
         CategoriaCuestionario.valueOf(cuestionario.categoria)
     } catch (e: Exception) { CategoriaCuestionario.PERSONALIZADO }
 
+    // Color de fondo y borde según estado
+    val (colorFondo, colorBorde, etiquetaEstado) = when (estado) {
+        EstadoCuestionario.YO_RESPONDÍ -> Triple(
+            colorYoRespondí, colorBordeYoRespondí,
+            "⏳ Esperando a que tu pareja responda"
+        )
+        EstadoCuestionario.PAREJA_RESPONDIÓ -> Triple(
+            colorParejaRespondió, colorBordeParejaRespondió,
+            "💬 ¡Tu pareja ya respondió! Es tu turno"
+        )
+        EstadoCuestionario.AMBOS -> Triple(
+            colorAmbos, colorBordeAmbos,
+            "✅ Completado por ambos"
+        )
+        EstadoCuestionario.NINGUNO -> Triple(
+            Color.Transparent,
+            Color.Transparent,
+            null
+        )
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .then(
+                if (colorBorde != Color.Transparent)
+                    Modifier.border(
+                        width = 2.dp,
+                        color = colorBorde,
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                else Modifier
+            )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple()
             ) { onClick() },
         shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (colorFondo != Color.Transparent)
+                colorFondo
+            else MaterialTheme.colorScheme.surface
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            //Emoji de categoría
-            Box(
+        Column {
+            Row(
                 modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        MaterialTheme.colorScheme.primaryContainer
-                    ),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(categoria.emoji, fontSize = 26.sp)
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(categoria.emoji, fontSize = 26.sp)
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = cuestionario.titulo,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = cuestionario.descripcion,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        maxLines = 2
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "${cuestionario.preguntas.size} preguntas",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                if (estado == EstadoCuestionario.AMBOS) {
+                    Icon(
+                        Icons.Filled.CheckCircle,
+                        null,
+                        tint = colorBordeAmbos,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = cuestionario.titulo,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = cuestionario.descripcion,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    maxLines = 2
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = "${cuestionario.preguntas.size} preguntas",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            //Badge completado
-            if (completado) {
-                Icon(
-                    Icons.Filled.CheckCircle,
-                    null,
-                    tint = Color(0xFF4CAF50),
-                    modifier = Modifier.size(24.dp)
-                )
+            //Banner de estado (solo si hay mensaje)
+            if (etiquetaEstado != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            colorBorde.copy(alpha = 0.15f),
+                            RoundedCornerShape(
+                                bottomStart = 16.dp,
+                                bottomEnd = 16.dp
+                            )
+                        )
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = etiquetaEstado,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colorBorde
+                    )
+                }
             }
         }
     }

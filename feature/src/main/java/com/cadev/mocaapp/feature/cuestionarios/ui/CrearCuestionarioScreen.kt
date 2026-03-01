@@ -1,19 +1,27 @@
 package com.cadev.mocaapp.feature.cuestionarios.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.cadev.mocaapp.feature.cuestionarios.domain.model.*
 import java.util.UUID
 
@@ -37,10 +45,17 @@ fun CrearCuestionarioScreen(
 
     var titulo by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }
-    var preguntas by remember { mutableStateOf(
-        listOf(Pregunta(id = UUID.randomUUID().toString(),
-            tipo = TipoPregunta.OPCION_MULTIPLE.name))
-    )}
+    var preguntas by remember {
+        mutableStateOf(
+            listOf(
+                Pregunta(
+                    id = UUID.randomUUID().toString(),
+                    tipo = TipoPregunta.OPCION_MULTIPLE.name,
+                    opciones = listOf("", "")
+                )
+            )
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -97,7 +112,7 @@ fun CrearCuestionarioScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
-            //Info básica
+            //Info basica
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -132,7 +147,7 @@ fun CrearCuestionarioScreen(
                 }
             }
 
-            //Preguntas
+            //Encabezado preguntas
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -148,7 +163,8 @@ fun CrearCuestionarioScreen(
                         onClick = {
                             preguntas = preguntas + Pregunta(
                                 id = UUID.randomUUID().toString(),
-                                tipo = TipoPregunta.OPCION_MULTIPLE.name
+                                tipo = TipoPregunta.OPCION_MULTIPLE.name,
+                                opciones = listOf("", "")
                             )
                         },
                         shape = RoundedCornerShape(10.dp)
@@ -167,14 +183,23 @@ fun CrearCuestionarioScreen(
                 EditorPregunta(
                     numero = index + 1,
                     pregunta = pregunta,
+                    subiendoFoto = uiState.subiendoFoto,
                     onCambiar = { nueva ->
-                        preguntas = preguntas.toMutableList()
-                            .also { it[index] = nueva }
+                        preguntas = preguntas.toMutableList().also { it[index] = nueva }
                     },
                     onEliminar = if (preguntas.size > 1) {
-                        { preguntas = preguntas.toMutableList()
-                            .also { it.removeAt(index) } }
-                    } else null
+                        {
+                            preguntas = preguntas.toMutableList()
+                                .also { it.removeAt(index) }
+                        }
+                    } else null,
+                    onSubirImagenPregunta = { rutaLocal ->
+                        viewModel.subirFotoPregunta(rutaLocal) { url ->
+                            preguntas = preguntas.toMutableList().also {
+                                it[index] = pregunta.copy(imagenUrl = url)
+                            }
+                        }
+                    }
                 )
             }
         }
@@ -182,16 +207,23 @@ fun CrearCuestionarioScreen(
 }
 
 //Editor de pregunta individual
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditorPregunta(
     numero: Int,
     pregunta: Pregunta,
+    subiendoFoto: Boolean,
     onCambiar: (Pregunta) -> Unit,
-    onEliminar: (() -> Unit)?
+    onEliminar: (() -> Unit)?,
+    onSubirImagenPregunta: (String) -> Unit
 ) {
-    var expandido by remember { mutableStateOf(true) }
+    val launcherImagenPregunta = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri -> uri?.let { onSubirImagenPregunta(it.toString()) } }
+
+    val tipoActual = try {
+        TipoPregunta.valueOf(pregunta.tipo)
+    } catch (e: Exception) { TipoPregunta.OPCION_MULTIPLE }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -201,6 +233,7 @@ private fun EditorPregunta(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            //Header pregunta
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -226,7 +259,7 @@ private fun EditorPregunta(
                 }
             }
 
-            // Texto de la pregunta
+            //Texto de la pregunta
             OutlinedTextField(
                 value = pregunta.texto,
                 onValueChange = { onCambiar(pregunta.copy(texto = it)) },
@@ -236,11 +269,78 @@ private fun EditorPregunta(
                 shape = RoundedCornerShape(12.dp)
             )
 
-            // Tipo de pregunta
+            //Imagen opcional en la pregunta
+            Text(
+                "Imagen de referencia (opcional)",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+
+            if (pregunta.imagenUrl.isNotBlank()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                ) {
+                    AsyncImage(
+                        model = pregunta.imagenUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    FilledTonalButton(
+                        onClick = { launcherImagenPregunta.launch("image/*") },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.Edit, null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text("Cambiar", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(70.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple()
+                        ) { launcherImagenPregunta.launch("image/*") },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (subiendoFoto) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.AddPhotoAlternate, null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                "Agregar imagen",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+
+            //Tipo de pregunta
             var expandidoTipo by remember { mutableStateOf(false) }
-            val tipoActual = try {
-                TipoPregunta.valueOf(pregunta.tipo)
-            } catch (e: Exception) { TipoPregunta.OPCION_MULTIPLE }
 
             ExposedDropdownMenuBox(
                 expanded = expandidoTipo,
@@ -252,10 +352,11 @@ private fun EditorPregunta(
                         TipoPregunta.TEXTO_LIBRE -> "Texto libre"
                         TipoPregunta.ESCALA -> "Escala 1-10"
                         TipoPregunta.SI_NO -> "Sí / No"
+                        TipoPregunta.FOTO -> "📷 Respuesta con foto"
                     },
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Tipo") },
+                    label = { Text("Tipo de respuesta") },
                     trailingIcon = {
                         ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandidoTipo)
                     },
@@ -272,7 +373,8 @@ private fun EditorPregunta(
                         TipoPregunta.OPCION_MULTIPLE to "Opción múltiple",
                         TipoPregunta.TEXTO_LIBRE to "Texto libre",
                         TipoPregunta.ESCALA to "Escala 1-10",
-                        TipoPregunta.SI_NO to "Sí / No"
+                        TipoPregunta.SI_NO to "Sí / No",
+                        TipoPregunta.FOTO to "📷 Respuesta con foto"
                     ).forEach { (tipo, etiqueta) ->
                         DropdownMenuItem(
                             text = { Text(etiqueta) },
@@ -292,7 +394,7 @@ private fun EditorPregunta(
                 }
             }
 
-            // Opciones (solo para OPCION_MULTIPLE)
+            //Opciones (solo OPCION_MULTIPLE)
             if (tipoActual == TipoPregunta.OPCION_MULTIPLE) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
@@ -310,7 +412,9 @@ private fun EditorPregunta(
                                 onValueChange = { nueva ->
                                     val nuevasOpciones = pregunta.opciones
                                         .toMutableList().also { it[i] = nueva }
-                                    onCambiar(pregunta.copy(opciones = nuevasOpciones))
+                                    onCambiar(
+                                        pregunta.copy(opciones = nuevasOpciones)
+                                    )
                                 },
                                 label = { Text("Opción ${i + 1}") },
                                 modifier = Modifier.weight(1f),
@@ -321,8 +425,7 @@ private fun EditorPregunta(
                                 IconButton(
                                     onClick = {
                                         val nuevasOpciones = pregunta.opciones
-                                            .toMutableList()
-                                            .also { it.removeAt(i) }
+                                            .toMutableList().also { it.removeAt(i) }
                                         onCambiar(
                                             pregunta.copy(opciones = nuevasOpciones)
                                         )
@@ -340,16 +443,42 @@ private fun EditorPregunta(
                     }
                     TextButton(
                         onClick = {
-                            onCambiar(
-                                pregunta.copy(
-                                    opciones = pregunta.opciones + ""
-                                )
-                            )
+                            onCambiar(pregunta.copy(opciones = pregunta.opciones + ""))
                         }
                     ) {
-                        Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp))
+                        Icon(
+                            Icons.Filled.Add, null,
+                            modifier = Modifier.size(16.dp)
+                        )
                         Spacer(Modifier.width(4.dp))
                         Text("Agregar opción")
+                    }
+                }
+            }
+
+            // ← Nota informativa para tipo FOTO
+            if (tipoActual == TipoPregunta.FOTO) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    ),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Filled.Info, null,
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            "Ambos responderán con una foto de su galería. Las fotos se mostrarán lado a lado sin comparación.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
                     }
                 }
             }

@@ -261,10 +261,6 @@ class PerfilViewModel(
         }
     }
 
-    fun logout() {
-        FirebaseAuth.getInstance().signOut()
-    }
-
     fun limpiarMensajes() {
         _uiState.value = _uiState.value.copy(
             error = null,
