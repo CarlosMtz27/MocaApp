@@ -77,8 +77,17 @@ fun ChatScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.marcarComoLeido()
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                viewModel.marcarComoLeido()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     //Estados locales
@@ -118,7 +127,7 @@ fun ChatScreen(
         if (exito) uriVideoTemp?.let { viewModel.enviarVideo(it.toString()) }
     }
 
-    //Cámara: acción DENTRO del callback, nunca antes
+    //Cámara: acción DENTRO del callback
     val launcherPermisoCamara = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { concedido ->
@@ -200,7 +209,7 @@ fun ChatScreen(
         }
     }
 
-    //Panel reacciones / eliminar
+    //Panel reacciones, eliminar
     if (uiState.mostrarReacciones && uiState.mensajeSeleccionado != null) {
         val esMio = uiState.mensajeSeleccionado!!.remitenteId == usuarioId
         AlertDialog(
@@ -479,7 +488,6 @@ fun ChatScreen(
 }
 
 //Fecha separadora
-
 @Composable
 private fun FechaHeader(fecha: String) {
     val hoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
@@ -518,7 +526,6 @@ private fun FechaHeader(fecha: String) {
 }
 
 //Burbuja de mensaje
-
 @Composable
 private fun BurbujaMensaje(
     mensaje: Mensaje,
@@ -713,7 +720,6 @@ private fun BurbujaMensaje(
 }
 
 //Icono de estado
-
 @Composable
 private fun EstadoIcon(estado: String, color: Color) {
     when (estado) {
@@ -755,7 +761,6 @@ private fun EstadoIcon(estado: String, color: Color) {
 }
 
 //Barra de input
-
 @Composable
 private fun InputBar(
     texto: String,
@@ -969,7 +974,6 @@ private fun ReproductorVideo(url: String) {
 }
 
 //Reproductor de Audio, Voz
-
 @Composable
 private fun ReproductorAudio(
     url: String,

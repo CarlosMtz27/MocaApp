@@ -2,6 +2,7 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
+    id("org.jetbrains.kotlin.plugin.compose")
     alias(libs.plugins.kotlin.android)
     id("com.google.gms.google-services")
 }
@@ -40,6 +41,15 @@ android {
             "CLOUDINARY_API_SECRET",
             "\"${localProperties["CLOUDINARY_API_SECRET"]}\""
         )
+
+        // OneSignal
+        buildConfigField("String", "ONESIGNAL_APP_ID",
+            "\"${localProperties["ONESIGNAL_APP_ID"]}\"")
+        buildConfigField("String", "ONESIGNAL_REST_KEY",
+            "\"${localProperties["ONESIGNAL_REST_KEY"]}\"")
+
+        manifestPlaceholders["onesignal_app_id"] =
+            localProperties["ONESIGNAL_APP_ID"] ?: ""
     }
 
     buildTypes {
@@ -66,9 +76,7 @@ android {
         compose = true
         buildConfig = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.15"
-    }
+
 }
 
 dependencies {
@@ -95,6 +103,6 @@ dependencies {
     implementation(libs.androidx.runtime)
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.appcompat:appcompat:1.6.1")
-
+    implementation("com.onesignal:OneSignal:[5.0.0, 5.99.99]")
 
 }

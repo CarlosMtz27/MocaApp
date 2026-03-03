@@ -7,6 +7,7 @@ import com.cadev.mocaapp.feature.chat.domain.model.EstadoMensaje
 import com.cadev.mocaapp.feature.chat.domain.model.Mensaje
 import com.cadev.mocaapp.feature.chat.domain.model.TipoMensaje
 import com.cadev.mocaapp.feature.chat.domain.repository.ChatRepository
+import com.cadev.mocaapp.feature.notificaciones.data.NotificacionRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,7 +26,8 @@ data class ChatUiState(
 )
 
 class ChatViewModel(
-    private val repository: ChatRepository
+    private val repository: ChatRepository,
+    private val notificacionRepository: NotificacionRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -33,51 +35,41 @@ class ChatViewModel(
 
     private var conversacionId: String = ""
     private var usuarioId: String = ""
+    private var parejaId: String = ""
     private var jobEscribiendo: Job? = null
+    private var inicializado = false
 
-    fun inicializar(uid: String, parejaId: String) {
+    fun inicializar(uid: String, pId: String) {
+        if (inicializado) return   //evitamos doble inicialización
+        inicializado = true
+
         usuarioId = uid
-        conversacionId = repository.obtenerConversacionId(uid, parejaId)
+        parejaId = pId
+        conversacionId = repository.obtenerConversacionId(uid, pId)
 
-        //Escuchar mensajes en tiempo real
         viewModelScope.launch {
             try {
                 repository.escucharMensajes(conversacionId).collect { mensajes ->
                     _uiState.value = _uiState.value.copy(mensajes = mensajes)
                     marcarEntregados(mensajes, uid)
                 }
-            } catch (e: Exception) {
-               e.printStackTrace()
-            }
+            } catch (e: Exception) { e.printStackTrace() }
         }
 
-        //Escuchar si la pareja está escribiendo
         viewModelScope.launch {
             try {
-                repository.escucharEscribiendo(
-                    conversacionId, parejaId
-                ).collect { escribiendo ->
-                    _uiState.value = _uiState.value.copy(
-                        parejaEscribiendo = escribiendo
-                    )
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-
-        //Marcar como leídos al abrir
-        viewModelScope.launch {
-            try {
-                repository.marcarComoLeido(conversacionId, uid)
-            } catch (e: Exception) { }
+                repository.escucharEscribiendo(conversacionId, pId)
+                    .collect { escribiendo ->
+                        _uiState.value = _uiState.value.copy(
+                            parejaEscribiendo = escribiendo
+                        )
+                    }
+            } catch (e: Exception) { e.printStackTrace() }
         }
     }
 
     fun actualizarTexto(texto: String) {
         _uiState.value = _uiState.value.copy(textoActual = texto)
-
-        // Notificar "escribiendo..." con debounce de 2 segundos
         jobEscribiendo?.cancel()
         viewModelScope.launch {
             try {
@@ -99,16 +91,13 @@ class ChatViewModel(
 
         val mensaje = Mensaje(
             conversacionId = conversacionId,
-            remitenteId = usuarioId,
-            texto = texto,
-            tipo = tipo
+            remitenteId    = usuarioId,
+            texto          = texto,
+            tipo           = tipo
         )
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                textoActual = "",
-                enviando = true
-            )
+            _uiState.value = _uiState.value.copy(textoActual = "", enviando = true)
             try {
                 repository.actualizarEscribiendo(conversacionId, usuarioId, false)
             } catch (e: Exception) { }
@@ -116,11 +105,20 @@ class ChatViewModel(
             repository.enviarMensaje(mensaje).fold(
                 onSuccess = {
                     _uiState.value = _uiState.value.copy(enviando = false)
+                    launch {
+                        notificacionRepository.incrementarBadge(parejaId, "chat")
+                        notificacionRepository.enviarPush(
+                            parejaId = parejaId,
+                            titulo   = "💬 Nuevo mensaje",
+                            cuerpo   = texto.take(60),
+                            deepLink = "main/chat"
+                        )
+                    }
                 },
                 onFailure = {
                     _uiState.value = _uiState.value.copy(
                         enviando = false,
-                        error = "No se pudo enviar el mensaje"
+                        error    = "No se pudo enviar el mensaje"
                     )
                 }
             )
@@ -137,10 +135,10 @@ class ChatViewModel(
 
     fun enviarAudio(rutaLocal: String, duracion: Int) {
         val mensaje = Mensaje(
-            conversacionId = conversacionId,
-            remitenteId = usuarioId,
-            texto = "🎵 Audio",
-            tipo = TipoMensaje.AUDIO.name,
+            conversacionId  = conversacionId,
+            remitenteId     = usuarioId,
+            texto           = "🎵 Audio",
+            tipo            = TipoMensaje.AUDIO.name,
             duracionSegundos = duracion
         )
         viewModelScope.launch {
@@ -148,11 +146,20 @@ class ChatViewModel(
             repository.enviarMensajeConMedia(mensaje, rutaLocal).fold(
                 onSuccess = {
                     _uiState.value = _uiState.value.copy(enviando = false)
+                    launch {
+                        notificacionRepository.incrementarBadge(parejaId, "chat")
+                        notificacionRepository.enviarPush(
+                            parejaId = parejaId,
+                            titulo   = "💬 Nuevo mensaje de voz",
+                            cuerpo   = "Te envió un audio 🎵",
+                            deepLink = "main/chat"
+                        )
+                    }
                 },
                 onFailure = {
                     _uiState.value = _uiState.value.copy(
                         enviando = false,
-                        error = "No se pudo enviar el audio"
+                        error    = "No se pudo enviar el audio"
                     )
                 }
             )
@@ -162,14 +169,14 @@ class ChatViewModel(
     fun seleccionarMensaje(mensaje: Mensaje) {
         _uiState.value = _uiState.value.copy(
             mensajeSeleccionado = mensaje,
-            mostrarReacciones = true
+            mostrarReacciones   = true
         )
     }
 
     fun cerrarReacciones() {
         _uiState.value = _uiState.value.copy(
             mensajeSeleccionado = null,
-            mostrarReacciones = false
+            mostrarReacciones   = false
         )
     }
 
@@ -187,18 +194,16 @@ class ChatViewModel(
 
     fun eliminarMensaje(mensajeId: String) {
         viewModelScope.launch {
-            try {
-                repository.eliminarMensaje(conversacionId, mensajeId)
-            } catch (e: Exception) { }
+            try { repository.eliminarMensaje(conversacionId, mensajeId) }
+            catch (e: Exception) { }
             cerrarReacciones()
         }
     }
 
     fun marcarComoLeido() {
         viewModelScope.launch {
-            try {
-                repository.marcarComoLeido(conversacionId, usuarioId)
-            } catch (e: Exception) { }
+            try { repository.marcarComoLeido(conversacionId, usuarioId) }
+            catch (e: Exception) { }
         }
     }
 
@@ -209,20 +214,29 @@ class ChatViewModel(
     private fun enviarMedia(rutaLocal: String, tipo: String, textoPreview: String) {
         val mensaje = Mensaje(
             conversacionId = conversacionId,
-            remitenteId = usuarioId,
-            texto = textoPreview,
-            tipo = tipo
+            remitenteId    = usuarioId,
+            texto          = textoPreview,
+            tipo           = tipo
         )
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(enviando = true)
             repository.enviarMensajeConMedia(mensaje, rutaLocal).fold(
                 onSuccess = {
                     _uiState.value = _uiState.value.copy(enviando = false)
+                    launch {
+                        notificacionRepository.incrementarBadge(parejaId, "chat")
+                        notificacionRepository.enviarPush(
+                            parejaId = parejaId,
+                            titulo   = "💬 Nuevo mensaje",
+                            cuerpo   = textoPreview,
+                            deepLink = "main/chat"
+                        )
+                    }
                 },
                 onFailure = {
                     _uiState.value = _uiState.value.copy(
                         enviando = false,
-                        error = "No se pudo enviar el archivo"
+                        error    = "No se pudo enviar el archivo"
                     )
                 }
             )
@@ -250,9 +264,7 @@ class ChatViewModel(
                     batch.update(ref, "estado", EstadoMensaje.ENTREGADO.name)
                 }
                 batch.commit().await()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            } catch (e: Exception) { e.printStackTrace() }
         }
     }
 
@@ -265,7 +277,6 @@ class ChatViewModel(
     override fun onCleared() {
         super.onCleared()
         jobEscribiendo?.cancel()
-        // Limpiar estado de escribiendo al salir
         viewModelScope.launch {
             try {
                 repository.actualizarEscribiendo(conversacionId, usuarioId, false)

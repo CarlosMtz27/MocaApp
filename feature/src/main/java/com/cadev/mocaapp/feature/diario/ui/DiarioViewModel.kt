@@ -9,6 +9,7 @@ import com.cadev.mocaapp.feature.diario.domain.model.EtiquetaDiaEspecial
 import com.cadev.mocaapp.feature.diario.domain.model.EtiquetaEvento
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
 import com.cadev.mocaapp.feature.diario.domain.repository.DiarioRepository
+import com.cadev.mocaapp.feature.notificaciones.data.NotificacionRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,7 +26,6 @@ data class DiarioUiState(
     val entradas: List<EntradaDiario> = emptyList(),
     val diasConEntrada: Map<String, List<String>> = emptyMap(),
     val entradaCreada: Boolean = false,
-    // Formulario
     val titulo: String = "",
     val detalles: String = "",
     val etiqueta: String = "",
@@ -34,12 +34,10 @@ data class DiarioUiState(
     val fotosSeleccionadas: List<String> = emptyList(),
     val videosSeleccionados: List<String> = emptyList(),
     val compartir: Boolean = false,
-    // Edicion
     val entradaActual: EntradaDiario? = null,
     val entradaActualizada: Boolean = false,
     val fotosAEliminar: List<String> = emptyList(),
     val videosAEliminar: List<String> = emptyList(),
-    // Detalle + comentarios
     val entradaDetalle: EntradaDiario? = null,
     val comentarios: List<Comentario> = emptyList(),
     val nuevoComentario: String = "",
@@ -47,7 +45,8 @@ data class DiarioUiState(
 )
 
 class DiarioViewModel(
-    private val repository: DiarioRepository
+    private val repository: DiarioRepository,
+    private val notificacionRepository: NotificacionRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DiarioUiState())
@@ -55,7 +54,6 @@ class DiarioViewModel(
 
     private val formatoFecha = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
-    // Nombre de usuario
     fun cargarNombreUsuario(usuarioId: String) {
         viewModelScope.launch {
             try {
@@ -64,26 +62,22 @@ class DiarioViewModel(
                     .document(usuarioId)
                     .get()
                     .await()
-                val nombre = doc.getString("nombre") ?: "Usuario"
-                _uiState.value = _uiState.value.copy(nombreUsuario = nombre)
+                _uiState.value = _uiState.value.copy(
+                    nombreUsuario = doc.getString("nombre") ?: "Usuario"
+                )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(nombreUsuario = "Usuario")
             }
         }
     }
 
-    //Calendario
     fun cargarMes(usuarioId: String, parejaId: String?, anio: Int, mes: Int) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(cargando = true)
-
-            repository.obtenerDiasConEntrada(
-                usuarioId, parejaId, anio, mes
-            ).fold(
+            repository.obtenerDiasConEntrada(usuarioId, parejaId, anio, mes).fold(
                 onSuccess = { dias ->
                     _uiState.value = _uiState.value.copy(
-                        cargando = false,
-                        diasConEntrada = dias
+                        cargando = false, diasConEntrada = dias
                     )
                 },
                 onFailure = {
@@ -96,21 +90,13 @@ class DiarioViewModel(
         }
     }
 
-    fun cargarEntradasDelDia(
-        usuarioId: String,
-        parejaId: String?,
-        fecha: String
-    ) {
+    fun cargarEntradasDelDia(usuarioId: String, parejaId: String?, fecha: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(cargando = true)
-
-            repository.obtenerEntradasDelDia(
-                usuarioId, parejaId, fecha
-            ).fold(
+            repository.obtenerEntradasDelDia(usuarioId, parejaId, fecha).fold(
                 onSuccess = { entradas ->
                     _uiState.value = _uiState.value.copy(
-                        cargando = false,
-                        entradas = entradas
+                        cargando = false, entradas = entradas
                     )
                 },
                 onFailure = {
@@ -122,8 +108,6 @@ class DiarioViewModel(
             )
         }
     }
-
-    //Formulario nueva entrada
 
     fun actualizarTitulo(valor: String) {
         _uiState.value = _uiState.value.copy(titulo = valor)
@@ -173,9 +157,7 @@ class DiarioViewModel(
     }
 
     fun toggleCompartir() {
-        _uiState.value = _uiState.value.copy(
-            compartir = !_uiState.value.compartir
-        )
+        _uiState.value = _uiState.value.copy(compartir = !_uiState.value.compartir)
     }
 
     fun guardarEntrada(
@@ -185,7 +167,6 @@ class DiarioViewModel(
         tipo: String = TipoEntrada.MI_DIA.name
     ) {
         val estado = _uiState.value
-
         if (estado.titulo.isBlank()) {
             _uiState.value = estado.copy(error = "Agrega un título")
             return
@@ -200,16 +181,16 @@ class DiarioViewModel(
             _uiState.value = estado.copy(cargando = true, error = null)
 
             val entrada = EntradaDiario(
-                usuarioId = usuarioId,
-                fecha = fecha,
-                tipo = tipo,
-                etiqueta = etiquetaFinal,
-                titulo = estado.titulo,
-                detalles = estado.detalles,
-                emociones = estado.emocionesSeleccionadas.map { it.name },
+                usuarioId  = usuarioId,
+                fecha      = fecha,
+                tipo       = tipo,
+                etiqueta   = etiquetaFinal,
+                titulo     = estado.titulo,
+                detalles   = estado.detalles,
+                emociones  = estado.emocionesSeleccionadas.map { it.name },
                 compartida = estado.compartir,
-                parejaId = if (estado.compartir) parejaId else null,
-                creadaEn = Date()
+                parejaId   = if (estado.compartir) parejaId else null,
+                creadaEn   = Date()
             )
 
             repository.crearEntrada(
@@ -219,14 +200,25 @@ class DiarioViewModel(
             ).fold(
                 onSuccess = {
                     _uiState.value = _uiState.value.copy(
-                        cargando = false,
+                        cargando     = false,
                         entradaCreada = true
                     )
+                    if (estado.compartir && !parejaId.isNullOrBlank()) {
+                        launch {
+                            notificacionRepository.incrementarBadge(parejaId, "diario")
+                            notificacionRepository.enviarPush(
+                                parejaId = parejaId,
+                                titulo   = "📖 Nuevo recuerdo compartido",
+                                cuerpo   = estado.titulo,
+                                deepLink = "main/calendario"
+                            )
+                        }
+                    }
                 },
                 onFailure = {
                     _uiState.value = _uiState.value.copy(
                         cargando = false,
-                        error = "No se pudo guardar la entrada"
+                        error    = "No se pudo guardar la entrada"
                     )
                 }
             )
@@ -235,9 +227,7 @@ class DiarioViewModel(
 
     fun limpiarFormulario() {
         _uiState.value = _uiState.value.copy(
-            titulo = "",
-            detalles = "",
-            etiqueta = "",
+            titulo = "", detalles = "", etiqueta = "",
             etiquetaPersonalizada = "",
             emocionesSeleccionadas = emptyList(),
             fotosSeleccionadas = emptyList(),
@@ -252,12 +242,9 @@ class DiarioViewModel(
         )
     }
 
-    //Edición
-
     fun cargarEntradaParaEditar(entradaId: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(cargando = true)
-
             repository.obtenerEntradaPorId(entradaId).fold(
                 onSuccess = { entrada ->
                     val emociones = entrada.emociones.mapNotNull { nombre ->
@@ -287,9 +274,7 @@ class DiarioViewModel(
     fun eliminarFotoExistente(url: String) {
         val entrada = _uiState.value.entradaActual ?: return
         _uiState.value = _uiState.value.copy(
-            entradaActual = entrada.copy(
-                fotos = entrada.fotos.filter { it != url }
-            ),
+            entradaActual = entrada.copy(fotos = entrada.fotos.filter { it != url }),
             fotosAEliminar = _uiState.value.fotosAEliminar + url
         )
     }
@@ -297,9 +282,7 @@ class DiarioViewModel(
     fun eliminarVideoExistente(url: String) {
         val entrada = _uiState.value.entradaActual ?: return
         _uiState.value = _uiState.value.copy(
-            entradaActual = entrada.copy(
-                videos = entrada.videos.filter { it != url }
-            ),
+            entradaActual = entrada.copy(videos = entrada.videos.filter { it != url }),
             videosAEliminar = _uiState.value.videosAEliminar + url
         )
     }
@@ -307,7 +290,6 @@ class DiarioViewModel(
     fun guardarEdicion(parejaId: String?) {
         val estado = _uiState.value
         val entradaOriginal = estado.entradaActual ?: return
-
         if (estado.titulo.isBlank()) {
             _uiState.value = estado.copy(error = "Agrega un título")
             return
@@ -320,7 +302,6 @@ class DiarioViewModel(
 
         viewModelScope.launch {
             _uiState.value = estado.copy(cargando = true, error = null)
-
             val entradaActualizada = entradaOriginal.copy(
                 titulo = estado.titulo,
                 detalles = estado.detalles,
@@ -329,7 +310,6 @@ class DiarioViewModel(
                 compartida = estado.compartir,
                 parejaId = if (estado.compartir) parejaId else null
             )
-
             repository.actualizarEntrada(
                 entrada = entradaActualizada,
                 fotosNuevas = estado.fotosSeleccionadas,
@@ -339,8 +319,7 @@ class DiarioViewModel(
             ).fold(
                 onSuccess = {
                     _uiState.value = _uiState.value.copy(
-                        cargando = false,
-                        entradaActualizada = true
+                        cargando = false, entradaActualizada = true
                     )
                 },
                 onFailure = {
@@ -353,31 +332,23 @@ class DiarioViewModel(
         }
     }
 
-    // Detalle mas comentarios
-
     fun cargarDetalle(entradaId: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
-                cargando = true,
-                comentarios = emptyList(),
-                entradaDetalle = null
+                cargando = true, comentarios = emptyList(), entradaDetalle = null
             )
-
             repository.obtenerEntradaPorId(entradaId).fold(
                 onSuccess = { entrada ->
                     _uiState.value = _uiState.value.copy(
-                        entradaDetalle = entrada,
-                        cargando = false
+                        entradaDetalle = entrada, cargando = false
                     )
                 },
                 onFailure = {
                     _uiState.value = _uiState.value.copy(
-                        cargando = false,
-                        error = "No se pudo cargar la entrada"
+                        cargando = false, error = "No se pudo cargar la entrada"
                     )
                 }
             )
-
             cargarComentarios(entradaId)
         }
     }
@@ -386,35 +357,20 @@ class DiarioViewModel(
         viewModelScope.launch {
             repository.obtenerComentarios(entradaId).fold(
                 onSuccess = { comentarios ->
-                    // Obtener nombres de todos los usuarios únicos
-                    val usuariosUnicos = comentarios
-                        .map { it.usuarioId }
-                        .distinct()
-
-                    // Cargar nombres de Firestore para los que no tienen nombre
+                    val usuariosUnicos = comentarios.map { it.usuarioId }.distinct()
                     val nombresMap = mutableMapOf<String, String>()
                     usuariosUnicos.forEach { uid ->
                         try {
                             val doc = FirebaseFirestore.getInstance()
-                                .collection("usuarios")
-                                .document(uid)
-                                .get()
-                                .await()
+                                .collection("usuarios").document(uid).get().await()
                             nombresMap[uid] = doc.getString("nombre") ?: "Usuario"
-                        } catch (e: Exception) {
-                            nombresMap[uid] = "Usuario"
-                        }
+                        } catch (e: Exception) { nombresMap[uid] = "Usuario" }
                     }
-
-                    // Enriquecer comentarios con nombres correctos
-                    val comentariosConNombre = comentarios.map { comentario ->
-                        if (comentario.nombreUsuario.isBlank()) {
-                            comentario.copy(
-                                nombreUsuario = nombresMap[comentario.usuarioId] ?: "Usuario"
-                            )
-                        } else comentario
+                    val comentariosConNombre = comentarios.map { c ->
+                        if (c.nombreUsuario.isBlank())
+                            c.copy(nombreUsuario = nombresMap[c.usuarioId] ?: "Usuario")
+                        else c
                     }
-
                     _uiState.value = _uiState.value.copy(
                         comentarios = comentariosConNombre
                     )
@@ -431,7 +387,6 @@ class DiarioViewModel(
     fun publicarComentario(usuarioId: String, nombreUsuario: String) {
         val texto = _uiState.value.nuevoComentario.trim()
         val entradaId = _uiState.value.entradaDetalle?.id ?: return
-
         if (texto.isBlank()) return
 
         viewModelScope.launch {
@@ -442,12 +397,9 @@ class DiarioViewModel(
                 texto = texto,
                 creadoEn = Date()
             )
-
             repository.agregarComentario(comentario).fold(
                 onSuccess = {
-                    _uiState.value = _uiState.value.copy(
-                        nuevoComentario = ""
-                    )
+                    _uiState.value = _uiState.value.copy(nuevoComentario = "")
                     cargarComentarios(entradaId)
                 },
                 onFailure = {
@@ -463,10 +415,7 @@ class DiarioViewModel(
         val entradaId = _uiState.value.entradaDetalle?.id ?: return
         viewModelScope.launch {
             repository.eliminarComentario(comentarioId).fold(
-                onSuccess = {
-                    // Recargar lista en lugar de filtrar localmente
-                    cargarComentarios(entradaId)
-                },
+                onSuccess = { cargarComentarios(entradaId) },
                 onFailure = { }
             )
         }

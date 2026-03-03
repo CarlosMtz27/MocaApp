@@ -456,7 +456,7 @@ private fun EditorPregunta(
                 }
             }
 
-            // ← Nota informativa para tipo FOTO
+            // Nota informativa para tipo FOTO
             if (tipoActual == TipoPregunta.FOTO) {
                 Card(
                     colors = CardDefaults.cardColors(

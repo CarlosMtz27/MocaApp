@@ -6,6 +6,7 @@ import com.cadev.mocaapp.feature.cuestionarios.domain.model.Cuestionario
 import com.cadev.mocaapp.feature.cuestionarios.domain.model.EstadoCuestionario
 import com.cadev.mocaapp.feature.cuestionarios.domain.model.ResultadoCuestionario
 import com.cadev.mocaapp.feature.cuestionarios.domain.repository.CuestionarioRepository
+import com.cadev.mocaapp.feature.notificaciones.data.NotificacionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,7 +33,9 @@ data class CuestionarioUiState(
 )
 
 class CuestionarioViewModel(
-    private val repository: CuestionarioRepository
+    private val repository: CuestionarioRepository,
+    private val notificacionRepository: NotificacionRepository  // ← agregar
+
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CuestionarioUiState())
@@ -199,17 +202,25 @@ class CuestionarioViewModel(
                         cuestionario.id, usuarioId, parejaId
                     ).getOrDefault(EstadoCuestionario.YO_RESPONDÍ)
 
+                    //Actualizamos el mapa de estados INMEDIATAMENTE en el StateFlow
+                    val estadosActualizados = _uiState.value
+                        .estadosCuestionarios.toMutableMap()
+                    estadosActualizados[cuestionario.id] = estado
+                    _uiState.value = _uiState.value.copy(
+                        estadosCuestionarios = estadosActualizados
+                    )
+
                     if (estado == EstadoCuestionario.AMBOS) {
                         repository.calcularResultado(
                             cuestionario.id, relacionId, usuarioId, parejaId
                         ).fold(
                             onSuccess = { resultado ->
-                                _uiState.value = _uiState.value.copy(
-                                    resultado = resultado
-                                )
+                                _uiState.value = _uiState.value.copy(resultado = resultado)
                             },
                             onFailure = { }
                         )
+                        //Notificamos a la pareja que los resultados están listos
+                        notificacionRepository.incrementarBadge(parejaId, "cuestionarios")
                     }
 
                     _uiState.value = _uiState.value.copy(

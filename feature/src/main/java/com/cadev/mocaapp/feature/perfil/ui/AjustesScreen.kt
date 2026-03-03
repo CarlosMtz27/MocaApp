@@ -556,7 +556,6 @@ fun AjustesScreen(
 }
 
 //Campo editable genérico
-
 @Composable
 private fun CampoEditable(
     icono: androidx.compose.ui.graphics.vector.ImageVector,

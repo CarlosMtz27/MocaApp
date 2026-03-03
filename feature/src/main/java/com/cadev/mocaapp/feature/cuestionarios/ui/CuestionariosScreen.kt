@@ -45,13 +45,18 @@ fun CuestionariosScreen(
     onCrearCuestionario: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-
+    var tabSeleccionado by remember { mutableStateOf(0) }
     LaunchedEffect(relacionId) {
         viewModel.cargarCuestionarios(relacionId, usuarioId, parejaId)
         viewModel.poblarPredefinidos()
     }
 
-    var tabSeleccionado by remember { mutableStateOf(0) }
+    LaunchedEffect(tabSeleccionado) {
+        if (tabSeleccionado == 0) {
+            viewModel.refrescarEstados(usuarioId, parejaId)
+        }
+    }
+
 
     Scaffold(
         topBar = {
@@ -209,7 +214,6 @@ fun CuestionariosScreen(
 }
 
 //Tarjeta con indicador de estado
-
 @Composable
 private fun TarjetaCuestionario(
     cuestionario: Cuestionario,

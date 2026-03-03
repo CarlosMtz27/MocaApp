@@ -1,6 +1,9 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+
+    id("org.jetbrains.kotlin.plugin.compose")
+
 }
 
 android {
@@ -35,9 +38,7 @@ android {
         compose = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.15"
-    }
+
 
 }
 
@@ -49,6 +50,8 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.runtime)
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation(platform("androidx.compose:compose-bom:2024.02.00"))
     // ViewModel
@@ -80,6 +83,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.3.1")
     implementation("androidx.media3:media3-ui:1.3.1")
     implementation("androidx.compose.material3:material3:...")
+
 
 
 

@@ -151,7 +151,7 @@ class CuestionarioRepositoryImpl(
         Result.success(estado)
     } catch (e: Exception) { Result.failure(e) }
 
-    // ✅ Fix 1 — paralelo con async/awaitAll
+    // paralelo con async, awaitAll
     override suspend fun obtenerEstadosTodos(
         cuestionarios: List<Cuestionario>,
         usuarioId: String,
@@ -238,7 +238,7 @@ class CuestionarioRepositoryImpl(
     ): Result<List<Cuestionario>> = try {
         coroutineScope {
             val todos = obtenerCuestionarios(relacionId).getOrThrow()
-            // ✅ También paralelo
+            //También paralelo
             val checks = todos.map { cuestionario ->
                 async {
                     val doc = firestore.collection("respuestas")
@@ -261,7 +261,7 @@ class CuestionarioRepositoryImpl(
     } catch (e: Exception) { Result.failure(e) }
 
     override suspend fun poblarPredefinidos(): Result<Unit> = try {
-        // ← Solo poblar si no existen aún
+        // Solo poblar si no existen aún
         val yaExisten = firestore.collection("cuestionarios")
             .whereEqualTo("creadoPor", "sistema")
             .limit(1)

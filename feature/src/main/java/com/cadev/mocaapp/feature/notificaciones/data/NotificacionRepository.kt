@@ -1,0 +1,139 @@
+package com.cadev.mocaapp.feature.notificaciones.data
+
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.SetOptions
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+
+data class ContadoresBadge(
+    val chat: Int = 0,
+    val diario: Int = 0,
+    val cuestionarios: Int = 0
+)
+
+class NotificacionRepository(
+    private val firestore: FirebaseFirestore,
+    private val oneSignalAppId: String = "",
+    private val oneSignalRestKey: String = ""
+) {
+    private fun contadoresRef(usuarioId: String) = firestore
+        .collection("notificaciones")
+        .document(usuarioId)
+        .collection("noLeidos")
+        .document("contadores")
+
+    suspend fun guardarToken(usuarioId: String, token: String) {
+        try {
+            firestore.collection("usuarios")
+                .document(usuarioId)
+                .update("fcmToken", token)
+                .await()
+        } catch (e: Exception) { e.printStackTrace() }
+    }
+
+    suspend fun guardarOneSignalPlayerId(usuarioId: String, playerId: String) {
+        try {
+            firestore.collection("usuarios")
+                .document(usuarioId)
+                .update("oneSignalPlayerId", playerId)
+                .await()
+        } catch (e: Exception) { e.printStackTrace() }
+    }
+
+    fun escucharNoLeidos(usuarioId: String): Flow<ContadoresBadge> = callbackFlow {
+        val listener = contadoresRef(usuarioId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(ContadoresBadge())
+                    return@addSnapshotListener
+                }
+                trySend(
+                    ContadoresBadge(
+                        chat         = snapshot?.getLong("chat")?.toInt() ?: 0,
+                        diario       = snapshot?.getLong("diario")?.toInt() ?: 0,
+                        cuestionarios = snapshot?.getLong("cuestionarios")?.toInt() ?: 0
+                    )
+                )
+            }
+        awaitClose { listener.remove() }
+    }
+
+    suspend fun incrementarBadge(usuarioId: String, tipo: String) {
+        if (usuarioId.isBlank()) return
+        try {
+            contadoresRef(usuarioId).set(
+                mapOf(tipo to FieldValue.increment(1)),
+                SetOptions.merge()
+            ).await()
+        } catch (e: Exception) { e.printStackTrace() }
+    }
+
+    suspend fun limpiarBadge(usuarioId: String, tipo: String) {
+        if (usuarioId.isBlank()) return
+        try {
+            contadoresRef(usuarioId).set(
+                mapOf(tipo to 0),
+                SetOptions.merge()
+            ).await()
+        } catch (e: Exception) { e.printStackTrace() }
+    }
+
+    suspend fun enviarPush(
+        parejaId: String,
+        titulo: String,
+        cuerpo: String,
+        deepLink: String
+    ) = withContext(Dispatchers.IO) {
+        android.util.Log.d("PUSH", "enviarPush llamado: parejaId=$parejaId appId=$oneSignalAppId")
+
+        if (parejaId.isBlank() || oneSignalAppId.isBlank()) {
+            android.util.Log.e("PUSH", "Abortado: parejaId='$parejaId' appId='$oneSignalAppId'")
+            return@withContext
+        }
+        try {
+            val doc = firestore.collection("usuarios").document(parejaId).get().await()
+            val playerId = doc.getString("oneSignalPlayerId")
+            android.util.Log.d("PUSH", "playerId encontrado: $playerId")
+
+            if (playerId.isNullOrBlank()) {
+                android.util.Log.e("PUSH", "playerId nulo o vacío")
+                return@withContext
+            }
+
+            val json = JSONObject().apply {
+                put("app_id", oneSignalAppId)
+                put("include_player_ids", JSONArray().put(playerId))
+                put("headings", JSONObject().put("en", titulo))
+                put("contents", JSONObject().put("en", cuerpo))
+                put("data", JSONObject().put("deepLink", deepLink))
+            }
+            android.util.Log.d("PUSH", "JSON: $json")
+
+            val connection = URL("https://onesignal.com/api/v1/notifications")
+                .openConnection() as HttpURLConnection
+            connection.apply {
+                requestMethod = "POST"
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Authorization", "Basic $oneSignalRestKey")
+                doOutput = true
+                outputStream.write(json.toString().toByteArray())
+                val code = responseCode
+                val response = inputStream.bufferedReader().readText()
+                android.util.Log.d("PUSH", "Response code: $code")
+                android.util.Log.d("PUSH", "Response body: $response")
+                disconnect()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("PUSH", "Excepción: ${e.message}", e)
+        }
+    }
+}
