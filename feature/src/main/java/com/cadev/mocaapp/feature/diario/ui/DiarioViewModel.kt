@@ -53,6 +53,15 @@ class DiarioViewModel(
     val uiState: StateFlow<DiarioUiState> = _uiState.asStateFlow()
 
     private val formatoFecha = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private val entradasVistasSet = mutableSetOf<String>()
+
+    fun marcarEntradaVista(entradaId: String) {
+        entradasVistasSet.add(entradaId)
+    }
+
+    fun esEntradaVista(entradaId: String): Boolean {
+        return entradaId in entradasVistasSet
+    }
 
     fun cargarNombreUsuario(usuarioId: String) {
         viewModelScope.launch {

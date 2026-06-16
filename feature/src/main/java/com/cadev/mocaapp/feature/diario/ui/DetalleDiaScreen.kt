@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,22 +39,17 @@ fun DetalleDiaScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // Cargar entradas del día al entrar
     LaunchedEffect(fecha) {
         viewModel.cargarEntradasDelDia(usuarioId, parejaId, fecha)
     }
 
-    // Formato legible de la fecha
     val formatoEntrada = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    val formatoVisible = SimpleDateFormat(
-        "EEEE d 'de' MMMM, yyyy", Locale("es", "MX")
-    )
+    val formatoVisible = SimpleDateFormat("EEEE d 'de' MMMM, yyyy", Locale("es", "MX"))
     val fechaVisible = try {
         formatoVisible.format(formatoEntrada.parse(fecha)!!)
             .replaceFirstChar { it.uppercase() }
     } catch (e: Exception) { fecha }
 
-    // FAB expandible
     var fabExpandido by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -67,10 +63,7 @@ fun DetalleDiaScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onRegresar) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Regresar"
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Regresar")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -92,17 +85,10 @@ fun DetalleDiaScreen(
 
         if (uiState.cargando) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
+                modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+            ) { CircularProgressIndicator() }
         } else if (uiState.entradas.isEmpty()) {
-            // Estado vacío
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -111,25 +97,27 @@ fun DetalleDiaScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text(text = "📅", fontSize = 56.sp)
+                Text("📅", fontSize = 56.sp)
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    text = "No hay nada registrado\npara este día",
+                    "No hay nada registrado\npara este día",
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                        .copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                     textAlign = TextAlign.Center
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "Usa el botón + para agregar\nalgo especial",
+                    "Usa el botón + para agregar\nalgo especial",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                        .copy(alpha = 0.4f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                     textAlign = TextAlign.Center
                 )
             }
         } else {
+            // ← Ordenar por más recientes primero
+            val entradasOrdenadas = uiState.entradas
+                .sortedByDescending { it.creadaEn }
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -138,18 +126,24 @@ fun DetalleDiaScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(vertical = 16.dp)
             ) {
-                items(uiState.entradas) { entrada ->
+                items(entradasOrdenadas) { entrada ->
+                    val noVista = entrada.usuarioId != usuarioId &&
+                            !viewModel.esEntradaVista(entrada.id)
+
                     TarjetaEntrada(
                         entrada = entrada,
                         esMia = entrada.usuarioId == usuarioId,
+                        noVista = noVista,   // ← negritas si no vista
                         onEditar = { onEditarEntrada(entrada.id) },
-                        onVerDetalle = { onVerDetalle(entrada.id) }
+                        onVerDetalle = {
+                            viewModel.marcarEntradaVista(entrada.id)
+                            onVerDetalle(entrada.id)
+                        }
                     )
                 }
             }
         }
 
-        // Overlay oscuro al expandir el FAB
         if (fabExpandido) {
             Box(
                 modifier = Modifier
@@ -159,8 +153,6 @@ fun DetalleDiaScreen(
         }
     }
 }
-
-//FAB Expandible
 
 @Composable
 private fun FabExpandible(
@@ -172,49 +164,26 @@ private fun FabExpandible(
         horizontalAlignment = Alignment.End,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Opciones que aparecen al expandir
         if (expandido) {
-            OpcionFab(
-                emoji = "⭐",
-                etiqueta = "Día especial",
-                color = Color(0xFFF9A825),
-                onClick = {
-                    onOpcionSeleccionada(TipoEntrada.DIA_ESPECIAL.name)
-                }
-            )
-            OpcionFab(
-                emoji = "🗓️",
-                etiqueta = "Evento",
-                color = Color(0xFFE65100),
-                onClick = {
-                    onOpcionSeleccionada(TipoEntrada.EVENTO.name)
-                }
-            )
-            OpcionFab(
-                emoji = "📸",
-                etiqueta = "Recuerdo",
-                color = Color(0xFF7B1FA2),
-                onClick = {
-                    onOpcionSeleccionada(TipoEntrada.RECUERDO.name)
-                }
-            )
-            OpcionFab(
-                emoji = "📝",
-                etiqueta = "Mi día",
-                color = Color(0xFFC2185B),
-                onClick = {
-                    onOpcionSeleccionada(TipoEntrada.MI_DIA.name)
-                }
-            )
+            OpcionFab("⭐", "Día especial", Color(0xFFF9A825)) {
+                onOpcionSeleccionada(TipoEntrada.DIA_ESPECIAL.name)
+            }
+            OpcionFab("🗓️", "Evento", Color(0xFFE65100)) {
+                onOpcionSeleccionada(TipoEntrada.EVENTO.name)
+            }
+            OpcionFab("📸", "Recuerdo", Color(0xFF7B1FA2)) {
+                onOpcionSeleccionada(TipoEntrada.RECUERDO.name)
+            }
+            OpcionFab("📝", "Mi día", Color(0xFFC2185B)) {
+                onOpcionSeleccionada(TipoEntrada.MI_DIA.name)
+            }
         }
-
-        // Botón principal
         FloatingActionButton(
             onClick = onToggle,
             containerColor = MaterialTheme.colorScheme.primary
         ) {
             Text(
-                text = if (expandido) "✕" else "+",
+                if (expandido) "✕" else "+",
                 fontSize = 24.sp,
                 color = MaterialTheme.colorScheme.onPrimary
             )
@@ -223,72 +192,50 @@ private fun FabExpandible(
 }
 
 @Composable
-private fun OpcionFab(
-    emoji: String,
-    etiqueta: String,
-    color: Color,
-    onClick: () -> Unit
-) {
+private fun OpcionFab(emoji: String, etiqueta: String, color: Color, onClick: () -> Unit) {
     Row(
         horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Etiqueta
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = Color.White,
-            shadowElevation = 4.dp
-        ) {
-            Text(
-                text = etiqueta,
-                modifier = Modifier.padding(
-                    horizontal = 12.dp, vertical = 6.dp
-                ),
-                style = MaterialTheme.typography.bodyMedium
-            )
+        Surface(shape = RoundedCornerShape(8.dp), color = Color.White, shadowElevation = 4.dp) {
+            Text(etiqueta, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
         }
-
         Spacer(Modifier.width(8.dp))
-
-        // Mini FAB
-        SmallFloatingActionButton(
-            onClick = onClick,
-            containerColor = color
-        ) {
-            Text(text = emoji, fontSize = 18.sp)
+        SmallFloatingActionButton(onClick = onClick, containerColor = color) {
+            Text(emoji, fontSize = 18.sp)
         }
     }
 }
-
-//Tarjeta de entrada
 
 @Composable
 private fun TarjetaEntrada(
     entrada: EntradaDiario,
     esMia: Boolean,
+    noVista: Boolean,   // ← nuevo
     onEditar: () -> Unit,
     onVerDetalle: () -> Unit
 ) {
-    val tipo = try {
-        TipoEntrada.valueOf(entrada.tipo)
-    } catch (e: Exception) {
-        TipoEntrada.MI_DIA
-    }
+    val tipo = try { TipoEntrada.valueOf(entrada.tipo) } catch (e: Exception) { TipoEntrada.MI_DIA }
+    val colorTipo = Color(android.graphics.Color.parseColor("#${tipo.colorHex}"))
 
-    val colorTipo = Color(
-        android.graphics.Color.parseColor("#${tipo.colorHex}")
-    )
+    // Formato de hora para mostrar en la tarjeta
+    val formatoHora = SimpleDateFormat("HH:mm", Locale.getDefault())
+    val hora = try { formatoHora.format(entrada.creadaEn) } catch (e: Exception) { "" }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onVerDetalle),  // ← agregar esto
+            .clickable(onClick = onVerDetalle),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = if (noVista) 4.dp else 2.dp),
+        // ← Borde si no vista
+        border = if (noVista)
+            androidx.compose.foundation.BorderStroke(
+                2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+            )
+        else null
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-
-            // Header de la tarjeta
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -296,47 +243,54 @@ private fun TarjetaEntrada(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    // Indicador de color del tipo
                     Box(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
                             .background(colorTipo.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = tipo.emoji, fontSize = 16.sp)
-                    }
+                    ) { Text(tipo.emoji, fontSize = 16.sp) }
 
-                    Column {
-                        Text(
-                            text = tipo.etiqueta,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = colorTipo
-                        )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = tipo.etiqueta,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = colorTipo
+                            )
+                            // ← Hora de creación
+                            Text(
+                                text = hora,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                            )
+                        }
                         Text(
                             text = entrada.titulo,
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleMedium,
+                            // ← Negrita si no vista
+                            fontWeight = if (noVista) FontWeight.Bold else FontWeight.Normal
                         )
                     }
                 }
 
-                // Botón editar, solo si es mía
                 if (esMia) {
                     IconButton(onClick = onEditar) {
                         Icon(
-                            Icons.Filled.Edit,
-                            contentDescription = "Editar",
-                            tint = MaterialTheme.colorScheme.onSurface
-                                .copy(alpha = 0.4f),
+                            Icons.Filled.Edit, "Editar",
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                             modifier = Modifier.size(18.dp)
                         )
                     }
                 }
             }
 
-            //Emociones
             if (entrada.emociones.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -345,38 +299,48 @@ private fun TarjetaEntrada(
                             com.cadev.mocaapp.feature.diario.domain.model
                                 .Emocion.valueOf(emocionNombre)
                         } catch (e: Exception) { null }
-                        if (emocion != null) {
-                            Text(text = emocion.emoji, fontSize = 18.sp)
-                        }
+                        if (emocion != null) Text(emocion.emoji, fontSize = 18.sp)
                     }
                 }
             }
 
-            //Detalles
             if (entrada.detalles.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = entrada.detalles,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                        .copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     maxLines = 3
                 )
             }
 
-            //Badge compartida
             if (entrada.compartida) {
                 Spacer(Modifier.height(8.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(text = "💕", fontSize = 12.sp)
+                    Text("💕", fontSize = 12.sp)
                     Text(
-                        text = if (esMia) "Compartida con tu pareja"
-                        else "Compartida por tu pareja",
+                        if (esMia) "Compartida con tu pareja" else "Compartida por tu pareja",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            // ← Badge "Nuevo" si no vista
+            if (noVista) {
+                Spacer(Modifier.height(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.primary
+                ) {
+                    Text(
+                        "● Nuevo",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                 }
             }

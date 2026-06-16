@@ -111,8 +111,30 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(pendingDeepLink, usuarioActual) {
                     val link = pendingDeepLink ?: return@LaunchedEffect
                     if (usuarioActual == null) return@LaunchedEffect
+
                     kotlinx.coroutines.delay(400)
-                    navController.navigate(link) { launchSingleTop = true }
+
+                    val ruta = when {
+                        // Tabs del MainScreen
+                        link == "main/chat"          -> "${NavRoutes.Main.route}?tab=chat"
+                        link == "main/calendario"    -> "${NavRoutes.Main.route}?tab=calendario"
+                        link == "main/cuestionarios" -> "${NavRoutes.Main.route}?tab=cuestionarios"
+                        link == "main/perfil"        -> "${NavRoutes.Main.route}?tab=perfil"
+                        link.startsWith("main/")     -> NavRoutes.Main.route
+
+                        // Pantallas directas
+                        link.startsWith("resultados_cuestionario/") -> {
+                            val id = link.removePrefix("resultados_cuestionario/")
+                            NavRoutes.ResultadosCuestionario.crearRuta(id)
+                        }
+                        link.startsWith("responder_cuestionario/") -> {
+                            val id = link.removePrefix("responder_cuestionario/")
+                            NavRoutes.ResponderCuestionario.crearRuta(id)
+                        }
+                        else -> NavRoutes.Main.route
+                    }
+
+                    navController.navigate(ruta) { launchSingleTop = true }
                     pendingDeepLink = null
                 }
 

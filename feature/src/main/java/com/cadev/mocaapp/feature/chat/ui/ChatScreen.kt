@@ -8,6 +8,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -376,11 +380,7 @@ fun ChatScreen(
                                 style = MaterialTheme.typography.titleMedium
                             )
                             AnimatedVisibility(visible = uiState.parejaEscribiendo) {
-                                Text(
-                                    "escribiendo...",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                BurbujaEscribiendo()
                             }
                         }
                     }
@@ -1055,6 +1055,57 @@ private fun ReproductorAudio(
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 10.sp,
                 color = colorTexto.copy(alpha = 0.6f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun BurbujaEscribiendo() {
+    val infiniteTransition = rememberInfiniteTransition(label = "typing")
+
+    // Tres puntos con delay entre sí
+    val dot1 by infiniteTransition.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = 1200
+                0f at 0; 1f at 200; 0f at 400; 0f at 1200
+            }
+        ), label = "dot1"
+    )
+    val dot2 by infiniteTransition.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = 1200
+                0f at 200; 1f at 400; 0f at 600; 0f at 1200
+            }
+        ), label = "dot2"
+    )
+    val dot3 by infiniteTransition.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = 1200
+                0f at 400; 1f at 600; 0f at 800; 0f at 1200
+            }
+        ), label = "dot3"
+    )
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        listOf(dot1, dot2, dot3).forEach { alpha ->
+            Box(
+                modifier = Modifier
+                    .size(5.dp)
+                    .clip(CircleShape)
+                    .background(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.4f + alpha * 0.6f)
+                    )
+                    .offset(y = (-2 * alpha).dp)
             )
         }
     }

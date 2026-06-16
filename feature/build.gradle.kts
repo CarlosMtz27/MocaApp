@@ -52,6 +52,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.runtime)
+    implementation(libs.androidx.animation.core)
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation(platform("androidx.compose:compose-bom:2024.02.00"))
     // ViewModel

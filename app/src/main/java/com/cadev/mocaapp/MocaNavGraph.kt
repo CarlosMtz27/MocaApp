@@ -118,11 +118,22 @@ fun MocaNavGraph(
             )
         }
 
-        //Main (tabs)
-        composable(NavRoutes.Main.route) {
+        // Reemplaza el composable de Main
+        composable(
+            route = "${NavRoutes.Main.route}?tab={tab}",
+            arguments = listOf(
+                navArgument("tab") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                    nullable = true
+                }
+            )
+        ) { backStackEntry ->
+            val initialTab = backStackEntry.arguments?.getString("tab") ?: ""
             MainScreen(
                 factory = factory,
-                navController = navController
+                navController = navController,
+                initialTab = initialTab    // ← nuevo parámetro
             )
         }
 
@@ -369,6 +380,9 @@ fun MocaNavGraph(
         composable(NavRoutes.CrearCuestionario.route) { backStackEntry ->
             val viewModel: CuestionarioViewModel = viewModel(factory = factory)
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            val parejaId = remember(uid) {           // ← nuevo
+                runBlocking { UsuarioHelper.obtenerParejaId(uid) }
+            }
             val relacionId = remember(uid) {
                 runBlocking {
                     FirebaseFirestore.getInstance()
@@ -382,6 +396,7 @@ fun MocaNavGraph(
             CrearCuestionarioScreen(
                 viewModel = viewModel,
                 usuarioId = uid,
+                parejaId = parejaId ?: "",           // ← agregar
                 relacionId = relacionId,
                 onCreado = { navController.popBackStack() },
                 onRegresar = { navController.popBackStack() }

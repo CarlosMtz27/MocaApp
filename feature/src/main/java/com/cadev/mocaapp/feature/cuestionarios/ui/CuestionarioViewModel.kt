@@ -34,50 +34,32 @@ data class CuestionarioUiState(
 
 class CuestionarioViewModel(
     private val repository: CuestionarioRepository,
-    private val notificacionRepository: NotificacionRepository  // ← agregar
-
+    private val notificacionRepository: NotificacionRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CuestionarioUiState())
     val uiState: StateFlow<CuestionarioUiState> = _uiState.asStateFlow()
 
-    fun cargarCuestionarios(
-        relacionId: String,
-        usuarioId: String,
-        parejaId: String
-    ) {
-        // no recargar si ya tenemos datos
+    fun cargarCuestionarios(relacionId: String, usuarioId: String, parejaId: String) {
         if (_uiState.value.cuestionarios.isNotEmpty()) return
-
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(cargando = true)
-
-            // Cuestionarios e historial en paralelo
             val jobCuestionarios = launch {
                 repository.obtenerCuestionarios(relacionId).fold(
                     onSuccess = { lista ->
                         _uiState.value = _uiState.value.copy(cuestionarios = lista)
-
-                        // Estados también en paralelo (ya usa async internamente)
-                        repository.obtenerEstadosTodos(
-                            lista, usuarioId, parejaId
-                        ).fold(
+                        repository.obtenerEstadosTodos(lista, usuarioId, parejaId).fold(
                             onSuccess = { estados ->
-                                _uiState.value = _uiState.value.copy(
-                                    estadosCuestionarios = estados
-                                )
+                                _uiState.value = _uiState.value.copy(estadosCuestionarios = estados)
                             },
                             onFailure = { }
                         )
                     },
                     onFailure = {
-                        _uiState.value = _uiState.value.copy(
-                            error = "Error al cargar cuestionarios"
-                        )
+                        _uiState.value = _uiState.value.copy(error = "Error al cargar cuestionarios")
                     }
                 )
             }
-
             val jobHistorial = launch {
                 repository.obtenerHistorial(relacionId, usuarioId).fold(
                     onSuccess = { historial ->
@@ -86,25 +68,19 @@ class CuestionarioViewModel(
                     onFailure = { }
                 )
             }
-
-            // Esperar ambos para quitar el loading
             jobCuestionarios.join()
             jobHistorial.join()
-
             _uiState.value = _uiState.value.copy(cargando = false)
         }
     }
 
     fun refrescarEstados(usuarioId: String, parejaId: String) {
-        // Para refrescar estados sin mostrar loading (volver de responder)
         val lista = _uiState.value.cuestionarios
         if (lista.isEmpty()) return
         viewModelScope.launch {
             repository.obtenerEstadosTodos(lista, usuarioId, parejaId).fold(
                 onSuccess = { estados ->
-                    _uiState.value = _uiState.value.copy(
-                        estadosCuestionarios = estados
-                    )
+                    _uiState.value = _uiState.value.copy(estadosCuestionarios = estados)
                 },
                 onFailure = { }
             )
@@ -170,27 +146,18 @@ class CuestionarioViewModel(
     fun siguientePregunta() {
         val total = _uiState.value.cuestionarioActual?.preguntas?.size ?: 0
         val actual = _uiState.value.preguntaActual
-        if (actual < total - 1) {
-            _uiState.value = _uiState.value.copy(preguntaActual = actual + 1)
-        }
+        if (actual < total - 1) _uiState.value = _uiState.value.copy(preguntaActual = actual + 1)
     }
 
     fun preguntaAnterior() {
         val actual = _uiState.value.preguntaActual
-        if (actual > 0) {
-            _uiState.value = _uiState.value.copy(preguntaActual = actual - 1)
-        }
+        if (actual > 0) _uiState.value = _uiState.value.copy(preguntaActual = actual - 1)
     }
 
-    fun enviarRespuestas(
-        usuarioId: String,
-        parejaId: String,
-        relacionId: String
-    ) {
+    fun enviarRespuestas(usuarioId: String, parejaId: String, relacionId: String) {
         val cuestionario = _uiState.value.cuestionarioActual ?: return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(enviando = true)
-
             repository.guardarRespuestas(
                 cuestionarioId = cuestionario.id,
                 usuarioId = usuarioId,
@@ -202,15 +169,13 @@ class CuestionarioViewModel(
                         cuestionario.id, usuarioId, parejaId
                     ).getOrDefault(EstadoCuestionario.YO_RESPONDÍ)
 
-                    //Actualizamos el mapa de estados INMEDIATAMENTE en el StateFlow
-                    val estadosActualizados = _uiState.value
-                        .estadosCuestionarios.toMutableMap()
+                    // Actualizar estado local inmediatamente
+                    val estadosActualizados = _uiState.value.estadosCuestionarios.toMutableMap()
                     estadosActualizados[cuestionario.id] = estado
-                    _uiState.value = _uiState.value.copy(
-                        estadosCuestionarios = estadosActualizados
-                    )
+                    _uiState.value = _uiState.value.copy(estadosCuestionarios = estadosActualizados)
 
                     if (estado == EstadoCuestionario.AMBOS) {
+                        // Ambos respondieron → calcular y notificar a los dos
                         repository.calcularResultado(
                             cuestionario.id, relacionId, usuarioId, parejaId
                         ).fold(
@@ -219,14 +184,35 @@ class CuestionarioViewModel(
                             },
                             onFailure = { }
                         )
-                        //Notificamos a la pareja que los resultados están listos
-                        notificacionRepository.incrementarBadge(parejaId, "cuestionarios")
+                        val deepLink = "resultados_cuestionario/${cuestionario.id}"
+                        // Notificar pareja
+                        launch {
+                            notificacionRepository.incrementarBadge(parejaId, "cuestionarios")
+                            notificacionRepository.enviarPush(
+                                parejaId = parejaId,
+                                titulo   = "📋 ¡Resultados listos!",
+                                cuerpo   = "Ya puedes ver los resultados de \"${cuestionario.titulo}\"",
+                                deepLink = deepLink
+                            )
+                        }
+                        // Notificar al propio usuario también
+                        launch {
+                            notificacionRepository.incrementarBadge(usuarioId, "cuestionarios")
+                        }
+                    } else {
+                        // Solo yo respondí → avisar a la pareja que está esperando
+                        launch {
+                            notificacionRepository.incrementarBadge(parejaId, "cuestionarios")
+                            notificacionRepository.enviarPush(
+                                parejaId = parejaId,
+                                titulo   = "📋 ¡Tu pareja ya respondió!",
+                                cuerpo   = "Es tu turno de responder \"${cuestionario.titulo}\"",
+                                deepLink = "responder_cuestionario/${cuestionario.id}"
+                            )
+                        }
                     }
 
-                    _uiState.value = _uiState.value.copy(
-                        completado = true,
-                        enviando = false
-                    )
+                    _uiState.value = _uiState.value.copy(completado = true, enviando = false)
                 },
                 onFailure = {
                     _uiState.value = _uiState.value.copy(
@@ -238,13 +224,8 @@ class CuestionarioViewModel(
         }
     }
 
-    fun cargarResultado(
-        cuestionarioId: String,
-        usuarioId: String,
-        parejaId: String
-    ) {
+    fun cargarResultado(cuestionarioId: String, usuarioId: String, parejaId: String) {
         viewModelScope.launch {
-            // Todas en paralelo
             launch {
                 repository.obtenerResultado(cuestionarioId).fold(
                     onSuccess = { resultado ->
@@ -282,9 +263,7 @@ class CuestionarioViewModel(
             launch {
                 repository.obtenerRespuestasFoto(cuestionarioId, parejaId).fold(
                     onSuccess = { fotos ->
-                        _uiState.value = _uiState.value.copy(
-                            respuestasFotoPareja = fotos
-                        )
+                        _uiState.value = _uiState.value.copy(respuestasFotoPareja = fotos)
                     },
                     onFailure = { }
                 )
@@ -292,17 +271,27 @@ class CuestionarioViewModel(
         }
     }
 
-    fun crearCuestionario(cuestionario: Cuestionario) {
+    // ← parejaId agregado para notificar al crear
+    fun crearCuestionario(cuestionario: Cuestionario, parejaId: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(creando = true)
             repository.crearCuestionario(cuestionario).fold(
-                onSuccess = {
+                onSuccess = { nuevo ->
                     _uiState.value = _uiState.value.copy(
                         creando = false,
                         creadoExitoso = true,
-                        //Forzar recarga la próxima vez
                         cuestionarios = emptyList()
                     )
+                    // ← Notificar pareja que hay un nuevo cuestionario
+                    launch {
+                        notificacionRepository.incrementarBadge(parejaId, "cuestionarios")
+                        notificacionRepository.enviarPush(
+                            parejaId = parejaId,
+                            titulo   = "📋 Nuevo cuestionario",
+                            cuerpo   = "Tu pareja creó \"${cuestionario.titulo}\". ¡Respóndelo!",
+                            deepLink = "responder_cuestionario/${nuevo.id}"
+                        )
+                    }
                 },
                 onFailure = {
                     _uiState.value = _uiState.value.copy(

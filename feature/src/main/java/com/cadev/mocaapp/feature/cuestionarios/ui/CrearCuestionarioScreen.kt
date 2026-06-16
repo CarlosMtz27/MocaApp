@@ -30,6 +30,7 @@ import java.util.UUID
 fun CrearCuestionarioScreen(
     viewModel: CuestionarioViewModel,
     usuarioId: String,
+    parejaId: String,
     relacionId: String,
     onCreado: () -> Unit,
     onRegresar: () -> Unit
@@ -79,7 +80,8 @@ fun CrearCuestionarioScreen(
                                         preguntas = preguntas,
                                         creadoPor = usuarioId,
                                         relacionId = relacionId
-                                    )
+                                    ),
+                                    parejaId
                                 )
                             }
                         },

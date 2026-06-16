@@ -39,7 +39,8 @@ import kotlinx.coroutines.runBlocking
 @Composable
 fun MainScreen(
     factory: ViewModelProvider.Factory,
-    navController: NavHostController
+    navController: NavHostController,
+    initialTab: String = ""
 ) {
     val tabNavController = rememberNavController()
     val navBackStackEntry by tabNavController.currentBackStackEntryAsState()
@@ -99,6 +100,25 @@ fun MainScreen(
             NavRoutes.Chat.route -> notificacionViewModel.limpiarChat(uid)
             NavRoutes.Calendario.route -> notificacionViewModel.limpiarDiario(uid)
             NavRoutes.Cuestionarios.route -> notificacionViewModel.limpiarCuestionarios(uid)
+        }
+    }
+
+    LaunchedEffect(initialTab) {
+        if (initialTab.isBlank()) return@LaunchedEffect
+        val ruta = when (initialTab) {
+            "chat"          -> NavRoutes.Chat.route
+            "calendario"    -> NavRoutes.Calendario.route
+            "cuestionarios" -> NavRoutes.Cuestionarios.route
+            "perfil"        -> NavRoutes.Perfil.route
+            else            -> return@LaunchedEffect
+        }
+        kotlinx.coroutines.delay(300)
+        tabNavController.navigate(ruta) {
+            popUpTo(tabNavController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
         }
     }
 
