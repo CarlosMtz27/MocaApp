@@ -8,12 +8,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,7 +30,8 @@ fun CalendarioScreen(
     viewModel: DiarioViewModel,
     usuarioId: String,
     parejaId: String?,
-    onDiaSeleccionado: (fecha: String) -> Unit
+    onDiaSeleccionado: (fecha: String) -> Unit,
+    onVerEventos: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -72,7 +75,9 @@ fun CalendarioScreen(
                 val nuevo = calendario.clone() as Calendar
                 nuevo.add(Calendar.MONTH, 1)
                 calendario = nuevo
-            }
+            },
+            onVerEventos = onVerEventos
+
         )
 
         Spacer(Modifier.height(16.dp))
@@ -110,36 +115,52 @@ fun CalendarioScreen(
 private fun EncabezadoMes(
     calendario: Calendar,
     onMesAnterior: () -> Unit,
-    onMesSiguiente: () -> Unit
+    onMesSiguiente: () -> Unit,
+    onVerEventos: () -> Unit
 ) {
     val formatoMes = SimpleDateFormat("MMMM yyyy", Locale("es", "MX"))
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(onClick = onMesAnterior) {
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Mes anterior",
-                tint = MaterialTheme.colorScheme.primary
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onMesAnterior) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Mes anterior",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Text(
+                text = formatoMes.format(calendario.time)
+                    .replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
             )
+
+            IconButton(onClick = onMesSiguiente) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = "Mes siguiente",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
         }
 
-        Text(
-            text = formatoMes.format(calendario.time)
-                .replaceFirstChar { it.uppercase() },
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
+        Spacer(Modifier.height(8.dp))
 
-        IconButton(onClick = onMesSiguiente) {
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = "Mes siguiente",
-                tint = MaterialTheme.colorScheme.primary
-            )
+        FilledTonalButton(
+            onClick = onVerEventos,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(Icons.Filled.Event, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Ver eventos y recordatorios")
         }
     }
 }

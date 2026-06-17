@@ -30,9 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
+import com.cadev.mocaapp.core.model.TipoEvento
 import com.cadev.mocaapp.feature.diario.domain.model.Emocion
-import com.cadev.mocaapp.feature.diario.domain.model.EtiquetaDiaEspecial
-import com.cadev.mocaapp.feature.diario.domain.model.EtiquetaEvento
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
 import java.io.File
 import java.text.SimpleDateFormat
@@ -86,7 +85,6 @@ fun CrearEntradaScreen(
     }
 
     // Launchers
-    // Permiso de cámara, ejecuta la acción pendiente si se concede
     val launcherPermisoCamara = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { concedido ->
@@ -96,20 +94,17 @@ fun CrearEntradaScreen(
         accionPendiente = null
     }
 
-    // Helper para pedir permiso y luego ejecutar
     fun pedirPermisoYEjecutar(accion: () -> Unit) {
         accionPendiente = accion
         launcherPermisoCamara.launch(android.Manifest.permission.CAMERA)
     }
 
-    // Galería, no necesita permiso de cámara
     val launcherGaleria = rememberLauncherForActivityResult(
         ActivityResultContracts.GetMultipleContents()
     ) { uris ->
         uris.forEach { uri -> viewModel.agregarFoto(uri.toString()) }
     }
 
-    // Cámara
     val launcherCamara = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { exito ->
@@ -118,7 +113,6 @@ fun CrearEntradaScreen(
         }
     }
 
-    // Video
     val launcherVideo = rememberLauncherForActivityResult(
         ActivityResultContracts.CaptureVideo()
     ) { exito ->
@@ -126,8 +120,6 @@ fun CrearEntradaScreen(
             uriVideoTemp?.let { viewModel.agregarVideo(it.toString()) }
         }
     }
-
-    //Efectos
 
     LaunchedEffect(Unit) {
         viewModel.limpiarFormulario()
@@ -140,16 +132,12 @@ fun CrearEntradaScreen(
         if (uiState.entradaCreada) onEntradaGuardada()
     }
 
-    // Diálogo para elegir fuente de media
-
     if (mostrarDialogoMedia) {
         AlertDialog(
             onDismissRequest = { mostrarDialogoMedia = false },
             title = { Text("Agregar media") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-
-                    // Galería
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -162,17 +150,10 @@ fun CrearEntradaScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Outlined.PhotoLibrary,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Outlined.PhotoLibrary, null, tint = MaterialTheme.colorScheme.primary)
                         Text("Galería de fotos")
                     }
-
                     HorizontalDivider()
-
-                    // Cámara — pide permiso primero
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -189,17 +170,10 @@ fun CrearEntradaScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Outlined.PhotoCamera,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Outlined.PhotoCamera, null, tint = MaterialTheme.colorScheme.primary)
                         Text("Tomar foto")
                     }
-
                     HorizontalDivider()
-
-                    // Video, pide permiso primero
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -216,25 +190,18 @@ fun CrearEntradaScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Outlined.Videocam,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Outlined.Videocam, null, tint = MaterialTheme.colorScheme.primary)
                         Text("Grabar video")
                     }
                 }
             },
             confirmButton = {},
             dismissButton = {
-                TextButton(onClick = { mostrarDialogoMedia = false }) {
-                    Text("Cancelar")
-                }
+                TextButton(onClick = { mostrarDialogoMedia = false }) { Text("Cancelar") }
             }
         )
     }
 
-    // Scaffold principal
     Scaffold(
         topBar = {
             TopAppBar(
@@ -247,47 +214,30 @@ fun CrearEntradaScreen(
                         Text(
                             text = fechaVisible,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface
-                                .copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onRegresar) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Regresar"
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Regresar")
                     }
                 },
                 actions = {
                     IconButton(
-                        onClick = {
-                            viewModel.guardarEntrada(usuarioId, parejaId, fecha, tipo)
-                        },
+                        onClick = { viewModel.guardarEntrada(usuarioId, parejaId, fecha, tipo) },
                         enabled = !uiState.cargando
                     ) {
                         if (uiState.cargando) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         } else {
-                            Icon(
-                                Icons.Filled.Check,
-                                contentDescription = "Guardar",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                            Icon(Icons.Filled.Check, "Guardar", tint = MaterialTheme.colorScheme.primary)
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                }
             )
         }
     ) { padding ->
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -296,32 +246,24 @@ fun CrearEntradaScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-
-            // ── Etiquetas (Evento y Día especial) ─────────────
-            if (tipoEntrada == TipoEntrada.EVENTO ||
-                tipoEntrada == TipoEntrada.DIA_ESPECIAL) {
+            // Etiquetas (Solo si es RECUERDO)
+            if (tipoEntrada == TipoEntrada.RECUERDO) {
                 SeccionEtiquetas(
-                    tipo = tipoEntrada,
                     etiquetaSeleccionada = uiState.etiqueta,
                     etiquetaPersonalizada = uiState.etiquetaPersonalizada,
                     onEtiquetaSeleccionada = { viewModel.actualizarEtiqueta(it) },
-                    onEtiquetaPersonalizada = {
-                        viewModel.actualizarEtiquetaPersonalizada(it)
-                    }
+                    onEtiquetaPersonalizada = { viewModel.actualizarEtiquetaPersonalizada(it) }
                 )
             }
 
-            //Título
             OutlinedTextField(
                 value = uiState.titulo,
                 onValueChange = { viewModel.actualizarTitulo(it) },
                 label = {
                     Text(
                         when (tipoEntrada) {
-                            TipoEntrada.MI_DIA      -> "¿Cómo fue tu día?"
-                            TipoEntrada.RECUERDO    -> "¿Cuál es el recuerdo?"
-                            TipoEntrada.EVENTO      -> "Nombre del evento"
-                            TipoEntrada.DIA_ESPECIAL -> "¿Qué celebran?"
+                            TipoEntrada.MI_DIA -> "¿Cómo fue tu día?"
+                            TipoEntrada.RECUERDO -> "¿Qué quieres recordar?"
                         }
                     )
                 },
@@ -329,26 +271,19 @@ fun CrearEntradaScreen(
                 singleLine = true
             )
 
-            // ──  (odo excepto Evento)
-            if (tipoEntrada != TipoEntrada.EVENTO) {
-                SeccionEmociones(
-                    emocionesSeleccionadas = uiState.emocionesSeleccionadas,
-                    onToggle = { viewModel.toggleEmocion(it) }
-                )
-            }
+            SeccionEmociones(
+                emocionesSeleccionadas = uiState.emocionesSeleccionadas,
+                onToggle = { viewModel.toggleEmocion(it) }
+            )
 
-            // Descripción
             OutlinedTextField(
                 value = uiState.detalles,
                 onValueChange = { viewModel.actualizarDetalles(it) },
                 label = { Text("Cuéntame más...") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(140.dp),
+                modifier = Modifier.fillMaxWidth().height(140.dp),
                 maxLines = 8
             )
 
-            // Fotos y videos
             SeccionMedia(
                 fotos = uiState.fotosSeleccionadas,
                 videos = uiState.videosSeleccionados,
@@ -357,7 +292,6 @@ fun CrearEntradaScreen(
                 onEliminarVideo = { viewModel.eliminarVideo(it) }
             )
 
-            //Compartir con pareja
             if (parejaId != null) {
                 Row(
                     modifier = Modifier
@@ -370,28 +304,17 @@ fun CrearEntradaScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
+                        Text("💕 Compartir con mi pareja", style = MaterialTheme.typography.titleMedium)
                         Text(
-                            text = "💕 Compartir con mi pareja",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            text = if (uiState.compartir)
-                                "Tu pareja podrá ver esto"
-                            else
-                                "Solo tú puedes verlo",
+                            text = if (uiState.compartir) "Tu pareja podrá ver esto" else "Solo tú puedes verlo",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface
-                                .copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
-                    Switch(
-                        checked = uiState.compartir,
-                        onCheckedChange = { viewModel.toggleCompartir() }
-                    )
+                    Switch(checked = uiState.compartir, onCheckedChange = { viewModel.toggleCompartir() })
                 }
             }
 
-            //Error
             if (uiState.error != null) {
                 Text(
                     text = uiState.error!!,
@@ -401,95 +324,57 @@ fun CrearEntradaScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-
             Spacer(Modifier.height(80.dp))
         }
     }
 }
 
-//Sección de etiquetas
-
 @Composable
 private fun SeccionEtiquetas(
-    tipo: TipoEntrada,
     etiquetaSeleccionada: String,
     etiquetaPersonalizada: String,
     onEtiquetaSeleccionada: (String) -> Unit,
     onEtiquetaPersonalizada: (String) -> Unit
 ) {
-    val etiquetas: List<Pair<String, String>> = when (tipo) {
-        TipoEntrada.EVENTO ->
-            EtiquetaEvento.entries.map { Pair(it.etiqueta, it.emoji) }
-        TipoEntrada.DIA_ESPECIAL ->
-            EtiquetaDiaEspecial.entries.map { Pair(it.etiqueta, it.emoji) }
-        else -> emptyList()
-    }
-
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = "Tipo de ${tipo.etiqueta.lowercase()}",
-            style = MaterialTheme.typography.titleMedium
-        )
+        Text("¿De qué se trata?", style = MaterialTheme.typography.titleMedium)
 
-        val filas = etiquetas.chunked(3)
+        val filas = TipoEvento.entries.chunked(3)
         filas.forEach { fila ->
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                fila.forEach { (etiqueta, emoji) ->
-                    val seleccionada = etiquetaSeleccionada == etiqueta
+                fila.forEach { tipo ->
+                    val seleccionada = etiquetaSeleccionada == tipo.name
                     Box(modifier = Modifier.weight(1f)) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(50.dp))
-                                .background(
-                                    if (seleccionada)
-                                        MaterialTheme.colorScheme.primaryContainer
-                                    else
-                                        MaterialTheme.colorScheme.surface
-                                )
-                                .border(
-                                    1.dp,
-                                    if (seleccionada)
-                                        MaterialTheme.colorScheme.primary
-                                    else
-                                        MaterialTheme.colorScheme.outline,
-                                    RoundedCornerShape(50.dp)
-                                )
-                                .clickable { onEtiquetaSeleccionada(etiqueta) }
+                                .background(if (seleccionada) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
+                                .border(1.dp, if (seleccionada) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, RoundedCornerShape(50.dp))
+                                .clickable { onEtiquetaSeleccionada(tipo.name) }
                                 .padding(horizontal = 10.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = emoji, fontSize = 14.sp)
+                            Text(text = tipo.emoji, fontSize = 14.sp)
                             Spacer(Modifier.width(4.dp))
                             Text(
-                                text = etiqueta,
+                                text = tipo.etiqueta,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = if (seleccionada)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    MaterialTheme.colorScheme.onSurface
+                                color = if (seleccionada) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1
                             )
                         }
                     }
                 }
-                repeat(3 - fila.size) {
-                    Box(modifier = Modifier.weight(1f))
-                }
+                repeat(3 - fila.size) { Box(modifier = Modifier.weight(1f)) }
             }
         }
 
-        // Campo personalizado si eligió "Otra..."
-        val etiquetaPersonalizadaLabel = when (tipo) {
-            TipoEntrada.EVENTO -> EtiquetaEvento.PERSONALIZADA.etiqueta
-            TipoEntrada.DIA_ESPECIAL -> EtiquetaDiaEspecial.PERSONALIZADA.etiqueta
-            else -> ""
-        }
-
-        if (etiquetaSeleccionada == etiquetaPersonalizadaLabel) {
+        if (etiquetaSeleccionada == TipoEvento.OTRO.name) {
             OutlinedTextField(
                 value = etiquetaPersonalizada,
                 onValueChange = onEtiquetaPersonalizada,
@@ -501,19 +386,13 @@ private fun SeccionEtiquetas(
     }
 }
 
-// Sección de emociones
-
 @Composable
 private fun SeccionEmociones(
     emocionesSeleccionadas: List<Emocion>,
     onToggle: (Emocion) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = "¿Cómo te sentiste?",
-            style = MaterialTheme.typography.titleMedium
-        )
-
+        Text("¿Cómo te sentiste?", style = MaterialTheme.typography.titleMedium)
         val filas = Emocion.entries.chunked(4)
         filas.forEach { fila ->
             Row(
@@ -527,20 +406,8 @@ private fun SeccionEmociones(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(
-                                    if (seleccionada)
-                                        MaterialTheme.colorScheme.primaryContainer
-                                    else
-                                        MaterialTheme.colorScheme.surfaceVariant
-                                )
-                                .border(
-                                    1.dp,
-                                    if (seleccionada)
-                                        MaterialTheme.colorScheme.primary
-                                    else
-                                        Color.Transparent,
-                                    RoundedCornerShape(12.dp)
-                                )
+                                .background(if (seleccionada) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                                .border(1.dp, if (seleccionada) MaterialTheme.colorScheme.primary else Color.Transparent, RoundedCornerShape(12.dp))
                                 .clickable { onToggle(emocion) }
                                 .padding(8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -549,24 +416,17 @@ private fun SeccionEmociones(
                             Text(
                                 text = emocion.etiqueta,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (seleccionada)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    MaterialTheme.colorScheme.onSurface,
+                                color = if (seleccionada) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                 textAlign = TextAlign.Center
                             )
                         }
                     }
                 }
-                repeat(4 - fila.size) {
-                    Box(modifier = Modifier.weight(1f))
-                }
+                repeat(4 - fila.size) { Box(modifier = Modifier.weight(1f)) }
             }
         }
     }
 }
-
-//Sección de media
 
 @Composable
 private fun SeccionMedia(
@@ -582,16 +442,9 @@ private fun SeccionMedia(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Fotos y videos",
-                style = MaterialTheme.typography.titleMedium
-            )
+            Text("Fotos y videos", style = MaterialTheme.typography.titleMedium)
             TextButton(onClick = onAgregarMedia) {
-                Icon(
-                    Icons.Outlined.PhotoCamera,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
+                Icon(Icons.Outlined.PhotoCamera, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(4.dp))
                 Text("Agregar")
             }
@@ -614,9 +467,7 @@ private fun SeccionMedia(
                 )
             }
         } else {
-            val todosLosArchivos = fotos.map { Pair(it, false) } +
-                    videos.map { Pair(it, true) }
-
+            val todosLosArchivos = fotos.map { Pair(it, false) } + videos.map { Pair(it, true) }
             val filas = todosLosArchivos.chunked(3)
             filas.forEach { fila ->
                 Row(
@@ -624,69 +475,25 @@ private fun SeccionMedia(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     fila.forEach { (uri, esVideo) ->
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .aspectRatio(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                        ) {
-                            AsyncImage(
-                                model = uri,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-
+                        Box(modifier = Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(8.dp))) {
+                            AsyncImage(model = uri, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                             if (esVideo) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(Color.Black.copy(alpha = 0.3f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        Icons.Outlined.Videocam,
-                                        contentDescription = "Video",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(28.dp)
-                                    )
+                                Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Outlined.Videocam, "Video", tint = Color.White, modifier = Modifier.size(28.dp))
                                 }
                             }
-
                             IconButton(
-                                onClick = {
-                                    if (esVideo) onEliminarVideo(uri)
-                                    else onEliminarFoto(uri)
-                                },
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .size(28.dp)
-                                    .background(
-                                        Color.Black.copy(alpha = 0.5f),
-                                        RoundedCornerShape(50.dp)
-                                    )
+                                onClick = { if (esVideo) onEliminarVideo(uri) else onEliminarFoto(uri) },
+                                modifier = Modifier.align(Alignment.TopEnd).size(28.dp).background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50.dp))
                             ) {
-                                Icon(
-                                    Icons.Filled.Close,
-                                    contentDescription = "Eliminar",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(14.dp)
-                                )
+                                Icon(Icons.Filled.Close, "Eliminar", tint = Color.White, modifier = Modifier.size(14.dp))
                             }
                         }
                     }
-                    repeat(3 - fila.size) {
-                        Box(modifier = Modifier.weight(1f))
-                    }
+                    repeat(3 - fila.size) { Box(modifier = Modifier.weight(1f)) }
                 }
             }
-
-            TextButton(
-                onClick = onAgregarMedia,
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Text("+ Agregar más")
-            }
+            TextButton(onClick = onAgregarMedia, modifier = Modifier.align(Alignment.End)) { Text("+ Agregar más") }
         }
     }
 }

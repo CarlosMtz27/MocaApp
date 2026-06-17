@@ -88,6 +88,46 @@ class DiarioRepositoryImpl(
         }
     }
 
+    override suspend fun obtenerUltimasEntradas(
+        usuarioId: String,
+        parejaId: String?,
+        limite: Int
+    ): Result<List<EntradaDiario>> {
+        return try {
+            val misEntradas = firestore
+                .collection("entradas")
+                .whereEqualTo("usuarioId", usuarioId)
+                .orderBy("creadaEn", Query.Direction.DESCENDING)
+                .limit(limite.toLong())
+                .get()
+                .await()
+                .documents
+                .mapNotNull { it.toObject(EntradaDiario::class.java) }
+
+            val entradasPareja = if (parejaId != null) {
+                firestore
+                    .collection("entradas")
+                    .whereEqualTo("usuarioId", parejaId)
+                    .whereEqualTo("compartida", true)
+                    .whereEqualTo("parejaId", usuarioId)
+                    .orderBy("creadaEn", Query.Direction.DESCENDING)
+                    .limit(limite.toLong())
+                    .get()
+                    .await()
+                    .documents
+                    .mapNotNull { it.toObject(EntradaDiario::class.java) }
+            } else emptyList()
+
+            val todas = (misEntradas + entradasPareja)
+                .sortedByDescending { it.creadaEn }
+                .take(limite)
+
+            Result.success(todas)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     override suspend fun crearEntrada(
         entrada: EntradaDiario,
         fotosLocales: List<String>,

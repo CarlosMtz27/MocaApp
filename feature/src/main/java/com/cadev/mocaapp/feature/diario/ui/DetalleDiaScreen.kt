@@ -114,7 +114,6 @@ fun DetalleDiaScreen(
                 )
             }
         } else {
-            // ← Ordenar por más recientes primero
             val entradasOrdenadas = uiState.entradas
                 .sortedByDescending { it.creadaEn }
 
@@ -133,7 +132,7 @@ fun DetalleDiaScreen(
                     TarjetaEntrada(
                         entrada = entrada,
                         esMia = entrada.usuarioId == usuarioId,
-                        noVista = noVista,   // ← negritas si no vista
+                        noVista = noVista,
                         onEditar = { onEditarEntrada(entrada.id) },
                         onVerDetalle = {
                             viewModel.marcarEntradaVista(entrada.id)
@@ -149,6 +148,7 @@ fun DetalleDiaScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.4f))
+                    .clickable { fabExpandido = false }
             )
         }
     }
@@ -165,12 +165,6 @@ private fun FabExpandible(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (expandido) {
-            OpcionFab("⭐", "Día especial", Color(0xFFF9A825)) {
-                onOpcionSeleccionada(TipoEntrada.DIA_ESPECIAL.name)
-            }
-            OpcionFab("🗓️", "Evento", Color(0xFFE65100)) {
-                onOpcionSeleccionada(TipoEntrada.EVENTO.name)
-            }
             OpcionFab("📸", "Recuerdo", Color(0xFF7B1FA2)) {
                 onOpcionSeleccionada(TipoEntrada.RECUERDO.name)
             }
@@ -211,14 +205,13 @@ private fun OpcionFab(emoji: String, etiqueta: String, color: Color, onClick: ()
 private fun TarjetaEntrada(
     entrada: EntradaDiario,
     esMia: Boolean,
-    noVista: Boolean,   // ← nuevo
+    noVista: Boolean,
     onEditar: () -> Unit,
     onVerDetalle: () -> Unit
 ) {
     val tipo = try { TipoEntrada.valueOf(entrada.tipo) } catch (e: Exception) { TipoEntrada.MI_DIA }
     val colorTipo = Color(android.graphics.Color.parseColor("#${tipo.colorHex}"))
 
-    // Formato de hora para mostrar en la tarjeta
     val formatoHora = SimpleDateFormat("HH:mm", Locale.getDefault())
     val hora = try { formatoHora.format(entrada.creadaEn) } catch (e: Exception) { "" }
 
@@ -228,7 +221,6 @@ private fun TarjetaEntrada(
             .clickable(onClick = onVerDetalle),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = if (noVista) 4.dp else 2.dp),
-        // ← Borde si no vista
         border = if (noVista)
             androidx.compose.foundation.BorderStroke(
                 2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
@@ -264,7 +256,6 @@ private fun TarjetaEntrada(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = colorTipo
                             )
-                            // ← Hora de creación
                             Text(
                                 text = hora,
                                 style = MaterialTheme.typography.labelSmall,
@@ -274,7 +265,6 @@ private fun TarjetaEntrada(
                         Text(
                             text = entrada.titulo,
                             style = MaterialTheme.typography.titleMedium,
-                            // ← Negrita si no vista
                             fontWeight = if (noVista) FontWeight.Bold else FontWeight.Normal
                         )
                     }
@@ -329,7 +319,6 @@ private fun TarjetaEntrada(
                 }
             }
 
-            // ← Badge "Nuevo" si no vista
             if (noVista) {
                 Spacer(Modifier.height(8.dp))
                 Surface(

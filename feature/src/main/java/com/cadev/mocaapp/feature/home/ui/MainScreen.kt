@@ -26,6 +26,7 @@ import com.cadev.mocaapp.feature.cuestionarios.ui.CuestionarioViewModel
 import com.cadev.mocaapp.feature.cuestionarios.ui.CuestionariosScreen
 import com.cadev.mocaapp.feature.diario.ui.CalendarioScreen
 import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
+import com.cadev.mocaapp.feature.eventos.ui.EventoViewModel
 import com.cadev.mocaapp.feature.notificaciones.ui.NotificacionViewModel
 import com.cadev.mocaapp.feature.pareja.data.UsuarioHelper
 import com.cadev.mocaapp.feature.perfil.ui.AjustesScreen
@@ -59,6 +60,8 @@ fun MainScreen(
     val cuestionarioViewModel: CuestionarioViewModel = viewModel(factory = factory)
     val chatViewModel: ChatViewModel = viewModel(factory = factory)
     val notificacionViewModel: NotificacionViewModel = viewModel(factory = factory)
+    val eventoViewModel: EventoViewModel = viewModel(factory = factory)
+    val diarioViewModel: DiarioViewModel = viewModel(factory = factory)
 
     val perfilState by perfilViewModel.uiState.collectAsState()
     val contadores by notificacionViewModel.contadores.collectAsState()
@@ -73,6 +76,13 @@ fun MainScreen(
     // Precarga del perfil
     LaunchedEffect(uid) {
         perfilViewModel.cargarPerfil(uid, parejaId)
+    }
+
+    // Precarga de eventos y actividad diaria
+    LaunchedEffect(uid, parejaId, perfilState.usuario?.relacionId) {
+        val relacionId = perfilState.usuario?.relacionId ?: return@LaunchedEffect
+        eventoViewModel.cargarEventos(relacionId)
+        diarioViewModel.cargarUltimaActividad(uid, parejaId)
     }
 
     // Inicializar chat, ahora solo una vez, no cada vez que se entra al tab
@@ -190,17 +200,37 @@ fun MainScreen(
         ) {
 
             composable(NavRoutes.Home.route) {
-                HomeScreen()
+                HomeScreen(
+                    perfilViewModel = perfilViewModel,
+                    eventoViewModel = eventoViewModel,
+                    diarioViewModel = diarioViewModel,
+                    cuestionarioViewModel = cuestionarioViewModel,
+                    notificacionViewModel = notificacionViewModel,
+                    onNavigateToTab = { route ->
+                        tabNavController.navigate(route) {
+                            popUpTo(tabNavController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onNavigateToScreen = { route ->
+                        navController.navigate(route)
+                    }
+                )
             }
 
             composable(NavRoutes.Calendario.route) {
-                val diarioViewModel: DiarioViewModel = viewModel(factory = factory)
                 CalendarioScreen(
                     viewModel = diarioViewModel,
                     usuarioId = uid,
                     parejaId = parejaId,
                     onDiaSeleccionado = { fecha ->
                         navController.navigate(NavRoutes.DetalleDia.crearRuta(fecha))
+                    },
+                    onVerEventos = {
+                        navController.navigate(NavRoutes.Eventos.route)
                     }
                 )
             }

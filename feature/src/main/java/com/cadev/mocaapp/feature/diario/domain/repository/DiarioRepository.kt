@@ -17,6 +17,12 @@ interface DiarioRepository {
         fecha: String
     ): Result<List<EntradaDiario>>
 
+    suspend fun obtenerUltimasEntradas(
+        usuarioId: String,
+        parejaId: String?,
+        limite: Int
+    ): Result<List<EntradaDiario>>
+
     // incluye videosLocales
     suspend fun crearEntrada(
         entrada: EntradaDiario,

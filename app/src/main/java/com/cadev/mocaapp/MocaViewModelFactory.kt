@@ -11,6 +11,8 @@ import com.cadev.mocaapp.feature.cuestionarios.data.repository.CuestionarioRepos
 import com.cadev.mocaapp.feature.cuestionarios.ui.CuestionarioViewModel
 import com.cadev.mocaapp.feature.diario.data.repository.DiarioRepositoryImpl
 import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
+import com.cadev.mocaapp.feature.eventos.data.repository.EventoRepositoryImpl
+import com.cadev.mocaapp.feature.eventos.ui.EventoViewModel
 import com.cadev.mocaapp.feature.notificaciones.data.NotificacionRepository
 import com.cadev.mocaapp.feature.notificaciones.ui.NotificacionViewModel
 import com.cadev.mocaapp.feature.pareja.data.repository.ParejaRepositoryImpl
@@ -70,6 +72,12 @@ class MocaViewModelFactory : ViewModelProvider.Factory {
             modelClass.isAssignableFrom(NotificacionViewModel::class.java) ->
                 NotificacionViewModel(
                     notificacionRepository       // instancia compartida
+                ) as T
+
+            modelClass.isAssignableFrom(EventoViewModel::class.java) ->
+                EventoViewModel(
+                    EventoRepositoryImpl(firestore),
+                    notificacionRepository
                 ) as T
 
             else -> throw IllegalArgumentException(

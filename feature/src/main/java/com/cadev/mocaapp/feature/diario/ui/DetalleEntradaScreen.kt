@@ -38,6 +38,7 @@ import com.cadev.mocaapp.feature.diario.domain.model.Comentario
 import com.cadev.mocaapp.feature.diario.domain.model.Emocion
 import com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
+import com.cadev.mocaapp.core.model.TipoEvento
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -272,10 +273,18 @@ private fun EncabezadoEntrada(entrada: EntradaDiario) {
             ) {
                 Text(text = tipo.emoji, fontSize = 18.sp)
             }
-            Column {
+    Column {
+                val etiquetaMostrada = if (entrada.etiqueta.isNotBlank()) {
+                    val tipoEvento = TipoEvento.entries.find { it.name == entrada.etiqueta }
+                    if (tipoEvento != null) {
+                        " · ${tipoEvento.emoji} ${tipoEvento.etiqueta}"
+                    } else {
+                        " · ${entrada.etiqueta}"
+                    }
+                } else ""
+
                 Text(
-                    text = tipo.etiqueta + if (entrada.etiqueta.isNotBlank())
-                        " · ${entrada.etiqueta}" else "",
+                    text = tipo.etiqueta + etiquetaMostrada,
                     style = MaterialTheme.typography.labelMedium,
                     color = colorTipo
                 )

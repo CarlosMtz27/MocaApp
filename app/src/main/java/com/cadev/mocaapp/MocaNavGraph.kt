@@ -24,11 +24,17 @@ import com.cadev.mocaapp.feature.cuestionarios.ui.CuestionarioViewModel
 import com.cadev.mocaapp.feature.cuestionarios.ui.ResponderScreen
 import com.cadev.mocaapp.feature.cuestionarios.ui.ResultadosScreen
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
+import com.cadev.mocaapp.feature.diario.ui.CalendarioScreen
 import com.cadev.mocaapp.feature.diario.ui.CrearEntradaScreen
 import com.cadev.mocaapp.feature.diario.ui.DetalleEntradaScreen
 import com.cadev.mocaapp.feature.diario.ui.DetalleDiaScreen
 import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
 import com.cadev.mocaapp.feature.diario.ui.EditarEntradaScreen
+import com.cadev.mocaapp.feature.eventos.ui.CrearEventoScreen
+import com.cadev.mocaapp.feature.eventos.ui.DetalleEventoScreen
+import com.cadev.mocaapp.feature.eventos.ui.EditarEventoScreen
+import com.cadev.mocaapp.feature.eventos.ui.EventoViewModel
+import com.cadev.mocaapp.feature.eventos.ui.EventosScreen
 import com.cadev.mocaapp.feature.home.ui.MainScreen
 import com.cadev.mocaapp.feature.pareja.data.UsuarioHelper
 import com.cadev.mocaapp.feature.pareja.ui.CodigoParejaScreen
@@ -69,6 +75,7 @@ fun MocaNavGraph(
                 }
             )
         }
+
 
         composable(NavRoutes.Registro.route) {
             val viewModel: AuthViewModel = viewModel(factory = factory)
@@ -136,7 +143,24 @@ fun MocaNavGraph(
                 initialTab = initialTab    // ← nuevo parámetro
             )
         }
-
+        composable(NavRoutes.Calendario.route) {
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            val parejaId = remember(uid) {
+                runBlocking { UsuarioHelper.obtenerParejaId(uid) }
+            }
+            val diarioViewModel: DiarioViewModel = viewModel(factory = factory)
+            CalendarioScreen(
+                viewModel = diarioViewModel,
+                usuarioId = uid,
+                parejaId = parejaId,
+                onDiaSeleccionado = { fecha ->
+                    navController.navigate(NavRoutes.DetalleDia.crearRuta(fecha))
+                },
+                onVerEventos = {
+                    navController.navigate(NavRoutes.Eventos.route)
+                }
+            )
+        }
         //Diario
         composable(
             route = NavRoutes.DetalleDia.route,
@@ -403,12 +427,82 @@ fun MocaNavGraph(
             )
         }
 
-        //pendientes xd
         composable(NavRoutes.Eventos.route) {
-            PlaceholderScreen("🗓️ Eventos")
+            val viewModel: EventoViewModel = viewModel(factory = factory)
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            val relacionId = remember(uid) {
+                runBlocking {
+                    FirebaseFirestore.getInstance()
+                        .collection("usuarios").document(uid)
+                        .get().await().getString("relacionId") ?: ""
+                }
+            }
+            EventosScreen(
+                viewModel = viewModel,
+                relacionId = relacionId,
+                onCrearEvento = { navController.navigate(NavRoutes.CrearEvento.route) },
+                onVerEvento = { id ->
+                    navController.navigate(NavRoutes.DetalleEvento.crearRuta(id))
+                },
+                onRegresar = { navController.popBackStack() }
+            )
         }
+
         composable(NavRoutes.CrearEvento.route) {
-            PlaceholderScreen("➕ Crear Evento")
+            val viewModel: EventoViewModel = viewModel(factory = factory)
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            val parejaId = remember(uid) {
+                runBlocking { UsuarioHelper.obtenerParejaId(uid) }
+            }
+            val relacionId = remember(uid) {
+                runBlocking {
+                    FirebaseFirestore.getInstance()
+                        .collection("usuarios").document(uid)
+                        .get().await().getString("relacionId") ?: ""
+                }
+            }
+            CrearEventoScreen(
+                viewModel = viewModel,
+                usuarioId = uid,
+                parejaId = parejaId ?: "",
+                relacionId = relacionId,
+                onGuardado = { navController.popBackStack() },
+                onRegresar = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = NavRoutes.DetalleEvento.route,
+            arguments = listOf(navArgument("eventoId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val eventoId = backStackEntry.arguments?.getString("eventoId") ?: ""
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            val viewModel: EventoViewModel = viewModel(factory = factory)
+            DetalleEventoScreen(
+                viewModel = viewModel,
+                eventoId = eventoId,
+                usuarioId = uid,
+                onRegresar = { navController.popBackStack() },
+                onEditar = { id ->
+                    navController.navigate(NavRoutes.EditarEvento.crearRuta(id))
+                }
+            )
+        }
+
+        composable(
+            route = NavRoutes.EditarEvento.route,
+            arguments = listOf(navArgument("eventoId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val eventoId = backStackEntry.arguments?.getString("eventoId") ?: ""
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            val viewModel: EventoViewModel = viewModel(factory = factory)
+            EditarEventoScreen(
+                viewModel = viewModel,
+                eventoId = eventoId,
+                usuarioId = uid,
+                onGuardado = { navController.popBackStack() },
+                onRegresar = { navController.popBackStack() }
+            )
         }
         composable(NavRoutes.Notas.route) {
             PlaceholderScreen("🗒️ Notas")

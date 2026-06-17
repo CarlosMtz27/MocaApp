@@ -5,9 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.cadev.mocaapp.feature.diario.domain.model.Comentario
 import com.cadev.mocaapp.feature.diario.domain.model.Emocion
 import com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario
-import com.cadev.mocaapp.feature.diario.domain.model.EtiquetaDiaEspecial
-import com.cadev.mocaapp.feature.diario.domain.model.EtiquetaEvento
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
+import com.cadev.mocaapp.core.model.TipoEvento
 import com.cadev.mocaapp.feature.diario.domain.repository.DiarioRepository
 import com.cadev.mocaapp.feature.notificaciones.data.NotificacionRepository
 import com.google.firebase.firestore.FirebaseFirestore
@@ -41,7 +40,8 @@ data class DiarioUiState(
     val entradaDetalle: EntradaDiario? = null,
     val comentarios: List<Comentario> = emptyList(),
     val nuevoComentario: String = "",
-    val nombreUsuario: String = ""
+    val nombreUsuario: String = "",
+    val ultimasEntradas: List<EntradaDiario> = emptyList()
 )
 
 class DiarioViewModel(
@@ -118,6 +118,17 @@ class DiarioViewModel(
         }
     }
 
+    fun cargarUltimaActividad(usuarioId: String, parejaId: String?) {
+        viewModelScope.launch {
+            repository.obtenerUltimasEntradas(usuarioId, parejaId, 5).fold(
+                onSuccess = { lista ->
+                    _uiState.value = _uiState.value.copy(ultimasEntradas = lista)
+                },
+                onFailure = { }
+            )
+        }
+    }
+
     fun actualizarTitulo(valor: String) {
         _uiState.value = _uiState.value.copy(titulo = valor)
     }
@@ -181,10 +192,11 @@ class DiarioViewModel(
             return
         }
 
-        val etiquetaFinal = if (
-            estado.etiqueta == EtiquetaEvento.PERSONALIZADA.etiqueta ||
-            estado.etiqueta == EtiquetaDiaEspecial.PERSONALIZADA.etiqueta
-        ) estado.etiquetaPersonalizada else estado.etiqueta
+        val etiquetaFinal = if (estado.etiqueta == TipoEvento.OTRO.name) {
+            estado.etiquetaPersonalizada
+        } else {
+            estado.etiqueta
+        }
 
         viewModelScope.launch {
             _uiState.value = estado.copy(cargando = true, error = null)
@@ -304,10 +316,11 @@ class DiarioViewModel(
             return
         }
 
-        val etiquetaFinal = if (
-            estado.etiqueta == EtiquetaEvento.PERSONALIZADA.etiqueta ||
-            estado.etiqueta == EtiquetaDiaEspecial.PERSONALIZADA.etiqueta
-        ) estado.etiquetaPersonalizada else estado.etiqueta
+        val etiquetaFinal = if (estado.etiqueta == TipoEvento.OTRO.name) {
+            estado.etiquetaPersonalizada
+        } else {
+            estado.etiqueta
+        }
 
         viewModelScope.launch {
             _uiState.value = estado.copy(cargando = true, error = null)
