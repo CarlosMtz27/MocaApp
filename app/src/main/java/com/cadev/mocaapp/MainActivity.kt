@@ -20,6 +20,7 @@ import com.cadev.mocaapp.core.utils.CloudinaryConfig
 import com.cadev.mocaapp.feature.notificaciones.data.NotificacionRepository
 import com.cadev.mocaapp.feature.widgets.diasjuntos.DiasJuntosWorker
 import com.cadev.mocaapp.feature.widgets.distancia.UbicacionWorker
+import com.cadev.mocaapp.core.utils.ThemeManager
 import com.cadev.mocaapp.ui.theme.MocaAppTheme
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -85,7 +86,8 @@ class MainActivity : ComponentActivity() {
         val factory = MocaViewModelFactory()
 
         setContent {
-            MocaAppTheme {
+            val darkTheme = ThemeManager.isDarkTheme
+            MocaAppTheme(darkTheme = darkTheme) {
                 val navController = rememberNavController()
                 navControllerRef = navController
 

@@ -2,11 +2,19 @@ package com.cadev.mocaapp.feature.home.ui
 
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.layout.padding
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -59,7 +67,7 @@ fun MainScreen(
         runBlocking { UsuarioHelper.obtenerParejaId(uid) }
     }
 
-    // ViewModels compartidos, todos a nivel de MainScreen para que no se recreen al cambiar tab
+    // ViewModels compartidos
     val perfilViewModel: PerfilViewModel = viewModel(factory = factory)
     val cuestionarioViewModel: CuestionarioViewModel = viewModel(factory = factory)
     val chatViewModel: ChatViewModel = viewModel(factory = factory)
@@ -79,12 +87,11 @@ fun MainScreen(
         }
     }
 
-    // Precarga del perfil
+    // Precargas
     LaunchedEffect(uid) {
         perfilViewModel.cargarPerfil(uid, parejaId)
     }
 
-    // Precarga de eventos, actividad diaria y notas
     LaunchedEffect(uid, parejaId, perfilState.usuario?.relacionId) {
         val relacionId = perfilState.usuario?.relacionId ?: return@LaunchedEffect
         eventoViewModel.cargarEventos(relacionId)
@@ -92,14 +99,12 @@ fun MainScreen(
         notaViewModel.iniciar(context, relacionId, uid, parejaId)
     }
 
-    // Inicializar chat, ahora solo una vez, no cada vez que se entra al tab
     LaunchedEffect(uid, parejaId) {
         if (uid.isNotBlank() && !parejaId.isNullOrBlank()) {
             chatViewModel.inicializar(uid, parejaId)
         }
     }
 
-    // Precarga cuestionarios
     LaunchedEffect(perfilState.usuario?.relacionId) {
         val relacionId = perfilState.usuario?.relacionId ?: return@LaunchedEffect
         cuestionarioViewModel.cargarCuestionarios(
@@ -110,7 +115,6 @@ fun MainScreen(
         cuestionarioViewModel.poblarPredefinidos()
     }
 
-    // Limpiar badge al entrar a cada tab
     LaunchedEffect(rutaActual) {
         if (uid.isBlank()) return@LaunchedEffect
         when (rutaActual) {
@@ -150,52 +154,82 @@ fun MainScreen(
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                tabs.forEach { tab ->
-                    val seleccionado = destinoActual
-                        ?.hierarchy
-                        ?.any { it.route == tab.route } == true
+            Surface(
+                tonalElevation = 8.dp,
+                shadowElevation = 16.dp,
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .clip(RoundedCornerShape(32.dp)),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+            ) {
+                NavigationBar(
+                    containerColor = Color.Transparent,
+                    modifier = Modifier.height(72.dp),
+                    windowInsets = WindowInsets(0, 0, 0, 0)
+                ) {
+                    tabs.forEach { tab ->
+                        val seleccionado = destinoActual
+                            ?.hierarchy
+                            ?.any { it.route == tab.route } == true
 
-                    // Contar badge según tab
-                    val badgeCount = when (tab.route) {
-                        NavRoutes.Chat.route -> contadores.chat
-                        NavRoutes.Calendario.route -> contadores.diario
-                        NavRoutes.Cuestionarios.route -> contadores.cuestionarios
-                        else -> 0
-                    }
+                        val iconSize by animateDpAsState(
+                            targetValue = if (seleccionado) 28.dp else 24.dp,
+                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                            label = "iconSize"
+                        )
 
-                    NavigationBarItem(
-                        selected = seleccionado,
-                        onClick = {
-                            tabNavController.navigate(tab.route) {
-                                popUpTo(
-                                    tabNavController.graph
-                                        .findStartDestination().id
-                                ) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            if (badgeCount > 0) {
+                        val badgeCount = when (tab.route) {
+                            NavRoutes.Chat.route -> contadores.chat
+                            NavRoutes.Calendario.route -> contadores.diario
+                            NavRoutes.Cuestionarios.route -> contadores.cuestionarios
+                            else -> 0
+                        }
+
+                        NavigationBarItem(
+                            selected = seleccionado,
+                            onClick = {
+                                tabNavController.navigate(tab.route) {
+                                    popUpTo(tabNavController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            icon = {
                                 BadgedBox(
                                     badge = {
-                                        Badge {
-                                            Text(
-                                                if (badgeCount > 9) "9+"
-                                                else badgeCount.toString()
-                                            )
+                                        if (badgeCount > 0) {
+                                            Badge(
+                                                containerColor = MaterialTheme.colorScheme.error,
+                                                contentColor = MaterialTheme.colorScheme.onError,
+                                                modifier = Modifier.offset(x = (-4).dp, y = 4.dp)
+                                            ) {
+                                                Text(if (badgeCount > 9) "9+" else badgeCount.toString(), fontSize = 10.sp)
+                                            }
                                         }
                                     }
                                 ) {
-                                    Icon(tab.icono, tab.etiqueta)
+                                    Icon(
+                                        imageVector = if (seleccionado) tab.iconoSeleccionado else tab.iconoNoSeleccionado,
+                                        contentDescription = tab.etiqueta,
+                                        modifier = Modifier.size(iconSize),
+                                        tint = if (seleccionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
-                            } else {
-                                Icon(tab.icono, tab.etiqueta)
-                            }
-                        },
-                        label = { Text(tab.etiqueta) }
-                    )
+                            },
+                            label = {
+                                Text(
+                                    text = tab.etiqueta,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (seleccionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -213,7 +247,6 @@ fun MainScreen(
                     eventoViewModel = eventoViewModel,
                     diarioViewModel = diarioViewModel,
                     cuestionarioViewModel = cuestionarioViewModel,
-                    notificacionViewModel = notificacionViewModel,
                     notaViewModel = notaViewModel,
                     estadoAnimoViewModel = estadoAnimoViewModel,
                     onNavigateToTab = { route ->
@@ -247,7 +280,6 @@ fun MainScreen(
 
             composable(NavRoutes.Chat.route) {
                 if (parejaId != null) {
-                    // Reusamos el chatViewModel ya inicializado
                     ChatScreen(
                         viewModel = chatViewModel,
                         usuarioId = uid,
