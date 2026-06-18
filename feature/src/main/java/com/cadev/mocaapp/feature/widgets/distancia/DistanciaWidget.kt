@@ -50,55 +50,59 @@ class DistanciaWidget : GlanceAppWidget() {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         
-        Column(
+        Box(
             modifier = GlanceModifier
                 .fillMaxSize()
+                .background(ColorProvider(Color(0xFF263238))) // Blue Grey 900
+                .cornerRadius(24.dp)
                 .clickable(actionStartActivity(intent)),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalAlignment = Alignment.CenterVertically
+            contentAlignment = Alignment.Center
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalAlignment = Alignment.CenterHorizontally
+            Column(
+                modifier = GlanceModifier.padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                WidgetImage(data.foto1Path)
-                
                 Text(
-                    text = " ◀── ",
+                    text = "Distancia",
                     style = TextStyle(
-                        color = ColorProvider(Color.White),
-                        fontSize = 16.sp,
+                        color = ColorProvider(Color.White.copy(alpha = 0.6f)),
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
                 )
-                
-                Text(
-                    text = "❤️",
-                    style = TextStyle(fontSize = 22.sp)
-                )
-
-                Text(
-                    text = " ──▶ ",
-                    style = TextStyle(
-                        color = ColorProvider(Color.White),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                )
-                
-                WidgetImage(data.foto2Path)
+                Spacer(modifier = GlanceModifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    WidgetImage(data.foto1Path)
+                    
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = GlanceModifier.padding(horizontal = 8.dp)
+                    ) {
+                        Text(
+                            text = "── ❤️ ──",
+                            style = TextStyle(
+                                color = ColorProvider(Color(0xFFFF5252)),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                        Text(
+                            text = data.distanciaTexto,
+                            style = TextStyle(
+                                color = ColorProvider(Color.White),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
+                    
+                    WidgetImage(data.foto2Path)
+                }
             }
-            
-            Spacer(modifier = GlanceModifier.height(4.dp))
-            
-            Text(
-                text = data.distanciaTexto,
-                style = TextStyle(
-                    color = ColorProvider(Color.White),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            )
         }
     }
 
@@ -119,15 +123,15 @@ class DistanciaWidget : GlanceAppWidget() {
                 provider = ImageProvider(bitmap),
                 contentDescription = null,
                 modifier = GlanceModifier
-                    .size(48.dp)
-                    .cornerRadius(24.dp)
+                    .size(46.dp)
+                    .cornerRadius(23.dp)
             )
         } else {
             Box(
                 modifier = GlanceModifier
-                    .size(48.dp)
-                    .cornerRadius(24.dp)
-                    .background(ColorProvider(Color.White.copy(alpha = 0.2f))),
+                    .size(46.dp)
+                    .cornerRadius(23.dp)
+                    .background(ColorProvider(Color.White.copy(alpha = 0.15f))),
                 contentAlignment = Alignment.Center
             ) {
                 Text("👤", style = TextStyle(color = ColorProvider(Color.White)))

@@ -23,6 +23,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.cadev.mocaapp.core.ui.NavRoutes
 import com.cadev.mocaapp.feature.cuestionarios.domain.model.EstadoCuestionario
@@ -33,6 +35,8 @@ import com.cadev.mocaapp.feature.eventos.ui.EventoViewModel
 import com.cadev.mocaapp.feature.notas.ui.NotaViewModel
 import com.cadev.mocaapp.feature.notificaciones.ui.NotificacionViewModel
 import com.cadev.mocaapp.feature.perfil.ui.PerfilViewModel
+import com.cadev.mocaapp.feature.estadoanimo.ui.EstadoAnimoViewModel
+import com.cadev.mocaapp.feature.estadoanimo.ui.EstadoAnimoScreen
 import com.cadev.mocaapp.core.model.TipoEvento
 import java.text.SimpleDateFormat
 import java.util.*
@@ -45,6 +49,7 @@ fun HomeScreen(
     cuestionarioViewModel: CuestionarioViewModel,
     notificacionViewModel: NotificacionViewModel,
     notaViewModel: NotaViewModel,
+    estadoAnimoViewModel: EstadoAnimoViewModel,
     onNavigateToTab: (String) -> Unit,
     onNavigateToScreen: (String) -> Unit
 ) {
@@ -52,10 +57,32 @@ fun HomeScreen(
     val diarioState by diarioViewModel.uiState.collectAsState()
     val cuestionarioState by cuestionarioViewModel.uiState.collectAsState()
     val notaState by notaViewModel.uiState.collectAsState()
+    val estadoAnimoState by estadoAnimoViewModel.uiState.collectAsState()
+
+    var showMoodSelector by remember { mutableStateOf(false) }
 
     val usuario = perfilState.usuario
     val pareja = perfilState.pareja
     val tienePareja = pareja != null
+
+    LaunchedEffect(usuario, pareja) {
+        if (usuario != null && pareja != null) {
+            estadoAnimoViewModel.cargarEstados(usuario.relacionId, usuario.id, pareja.nombre)
+        }
+    }
+
+    if (showMoodSelector) {
+        Dialog(
+            onDismissRequest = { showMoodSelector = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            EstadoAnimoScreen(
+                viewModel = estadoAnimoViewModel,
+                perfilViewModel = perfilViewModel,
+                onDismiss = { showMoodSelector = false }
+            )
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -101,7 +128,15 @@ fun HomeScreen(
             // Dashboard con pareja
             CardDiasJuntos(diasJuntos = perfilState.diasJuntos)
 
-            // Nota de mi pareja (Incoming message - prioritized)
+            // Widget de Estado de Ánimo
+            SeccionEstadoAnimo(
+                miEmoji = estadoAnimoState.emojiPropio,
+                parejaEmoji = estadoAnimoState.emojiPareja,
+                nombrePareja = pareja?.nombre ?: "Tu pareja",
+                onClick = { showMoodSelector = true }
+            )
+
+            // Nota de mi pareja
             SeccionNotaPareja(
                 nota = notaState.notaPareja,
                 nombrePareja = pareja?.nombre ?: "Tu pareja",
@@ -146,6 +181,50 @@ fun HomeScreen(
         }
         
         Spacer(Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun SeccionEstadoAnimo(
+    miEmoji: String,
+    parejaEmoji: String,
+    nombrePareja: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                "¿Cómo están hoy?",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(miEmoji.ifBlank { "❓" }, fontSize = 32.sp)
+                    Text("Tú", style = MaterialTheme.typography.labelSmall)
+                }
+                Text("❤️", fontSize = 20.sp, modifier = Modifier.padding(horizontal = 8.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(parejaEmoji.ifBlank { "❓" }, fontSize = 32.sp)
+                    Text(nombrePareja, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
     }
 }
 

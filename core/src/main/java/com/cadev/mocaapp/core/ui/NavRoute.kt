@@ -53,5 +53,6 @@ sealed class NavRoutes(val route: String) {
 
     object Notas         : NavRoutes("notas")
     object Estados       : NavRoutes("estados")
+    object EstadoAnimo   : NavRoutes("estado_animo")
     object Ajustes       : NavRoutes("ajustes")
 }

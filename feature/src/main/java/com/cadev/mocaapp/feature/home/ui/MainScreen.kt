@@ -28,6 +28,7 @@ import com.cadev.mocaapp.feature.cuestionarios.ui.CuestionariosScreen
 import com.cadev.mocaapp.feature.diario.ui.CalendarioScreen
 import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
 import com.cadev.mocaapp.feature.eventos.ui.EventoViewModel
+import com.cadev.mocaapp.feature.estadoanimo.ui.EstadoAnimoViewModel
 import com.cadev.mocaapp.feature.notas.ui.NotaViewModel
 import com.cadev.mocaapp.feature.notificaciones.ui.NotificacionViewModel
 import com.cadev.mocaapp.feature.pareja.data.UsuarioHelper
@@ -66,6 +67,7 @@ fun MainScreen(
     val eventoViewModel: EventoViewModel = viewModel(factory = factory)
     val diarioViewModel: DiarioViewModel = viewModel(factory = factory)
     val notaViewModel: NotaViewModel = viewModel(factory = factory)
+    val estadoAnimoViewModel: EstadoAnimoViewModel = viewModel(factory = factory)
 
     val perfilState by perfilViewModel.uiState.collectAsState()
     val contadores by notificacionViewModel.contadores.collectAsState()
@@ -213,6 +215,7 @@ fun MainScreen(
                     cuestionarioViewModel = cuestionarioViewModel,
                     notificacionViewModel = notificacionViewModel,
                     notaViewModel = notaViewModel,
+                    estadoAnimoViewModel = estadoAnimoViewModel,
                     onNavigateToTab = { route ->
                         tabNavController.navigate(route) {
                             popUpTo(tabNavController.graph.findStartDestination().id) {

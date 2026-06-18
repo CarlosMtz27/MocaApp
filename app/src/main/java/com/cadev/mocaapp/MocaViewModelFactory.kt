@@ -13,6 +13,8 @@ import com.cadev.mocaapp.feature.diario.data.repository.DiarioRepositoryImpl
 import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
 import com.cadev.mocaapp.feature.eventos.data.repository.EventoRepositoryImpl
 import com.cadev.mocaapp.feature.eventos.ui.EventoViewModel
+import com.cadev.mocaapp.feature.estadoanimo.data.repository.EstadoAnimoRepositoryImpl
+import com.cadev.mocaapp.feature.estadoanimo.ui.EstadoAnimoViewModel
 import com.cadev.mocaapp.feature.notas.data.repository.NotaRepositoryImpl
 import com.cadev.mocaapp.feature.notas.ui.NotaViewModel
 import com.cadev.mocaapp.feature.notificaciones.data.NotificacionRepository
@@ -85,6 +87,12 @@ class MocaViewModelFactory : ViewModelProvider.Factory {
             modelClass.isAssignableFrom(NotaViewModel::class.java) ->
                 NotaViewModel(
                     NotaRepositoryImpl(firestore),
+                    notificacionRepository
+                ) as T
+
+            modelClass.isAssignableFrom(EstadoAnimoViewModel::class.java) ->
+                EstadoAnimoViewModel(
+                    EstadoAnimoRepositoryImpl(firestore),
                     notificacionRepository
                 ) as T
 

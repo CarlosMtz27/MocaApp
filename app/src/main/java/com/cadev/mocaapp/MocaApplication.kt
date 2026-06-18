@@ -4,6 +4,7 @@ import androidx.work.*
 import com.cadev.mocaapp.feature.notification.NotificationChannels
 import com.cadev.mocaapp.feature.widgets.diasjuntos.DiasJuntosWorker
 import com.cadev.mocaapp.feature.widgets.distancia.UbicacionWorker
+import com.cadev.mocaapp.feature.estadoanimo.data.worker.ResetEstadoAnimoWorker
 import com.onesignal.OneSignal
 import com.onesignal.debug.LogLevel
 import java.util.concurrent.TimeUnit
@@ -45,6 +46,19 @@ class MocaApplication : Application() {
             "dias_juntos_worker",
             ExistingPeriodicWorkPolicy.KEEP,
             diasJuntosRequest
+        )
+
+        // Reset estado de ánimo a medianoche
+        val resetEstadoRequest = PeriodicWorkRequestBuilder<ResetEstadoAnimoWorker>(
+            24, TimeUnit.HOURS
+        )
+            .setInitialDelay(calcularDelayHastaMedianoche(), TimeUnit.MILLISECONDS)
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "reset_estado_animo",
+            ExistingPeriodicWorkPolicy.KEEP,
+            resetEstadoRequest
         )
     }
 

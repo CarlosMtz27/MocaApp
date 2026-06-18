@@ -8,5 +8,5 @@
     android:updatePeriodMillis="0"
     android:resizeMode="horizontal"
     android:widgetCategory="home_screen"
-    android:label="Días 1"
+    android:label="@string/widget_dias_1_trans_label"
     android:description="@string/widget_dias_1_desc" />

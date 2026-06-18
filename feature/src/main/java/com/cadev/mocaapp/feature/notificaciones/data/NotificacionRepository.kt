@@ -18,7 +18,8 @@ data class ContadoresBadge(
     val chat: Int = 0,
     val diario: Int = 0,
     val cuestionarios: Int = 0,
-    val nota: Int = 0
+    val nota: Int = 0,
+    val estadoAnimo: Int = 0
 )
 
 class NotificacionRepository(
@@ -62,7 +63,8 @@ class NotificacionRepository(
                         chat         = snapshot?.getLong("chat")?.toInt() ?: 0,
                         diario       = snapshot?.getLong("diario")?.toInt() ?: 0,
                         cuestionarios = snapshot?.getLong("cuestionarios")?.toInt() ?: 0,
-                        nota         = snapshot?.getLong("nota")?.toInt() ?: 0
+                        nota         = snapshot?.getLong("nota")?.toInt() ?: 0,
+                        estadoAnimo  = snapshot?.getLong("estadoAnimo")?.toInt() ?: 0
                     )
                 )
             }

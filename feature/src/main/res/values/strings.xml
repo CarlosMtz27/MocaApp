@@ -1,10 +1,15 @@
 <resources>
-    <string name="app_name">MocaApp</string>
-
     <!-- Descripciones de Widgets -->
     <string name="widget_nota_desc">Un post-it compartido para dejarle mensajes a tu pareja.</string>
     <string name="widget_dias_1_desc">Contador minimalista de los días que llevan juntos.</string>
     <string name="widget_dias_2_desc">Contador detallado con la historia de su relación.</string>
     <string name="widget_distancia_desc">Muestra la distancia en tiempo real entre tú y tu pareja.</string>
     <string name="widget_estado_animo_desc">Comparte cómo te sientes hoy con un emoji.</string>
+
+    <!-- Versiones Transparentes -->
+    <string name="widget_nota_trans_label">Nota (Transparente)</string>
+    <string name="widget_dias_1_trans_label">Días 1 (Transparente)</string>
+    <string name="widget_dias_2_trans_label">Días 2 (Transparente)</string>
+    <string name="widget_distancia_trans_label">Distancia (Transparente)</string>
+    <string name="widget_estado_animo_trans_label">Estado (Transparente)</string>
 </resources>

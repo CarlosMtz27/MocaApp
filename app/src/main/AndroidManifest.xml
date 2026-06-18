@@ -98,6 +98,18 @@
                 android:resource="@xml/widget_distancia_info" />
         </receiver>
 
+        <!-- Widget de Estado de Animo -->
+        <receiver
+            android:name="com.cadev.mocaapp.feature.widgets.estadoanimo.EstadoAnimoWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_estado_animo_info" />
+        </receiver>
+
     </application>
 
 </manifest>

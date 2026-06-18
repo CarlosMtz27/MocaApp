@@ -26,7 +26,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 
-class DiasJuntosWidget : GlanceAppWidget() {
+class DiasJuntosWidgetDetailed : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val dataStore = DiasJuntosWidgetDataStore(context)
@@ -52,47 +52,69 @@ class DiasJuntosWidget : GlanceAppWidget() {
         Box(
             modifier = GlanceModifier
                 .fillMaxSize()
-                .background(ColorProvider(Color(0xFFFCE4EC))) // Light pink background
-                .cornerRadius(24.dp)
+                .background(ColorProvider(Color(0xFF880E4F))) // Dark magenta background
+                .cornerRadius(28.dp)
                 .clickable(actionStartActivity(intent)),
             contentAlignment = Alignment.Center
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = GlanceModifier.padding(12.dp)
+                modifier = GlanceModifier.padding(16.dp)
             ) {
                 if (data.configurado) {
                     Text(
-                        text = "❤️",
-                        style = TextStyle(fontSize = 24.sp)
-                    )
-                    Spacer(GlanceModifier.height(4.dp))
-                    Text(
-                        text = "${data.diasJuntos}",
+                        text = "Nuestra Historia",
                         style = TextStyle(
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ColorProvider(Color(0xFFD81B60))
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = ColorProvider(Color.White.copy(alpha = 0.7f))
                         )
                     )
+                    Spacer(GlanceModifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "${data.diasJuntos}",
+                            style = TextStyle(
+                                fontSize = 42.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorProvider(Color.White)
+                            )
+                        )
+                        Spacer(GlanceModifier.width(8.dp))
+                        Text(
+                            text = "días",
+                            style = TextStyle(
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorProvider(Color.White)
+                            )
+                        )
+                    }
+                    Spacer(GlanceModifier.height(8.dp))
                     Text(
-                        text = "días juntos",
+                        text = "Desde: ${data.fechaInicioTexto}",
                         style = TextStyle(
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = ColorProvider(Color(0xFFAD1457))
+                            color = ColorProvider(Color.White.copy(alpha = 0.9f))
+                        )
+                    )
+                    Spacer(GlanceModifier.height(12.dp))
+                    Text(
+                        text = "❤ Cada día cuenta ❤",
+                        style = TextStyle(
+                            fontSize = 10.sp,
+                            color = ColorProvider(Color(0xFFF8BBD0))
                         )
                     )
                 } else {
                     Text(
-                        text = "Toca para configurar",
+                        text = "Configura tu relación",
                         style = TextStyle(
-                            fontSize = 14.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = ColorProvider(Color(0xFFD81B60))
-                        ),
-                        modifier = GlanceModifier.padding(8.dp)
+                            color = ColorProvider(Color.White)
+                        )
                     )
                 }
             }

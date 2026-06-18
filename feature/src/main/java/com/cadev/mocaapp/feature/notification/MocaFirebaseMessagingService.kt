@@ -7,6 +7,9 @@ import com.cadev.mocaapp.feature.notas.data.repository.NotaRepositoryImpl
 import com.cadev.mocaapp.feature.notas.widget.NotaWidget
 import com.cadev.mocaapp.feature.notas.widget.NotaWidgetDataStore
 import com.cadev.mocaapp.feature.notificaciones.data.NotificacionRepository
+import com.cadev.mocaapp.feature.estadoanimo.data.repository.EstadoAnimoRepositoryImpl
+import com.cadev.mocaapp.feature.widgets.estadoanimo.EstadoAnimoWidget
+import com.cadev.mocaapp.feature.widgets.estadoanimo.EstadoAnimoWidgetDataStore
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessagingService
@@ -15,7 +18,6 @@ import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class MocaFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -44,6 +46,7 @@ class MocaFirebaseMessagingService : FirebaseMessagingService() {
             "aniversario"  -> TipoNotificacion.ANIVERSARIO
             "nota"         -> TipoNotificacion.NOTA
             "evento"       -> TipoNotificacion.EVENTO
+            "estado_animo" -> TipoNotificacion.CHAT
             else           -> return
         }
 
@@ -69,17 +72,24 @@ class MocaFirebaseMessagingService : FirebaseMessagingService() {
                         val result = repo.obtenerNota(relacionId, autorId)
                         result.onSuccess { nota ->
                             NotaWidgetDataStore.guardar(applicationContext, nota)
-                            CoroutineScope(Dispatchers.IO).launch {
-                                try {
-                                    NotaWidget().updateAll(applicationContext)
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                            }
+                            NotaWidget().updateAll(applicationContext)
                         }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
+                    } catch (e: Exception) { e.printStackTrace() }
+                }
+            }
+        }
+
+        if (tipoStr == "estado_animo") {
+            val relacionId = data["relacionId"] ?: ""
+            val uidPropio = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            if (relacionId.isNotBlank() && uidPropio.isNotBlank()) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val repo = EstadoAnimoRepositoryImpl(FirebaseFirestore.getInstance())
+                        val estados = repo.obtenerEstados(relacionId, uidPropio)
+                        EstadoAnimoWidgetDataStore.guardar(applicationContext, estados)
+                        EstadoAnimoWidget().updateAll(applicationContext)
+                    } catch (e: Exception) { e.printStackTrace() }
                 }
             }
         }
