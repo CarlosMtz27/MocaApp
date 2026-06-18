@@ -121,6 +121,7 @@ fun MainScreen(
     LaunchedEffect(initialTab) {
         if (initialTab.isBlank()) return@LaunchedEffect
         val ruta = when (initialTab) {
+            "home"          -> NavRoutes.Home.route
             "chat"          -> NavRoutes.Chat.route
             "calendario"    -> NavRoutes.Calendario.route
             "cuestionarios" -> NavRoutes.Cuestionarios.route
