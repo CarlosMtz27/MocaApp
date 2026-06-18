@@ -3,14 +3,19 @@ package com.cadev.mocaapp.feature.notification
 import android.Manifest
 import androidx.annotation.RequiresPermission
 import com.cadev.mocaapp.core.model.TipoNotificacion
+import com.cadev.mocaapp.feature.notas.data.repository.NotaRepositoryImpl
+import com.cadev.mocaapp.feature.notas.widget.NotaWidget
+import com.cadev.mocaapp.feature.notas.widget.NotaWidgetDataStore
 import com.cadev.mocaapp.feature.notificaciones.data.NotificacionRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MocaFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -31,11 +36,14 @@ class MocaFirebaseMessagingService : FirebaseMessagingService() {
         super.onMessageReceived(message)
 
         val data = message.data
-        val tipo = when (data["tipo"]) {
+        val tipoStr = data["tipo"]
+        val tipo = when (tipoStr) {
             "chat"         -> TipoNotificacion.CHAT
             "diario"       -> TipoNotificacion.DIARIO
             "cuestionario" -> TipoNotificacion.CUESTIONARIO
             "aniversario"  -> TipoNotificacion.ANIVERSARIO
+            "nota"         -> TipoNotificacion.NOTA
+            "evento"       -> TipoNotificacion.EVENTO
             else           -> return
         }
 
@@ -50,5 +58,30 @@ class MocaFirebaseMessagingService : FirebaseMessagingService() {
             cuerpo   = cuerpo,
             deepLink = deepLink
         )
+
+        if (tipoStr == "nota") {
+            val relacionId = data["relacionId"] ?: ""
+            val autorId = data["autorId"] ?: ""
+            if (relacionId.isNotBlank() && autorId.isNotBlank()) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val repo = NotaRepositoryImpl(FirebaseFirestore.getInstance())
+                        val result = repo.obtenerNota(relacionId, autorId)
+                        result.onSuccess { nota ->
+                            NotaWidgetDataStore.guardar(applicationContext, nota)
+                            CoroutineScope(Dispatchers.IO).launch {
+                                try {
+                                    NotaWidget().updateAll(applicationContext)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+        }
     }
 }

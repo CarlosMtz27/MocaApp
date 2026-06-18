@@ -105,4 +105,8 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.onesignal:OneSignal:[5.0.0, 5.99.99]")
 
+    // Glance & DataStore
+    implementation("androidx.glance:glance-appwidget:1.1.0")
+    implementation("androidx.glance:glance-material3:1.1.0")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 }

@@ -137,7 +137,8 @@ class EventoViewModel(
                             parejaId = parejaId,
                             titulo   = "📅 Nuevo evento: ${nuevo.titulo}",
                             cuerpo   = "${nuevo.fecha} a las ${nuevo.hora}",
-                            deepLink = "detalle_evento/${nuevo.id}"
+                            deepLink = "detalle_evento/${nuevo.id}",
+                            tipo     = "evento"
                         )
                     }
                     _uiState.value = _uiState.value.copy(

@@ -111,7 +111,8 @@ class ChatViewModel(
                             parejaId = parejaId,
                             titulo   = "💬 Nuevo mensaje",
                             cuerpo   = texto.take(60),
-                            deepLink = "main/chat"
+                            deepLink = "main/chat",
+                            tipo     = "chat"
                         )
                     }
                 },
@@ -152,7 +153,8 @@ class ChatViewModel(
                             parejaId = parejaId,
                             titulo   = "💬 Nuevo mensaje de voz",
                             cuerpo   = "Te envió un audio 🎵",
-                            deepLink = "main/chat"
+                            deepLink = "main/chat",
+                            tipo     = "chat"
                         )
                     }
                 },
@@ -229,7 +231,8 @@ class ChatViewModel(
                             parejaId = parejaId,
                             titulo   = "💬 Nuevo mensaje",
                             cuerpo   = textoPreview,
-                            deepLink = "main/chat"
+                            deepLink = "main/chat",
+                            tipo     = "chat"
                         )
                     }
                 },

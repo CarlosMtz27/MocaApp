@@ -231,7 +231,8 @@ class DiarioViewModel(
                                 parejaId = parejaId,
                                 titulo   = "📖 Nuevo recuerdo compartido",
                                 cuerpo   = estado.titulo,
-                                deepLink = "main/calendario"
+                                deepLink = "main/calendario",
+                                tipo     = "diario"
                             )
                         }
                     }

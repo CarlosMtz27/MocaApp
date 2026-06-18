@@ -35,7 +35,12 @@ import com.cadev.mocaapp.feature.eventos.ui.DetalleEventoScreen
 import com.cadev.mocaapp.feature.eventos.ui.EditarEventoScreen
 import com.cadev.mocaapp.feature.eventos.ui.EventoViewModel
 import com.cadev.mocaapp.feature.eventos.ui.EventosScreen
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import com.cadev.mocaapp.feature.home.ui.MainScreen
+import com.cadev.mocaapp.feature.notas.ui.NotaViewModel
+import com.cadev.mocaapp.feature.notas.ui.NotasScreen
 import com.cadev.mocaapp.feature.pareja.data.UsuarioHelper
 import com.cadev.mocaapp.feature.pareja.ui.CodigoParejaScreen
 import com.cadev.mocaapp.feature.pareja.ui.FechaRelacionScreen
@@ -489,6 +494,39 @@ fun MocaNavGraph(
             )
         }
 
+        composable(NavRoutes.Notas.route) {
+            val viewModel: NotaViewModel = viewModel(factory = factory)
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            val perfilViewModel: PerfilViewModel = viewModel(factory = factory)
+            val perfilState by perfilViewModel.uiState.collectAsState()
+            
+            LaunchedEffect(uid) {
+                if (perfilState.usuario == null) {
+                    val parejaId = UsuarioHelper.obtenerParejaId(uid)
+                    perfilViewModel.cargarPerfil(uid, parejaId)
+                }
+            }
+
+            val relacionId = perfilState.usuario?.relacionId ?: ""
+            val nombreUsuario = perfilState.usuario?.nombre ?: "Alguien"
+            val parejaId = perfilState.usuario?.parejaId
+
+            if (relacionId.isNotBlank()) {
+                NotasScreen(
+                    viewModel = viewModel,
+                    relacionId = relacionId,
+                    usuarioId = uid,
+                    nombreUsuario = nombreUsuario,
+                    parejaId = parejaId,
+                    onRegresar = { navController.popBackStack() }
+                )
+            } else {
+                androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+        }
+
         composable(
             route = NavRoutes.EditarEvento.route,
             arguments = listOf(navArgument("eventoId") { type = NavType.StringType })
@@ -503,9 +541,6 @@ fun MocaNavGraph(
                 onGuardado = { navController.popBackStack() },
                 onRegresar = { navController.popBackStack() }
             )
-        }
-        composable(NavRoutes.Notas.route) {
-            PlaceholderScreen("🗒️ Notas")
         }
         composable(NavRoutes.Estados.route) {
             PlaceholderScreen("📊 Estadísticas")

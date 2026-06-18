@@ -66,6 +66,19 @@
             </intent-filter>
         </service>
 
+        <!-- Widget de Nota -->
+        <receiver
+            android:name="com.cadev.mocaapp.feature.notas.widget.NotaWidgetReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/nota_widget_info" />
+        </receiver>
+
     </application>
 
 </manifest>

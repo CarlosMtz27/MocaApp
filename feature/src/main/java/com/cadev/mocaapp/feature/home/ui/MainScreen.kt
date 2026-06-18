@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -27,6 +28,7 @@ import com.cadev.mocaapp.feature.cuestionarios.ui.CuestionariosScreen
 import com.cadev.mocaapp.feature.diario.ui.CalendarioScreen
 import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
 import com.cadev.mocaapp.feature.eventos.ui.EventoViewModel
+import com.cadev.mocaapp.feature.notas.ui.NotaViewModel
 import com.cadev.mocaapp.feature.notificaciones.ui.NotificacionViewModel
 import com.cadev.mocaapp.feature.pareja.data.UsuarioHelper
 import com.cadev.mocaapp.feature.perfil.ui.AjustesScreen
@@ -47,6 +49,7 @@ fun MainScreen(
     val navBackStackEntry by tabNavController.currentBackStackEntryAsState()
     val destinoActual = navBackStackEntry?.destination
     val rutaActual = destinoActual?.route
+    val context = LocalContext.current
 
     val uid = remember {
         FirebaseAuth.getInstance().currentUser?.uid ?: ""
@@ -62,6 +65,7 @@ fun MainScreen(
     val notificacionViewModel: NotificacionViewModel = viewModel(factory = factory)
     val eventoViewModel: EventoViewModel = viewModel(factory = factory)
     val diarioViewModel: DiarioViewModel = viewModel(factory = factory)
+    val notaViewModel: NotaViewModel = viewModel(factory = factory)
 
     val perfilState by perfilViewModel.uiState.collectAsState()
     val contadores by notificacionViewModel.contadores.collectAsState()
@@ -78,11 +82,12 @@ fun MainScreen(
         perfilViewModel.cargarPerfil(uid, parejaId)
     }
 
-    // Precarga de eventos y actividad diaria
+    // Precarga de eventos, actividad diaria y notas
     LaunchedEffect(uid, parejaId, perfilState.usuario?.relacionId) {
         val relacionId = perfilState.usuario?.relacionId ?: return@LaunchedEffect
         eventoViewModel.cargarEventos(relacionId)
         diarioViewModel.cargarUltimaActividad(uid, parejaId)
+        notaViewModel.iniciar(context, relacionId, uid, parejaId)
     }
 
     // Inicializar chat, ahora solo una vez, no cada vez que se entra al tab
@@ -206,6 +211,7 @@ fun MainScreen(
                     diarioViewModel = diarioViewModel,
                     cuestionarioViewModel = cuestionarioViewModel,
                     notificacionViewModel = notificacionViewModel,
+                    notaViewModel = notaViewModel,
                     onNavigateToTab = { route ->
                         tabNavController.navigate(route) {
                             popUpTo(tabNavController.graph.findStartDestination().id) {

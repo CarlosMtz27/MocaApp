@@ -85,6 +85,11 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.3.1")
     implementation("androidx.compose.material3:material3:...")
 
+    // Glance & DataStore
+    implementation("androidx.glance:glance-appwidget:1.1.0")
+    implementation("androidx.glance:glance-material3:1.1.0")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
 
 
 

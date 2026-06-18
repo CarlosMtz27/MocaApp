@@ -30,6 +30,7 @@ import com.cadev.mocaapp.feature.cuestionarios.ui.CuestionarioViewModel
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
 import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
 import com.cadev.mocaapp.feature.eventos.ui.EventoViewModel
+import com.cadev.mocaapp.feature.notas.ui.NotaViewModel
 import com.cadev.mocaapp.feature.notificaciones.ui.NotificacionViewModel
 import com.cadev.mocaapp.feature.perfil.ui.PerfilViewModel
 import com.cadev.mocaapp.core.model.TipoEvento
@@ -43,12 +44,14 @@ fun HomeScreen(
     diarioViewModel: DiarioViewModel,
     cuestionarioViewModel: CuestionarioViewModel,
     notificacionViewModel: NotificacionViewModel,
+    notaViewModel: NotaViewModel,
     onNavigateToTab: (String) -> Unit,
     onNavigateToScreen: (String) -> Unit
 ) {
     val perfilState by perfilViewModel.uiState.collectAsState()
     val diarioState by diarioViewModel.uiState.collectAsState()
     val cuestionarioState by cuestionarioViewModel.uiState.collectAsState()
+    val notaState by notaViewModel.uiState.collectAsState()
 
     val usuario = perfilState.usuario
     val pareja = perfilState.pareja
@@ -97,6 +100,13 @@ fun HomeScreen(
         } else {
             // Dashboard con pareja
             CardDiasJuntos(diasJuntos = perfilState.diasJuntos)
+
+            // Nota de mi pareja (Incoming message - prioritized)
+            SeccionNotaPareja(
+                nota = notaState.notaPareja,
+                nombrePareja = pareja?.nombre ?: "Tu pareja",
+                onClick = { onNavigateToScreen(NavRoutes.Notas.route) }
+            )
 
             // Accesos rápidos
             AccesosRapidos(
@@ -163,6 +173,54 @@ private fun CardDiasJuntos(diasJuntos: Long) {
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
+        }
+    }
+}
+
+@Composable
+private fun SeccionNotaPareja(
+    nota: com.cadev.mocaapp.feature.notas.domain.model.NotaActual?,
+    nombrePareja: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFE1F5FE)) // Blue post-it for partner
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "💌 Nota de $nombrePareja",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color(0xFF0277BD),
+                    fontWeight = FontWeight.Bold
+                )
+                Icon(Icons.Filled.ChevronRight, null, tint = Color(0xFF0277BD), modifier = Modifier.size(14.dp))
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = nota?.texto ?: "No hay notas nuevas por ahora...",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Black,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (nota != null) {
+                val fechaStr = SimpleDateFormat("d MMM, HH:mm", Locale.getDefault()).format(nota.actualizadaEn.toDate())
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "Actualizada: $fechaStr",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Gray
+                )
+            }
         }
     }
 }

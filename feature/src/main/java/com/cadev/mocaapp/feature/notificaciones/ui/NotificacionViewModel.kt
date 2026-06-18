@@ -41,4 +41,10 @@ class NotificacionViewModel(
             repository.limpiarBadge(usuarioId, "cuestionarios")
         }
     }
+
+    fun limpiarNota(usuarioId: String) {
+        viewModelScope.launch {
+            repository.limpiarBadge(usuarioId, "nota")
+        }
+    }
 }

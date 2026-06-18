@@ -192,7 +192,8 @@ class CuestionarioViewModel(
                                 parejaId = parejaId,
                                 titulo   = "📋 ¡Resultados listos!",
                                 cuerpo   = "Ya puedes ver los resultados de \"${cuestionario.titulo}\"",
-                                deepLink = deepLink
+                                deepLink = deepLink,
+                                tipo     = "cuestionario"
                             )
                         }
                         // Notificar al propio usuario también
@@ -207,7 +208,8 @@ class CuestionarioViewModel(
                                 parejaId = parejaId,
                                 titulo   = "📋 ¡Tu pareja ya respondió!",
                                 cuerpo   = "Es tu turno de responder \"${cuestionario.titulo}\"",
-                                deepLink = "responder_cuestionario/${cuestionario.id}"
+                                deepLink = "responder_cuestionario/${cuestionario.id}",
+                                tipo     = "cuestionario"
                             )
                         }
                     }
@@ -289,7 +291,8 @@ class CuestionarioViewModel(
                             parejaId = parejaId,
                             titulo   = "📋 Nuevo cuestionario",
                             cuerpo   = "Tu pareja creó \"${cuestionario.titulo}\". ¡Respóndelo!",
-                            deepLink = "responder_cuestionario/${nuevo.id}"
+                            deepLink = "responder_cuestionario/${nuevo.id}",
+                            tipo     = "cuestionario"
                         )
                     }
                 },

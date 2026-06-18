@@ -17,7 +17,8 @@ import java.net.URL
 data class ContadoresBadge(
     val chat: Int = 0,
     val diario: Int = 0,
-    val cuestionarios: Int = 0
+    val cuestionarios: Int = 0,
+    val nota: Int = 0
 )
 
 class NotificacionRepository(
@@ -60,7 +61,8 @@ class NotificacionRepository(
                     ContadoresBadge(
                         chat         = snapshot?.getLong("chat")?.toInt() ?: 0,
                         diario       = snapshot?.getLong("diario")?.toInt() ?: 0,
-                        cuestionarios = snapshot?.getLong("cuestionarios")?.toInt() ?: 0
+                        cuestionarios = snapshot?.getLong("cuestionarios")?.toInt() ?: 0,
+                        nota         = snapshot?.getLong("nota")?.toInt() ?: 0
                     )
                 )
             }
@@ -91,7 +93,9 @@ class NotificacionRepository(
         parejaId: String,
         titulo: String,
         cuerpo: String,
-        deepLink: String
+        deepLink: String,
+        tipo: String? = null,
+        extraData: Map<String, String> = emptyMap()
     ) = withContext(Dispatchers.IO) {
         android.util.Log.d("PUSH", "enviarPush llamado: parejaId=$parejaId appId=$oneSignalAppId")
 
@@ -109,12 +113,18 @@ class NotificacionRepository(
                 return@withContext
             }
 
+            val dataJson = JSONObject().apply {
+                put("deepLink", deepLink)
+                if (tipo != null) put("tipo", tipo)
+                extraData.forEach { (key, value) -> put(key, value) }
+            }
+
             val json = JSONObject().apply {
                 put("app_id", oneSignalAppId)
                 put("include_player_ids", JSONArray().put(playerId))
                 put("headings", JSONObject().put("en", titulo))
                 put("contents", JSONObject().put("en", cuerpo))
-                put("data", JSONObject().put("deepLink", deepLink))
+                put("data", dataJson)
             }
             android.util.Log.d("PUSH", "JSON: $json")
 

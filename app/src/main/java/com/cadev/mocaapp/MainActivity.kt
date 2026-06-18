@@ -120,6 +120,7 @@ class MainActivity : ComponentActivity() {
                         link == "main/calendario"    -> "${NavRoutes.Main.route}?tab=calendario"
                         link == "main/cuestionarios" -> "${NavRoutes.Main.route}?tab=cuestionarios"
                         link == "main/perfil"        -> "${NavRoutes.Main.route}?tab=perfil"
+                        link == "main/notas"         -> NavRoutes.Notas.route
                         link.startsWith("main/")     -> NavRoutes.Main.route
 
                         // Pantallas directas
