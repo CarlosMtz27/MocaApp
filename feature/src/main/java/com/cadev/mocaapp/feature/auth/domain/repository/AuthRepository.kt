@@ -1,32 +1,43 @@
 package com.cadev.mocaapp.feature.auth.domain.repository
 import com.cadev.mocaapp.feature.auth.domain.model.Usuario
 
-// Esta interface es el "contrato" — define que puede hacer
-// la autenticación, sin decir como lo hace.
-// El ViewModel solo conoce esta interface, nunca Firebase directamente.
-// Esto nos permite cambiar Firebase por otro servicio en el futuro
-// sin tocar el ViewModel ni la UI. pincipio Open/Closed
-
+/**
+ * REGLAS DE LA AUTENTICACIÓN
+ * 
+ * Qué hace:
+ * Aquí definimos qué cosas podemos hacer en nuestra app (login, registro, etc.).
+ * Es como un contrato que nos dice qué funciones tenemos disponibles sin entrar en detalles técnicos.
+ * 
+ * Cómo lo podemos ampliar:
+ * Si necesitamos una función nueva (ej: borrar cuenta), debemos añadirla aquí primero:
+ * suspend fun borrarCuenta(): Result<Unit>
+ */
 interface AuthRepository {
 
-    // Registrar usuario nuevo — devuelve el usuario creado o un error
-    //suspend es una funcion que puede pausarse mientras espera algo, sin bloquear  el hilo principal
-    //La app no se congela mientras se haven llmadas a internet
+    /**
+     * Crea una cuenta nueva usando correo y clave.
+     */
     suspend fun registrar(
         email: String,
         password: String,
         nombre: String
     ): Result<Usuario>
 
-    // Iniciar sesión — Result devuelve el usuario o un error
+    /**
+     * Entra en la cuenta si el correo y clave coinciden.
+     */
     suspend fun login(
         email: String,
         password: String
     ): Result<Usuario>
 
-    // Cerrar sesión
+    /**
+     * Sale de la cuenta actual.
+     */
     fun logout()
 
-    // Verificar si hay sesión activa al abrir la app
+    /**
+     * Comprueba si el usuario ya tiene la sesión abierta de antes.
+     */
     fun obtenerUsuarioActual(): Usuario?
 }

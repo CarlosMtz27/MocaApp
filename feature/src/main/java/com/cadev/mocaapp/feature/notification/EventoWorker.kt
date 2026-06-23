@@ -20,7 +20,7 @@ class EventoWorker(
         NotificationHelper.mostrar(
             context  = applicationContext,
             tipo     = TipoNotificacion.ANIVERSARIO,
-            titulo   = "📅 $titulo",
+            titulo   = titulo,
             cuerpo   = cuerpo.ifBlank { "¡Hoy es el día!" },
             deepLink = "detalle_evento/$eventoId"
         )

@@ -4,60 +4,55 @@ import android.content.Context
 import androidx.glance.appwidget.updateAll
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.cadev.mocaapp.feature.perfil.data.repository.PerfilRepositoryImpl
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.tasks.await
-import java.text.SimpleDateFormat
-import java.util.*
-import java.util.concurrent.TimeUnit
 
-class DiasJuntosWorker(
-    context: Context,
-    params: WorkerParameters
-) : CoroutineWorker(context, params) {
+/**
+ * CONTADOR DE DÍAS EN SEGUNDO PLANO
+ * 
+ * Qué hace:
+ * Se encarga de revisar cada día cuántos días llevamos juntos. Consulta la 
+ * base de datos, calcula el tiempo transcurrido y actualiza la información 
+ * para que el widget siempre muestre el número correcto.
+ */
+class DiasJuntosWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         val auth = FirebaseAuth.getInstance()
-        val firestore = FirebaseFirestore.getInstance()
-        val userId = auth.currentUser?.uid ?: return Result.failure()
+        val db = FirebaseFirestore.getInstance()
+        val uid = auth.currentUser?.uid ?: return Result.failure()
+
+        val repo = PerfilRepositoryImpl(auth, db)
+        val dataStore = DiasJuntosWidgetDataStore(applicationContext)
 
         return try {
-            val userDoc = firestore.collection("usuarios").document(userId).get().await()
-            val relacionId = userDoc.getString("relacionId")
-            
-            if (relacionId.isNullOrBlank()) {
-                updateDataStore(0, "", false)
-                DiasJuntosWidget().updateAll(applicationContext)
-                return Result.success()
+            // Buscamos la fecha en la que empezó todo
+            val result = repo.obtenerFechaRelacion(uid)
+            result.onSuccess { fecha ->
+                if (fecha != null) {
+                    val dias = calcularDias(fecha)
+                    dataStore.saveData(dias, fecha, true)
+                    
+                    // Pedimos a todos los widgets de días que se refresquen
+                    DiasJuntosWidget().updateAll(applicationContext)
+                    DiasJuntosWidgetTransparent().updateAll(applicationContext)
+                    DiasJuntosWidgetMini().updateAll(applicationContext)
+                }
             }
-
-            val relacionDoc = firestore.collection("relaciones").document(relacionId).get().await()
-            val timestamp = relacionDoc.getTimestamp("fechaInicio")
-
-            if (timestamp != null) {
-                val fechaInicio = timestamp.toDate()
-                val dias = calcularDiasJuntos(fechaInicio)
-                val fechaTexto = SimpleDateFormat("d 'de' MMMM, yyyy", Locale("es", "ES")).format(fechaInicio)
-                updateDataStore(dias, fechaTexto, true)
-            } else {
-                updateDataStore(0, "", false)
-            }
-
-            DiasJuntosWidget().updateAll(applicationContext)
             Result.success()
         } catch (e: Exception) {
-            Result.retry()
+            Result.failure()
         }
     }
 
-    private suspend fun updateDataStore(dias: Int, fechaTexto: String, configurado: Boolean) {
-        val dataStore = DiasJuntosWidgetDataStore(applicationContext)
-        dataStore.saveData(dias, fechaTexto, configurado)
-    }
-
-    private fun calcularDiasJuntos(inicio: Date): Int {
-        val hoy = Date()
-        val diff = hoy.time - inicio.time
-        return (diff / (1000 * 60 * 60 * 24)).toInt()
+    private fun calcularDias(fecha: String): Long {
+        return try {
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+            val inicio = sdf.parse(fecha) ?: return 0
+            val hoy = java.util.Date()
+            val diff = hoy.time - inicio.time
+            java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diff)
+        } catch (e: Exception) { 0 }
     }
 }

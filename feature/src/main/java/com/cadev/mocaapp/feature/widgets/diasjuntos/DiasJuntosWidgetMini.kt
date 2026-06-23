@@ -12,24 +12,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
-import androidx.glance.GlanceTheme
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.action.actionStartActivity
+import androidx.glance.appwidget.provideContent
 import androidx.glance.layout.*
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import com.cadev.mocaapp.feature.R
 
-class DiasJuntosWidgetDetailedTransparent : GlanceAppWidget() {
+class DiasJuntosWidgetMini : GlanceAppWidget() {
+
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val dataStore = DiasJuntosWidgetDataStore(context)
         provideContent {
             val data by dataStore.widgetData.collectAsState(initial = DiasJuntosWidgetData(0, "", false))
-            GlanceTheme { Content(data) }
+            Content(data)
         }
     }
 
@@ -46,16 +49,31 @@ class DiasJuntosWidgetDetailedTransparent : GlanceAppWidget() {
             modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity(intent)),
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = GlanceModifier.padding(16.dp)) {
-                if (data.configurado) {
-                    Text("Nuestra Historia", style = TextStyle(fontSize = 12.sp, color = ColorProvider(Color.White.copy(alpha = 0.6f))))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("${data.diasJuntos}", style = TextStyle(fontSize = 38.sp, fontWeight = FontWeight.Bold, color = ColorProvider(Color.White)))
-                        Spacer(GlanceModifier.width(4.dp))
-                        Text("días", style = TextStyle(fontSize = 16.sp, color = ColorProvider(Color.White)))
-                    }
-                    Text("Desde: ${data.fechaInicioTexto}", style = TextStyle(fontSize = 11.sp, color = ColorProvider(Color.White.copy(alpha = 0.8f))))
-                }
+            Image(
+                provider = ImageProvider(R.drawable.ic_reaccion_corazon),
+                contentDescription = null,
+                modifier = GlanceModifier.fillMaxSize()
+            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${data.diasJuntos}",
+                    style = TextStyle(
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ColorProvider(Color.White)
+                    )
+                )
+                Text(
+                    text = "días",
+                    style = TextStyle(
+                        fontSize = 7.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = ColorProvider(Color.White.copy(alpha = 0.9f))
+                    )
+                )
             }
         }
     }

@@ -3,85 +3,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application>
-        <receiver
-            android:name=".widgets.diasjuntos.DiasJuntosWidgetReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_dias_juntos_info" />
-        </receiver>
-
-        <receiver
-            android:name=".widgets.diasjuntos.DiasJuntosWidgetDetailedReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_dias_juntos_detailed_info" />
-        </receiver>
-
-        <!-- Versiones Transparentes -->
-        <receiver
-            android:name=".widgets.diasjuntos.DiasJuntosWidgetTransparentReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_dias_juntos_transparent_info" />
-        </receiver>
-
-        <receiver
-            android:name=".widgets.diasjuntos.DiasJuntosWidgetDetailedTransparentReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_dias_juntos_detailed_transparent_info" />
-        </receiver>
-
-        <receiver
-            android:name=".widgets.estadoanimo.EstadoAnimoWidgetTransparentReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_estado_animo_transparent_info" />
-        </receiver>
-
-        <receiver
-            android:name=".notas.widget.NotaWidgetTransparentReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_nota_transparent_info" />
-        </receiver>
-
-        <receiver
-            android:name=".widgets.distancia.DistanciaWidgetTransparentReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_distancia_transparent_info" />
-        </receiver>
+        <!-- Los receivers de los widgets se gestionan en el módulo principal (app) -->
     </application>
 </manifest>

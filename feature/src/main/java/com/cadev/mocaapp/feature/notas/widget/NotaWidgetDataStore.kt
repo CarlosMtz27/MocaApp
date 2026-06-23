@@ -17,6 +17,7 @@ object NotaWidgetDataStore {
     private val TEXTO = stringPreferencesKey("texto")
     private val AUTOR = stringPreferencesKey("autor")
     private val FECHA = longPreferencesKey("fecha")
+    private val COLOR_TEXTO = stringPreferencesKey("color_texto")
 
     suspend fun guardar(context: Context, nota: NotaActual?) {
         context.dataStore.edit { prefs ->
@@ -30,16 +31,33 @@ object NotaWidgetDataStore {
         }
     }
 
-    fun obtener(context: Context): Flow<NotaActual?> {
+    suspend fun actualizarColor(context: Context, hex: String) {
+        context.dataStore.edit { prefs ->
+            prefs[COLOR_TEXTO] = hex
+        }
+    }
+
+    fun obtener(context: Context): Flow<NotaWidgetData> {
         return context.dataStore.data.map { prefs ->
-            val texto = prefs[TEXTO] ?: return@map null
+            val texto = prefs[TEXTO]
             val autor = prefs[AUTOR] ?: "Desconocido"
             val fecha = prefs[FECHA] ?: 0L
-            NotaActual(
-                texto = texto,
-                nombreAutor = autor,
-                actualizadaEn = com.google.firebase.Timestamp(java.util.Date(fecha))
-            )
+            val color = prefs[COLOR_TEXTO] ?: "#4A4A4A"
+            
+            val nota = if (texto != null) {
+                NotaActual(
+                    texto = texto,
+                    nombreAutor = autor,
+                    actualizadaEn = com.google.firebase.Timestamp(java.util.Date(fecha))
+                )
+            } else null
+
+            NotaWidgetData(nota, color)
         }
     }
 }
+
+data class NotaWidgetData(
+    val nota: NotaActual?,
+    val colorTexto: String
+)

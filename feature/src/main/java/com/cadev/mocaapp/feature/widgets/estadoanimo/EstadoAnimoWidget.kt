@@ -14,6 +14,8 @@ import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -26,7 +28,16 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import com.cadev.mocaapp.feature.R
+import com.cadev.mocaapp.feature.estadoanimo.domain.model.MAPA_MOODS
 
+/**
+ * WIDGET DE NUESTRO SENTIMIENTO
+ * 
+ * Qué hace:
+ * Muestra en la pantalla de inicio cómo nos sentimos hoy ambos. Se actualiza 
+ * automáticamente cuando uno de los dos cambia su estado en la app.
+ */
 class EstadoAnimoWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -56,7 +67,7 @@ class EstadoAnimoWidget : GlanceAppWidget() {
         Box(
             modifier = GlanceModifier
                 .fillMaxSize()
-                .background(ColorProvider(Color(0xFFE8EAF6))) // Light indigo
+                .background(ColorProvider(Color(0xFFE8EAF6)))
                 .cornerRadius(24.dp)
                 .clickable(actionStartActivity(intent))
         ) {
@@ -66,7 +77,7 @@ class EstadoAnimoWidget : GlanceAppWidget() {
                 modifier = GlanceModifier.fillMaxSize().padding(12.dp)
             ) {
                 Text(
-                    "¿Cómo están?",
+                    text = "¿Cómo están?",
                     style = TextStyle(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
@@ -78,22 +89,24 @@ class EstadoAnimoWidget : GlanceAppWidget() {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    EmojiColumn(data.emojiPropio, data.nombrePropio)
+                    MoodItem(data.emojiPropio, data.nombrePropio)
                     
-                    Text(
-                        "❤️", 
-                        style = TextStyle(fontSize = 18.sp),
-                        modifier = GlanceModifier.padding(horizontal = 12.dp)
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_reaccion_corazon),
+                        contentDescription = null,
+                        modifier = GlanceModifier.size(16.dp).padding(horizontal = 8.dp)
                     )
                     
-                    EmojiColumn(data.emojiPareja, data.nombrePareja)
+                    MoodItem(data.emojiPareja, data.nombrePareja)
                 }
             }
         }
     }
 
     @Composable
-    private fun EmojiColumn(emoji: String, nombre: String) {
+    private fun MoodItem(emoji: String, nombre: String) {
+        val moodInfo = MAPA_MOODS[emoji] ?: MAPA_MOODS["unknown"]!!
+        
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 modifier = GlanceModifier
@@ -102,18 +115,26 @@ class EstadoAnimoWidget : GlanceAppWidget() {
                     .cornerRadius(22.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = emoji.ifBlank { "❓" }, 
-                    style = TextStyle(fontSize = 24.sp)
+                Image(
+                    provider = ImageProvider(moodInfo.iconRes),
+                    contentDescription = moodInfo.label,
+                    modifier = GlanceModifier.size(28.dp)
                 )
             }
             Spacer(GlanceModifier.height(4.dp))
             Text(
+                text = moodInfo.label,
+                style = TextStyle(
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ColorProvider(Color(0xFF3F51B5))
+                )
+            )
+            Text(
                 text = nombre, 
                 style = TextStyle(
-                    fontSize = 10.sp, 
-                    fontWeight = FontWeight.Bold,
-                    color = ColorProvider(Color(0xFF283593))
+                    fontSize = 9.sp, 
+                    color = ColorProvider(Color(0xFF283593).copy(alpha = 0.6f))
                 )
             )
         }

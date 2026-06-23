@@ -1,11 +1,9 @@
 package com.cadev.mocaapp.feature.perfil.ui
 
-
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cadev.mocaapp.feature.auth.domain.model.Usuario
 import com.cadev.mocaapp.feature.perfil.domain.repository.PerfilRepository
-import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,21 +14,40 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+/**
+ * ESTADO DE NUESTRA INFORMACIÓN PERSONAL
+ * 
+ * Qué hace:
+ * Almacena todos los datos de nuestra cuenta y los de nuestra pareja: nombres, 
+ * fotos de perfil y cuántos recuerdos hemos escrito cada uno. También guarda 
+ * la fecha de nuestro aniversario y controla los mensajes de éxito o error.
+ */
 data class PerfilUiState(
-    val cargando: Boolean = false,
-    val error: String? = null,
-    val exitoso: String? = null,
-    val usuario: Usuario? = null,
-    val pareja: Usuario? = null,
-    val totalEntradas: Int = 0,
-    val diasJuntos: Long = 0,
-    val fechaRelacion: String? = null,
-    //Ajustes
-    val guardandoAjuste: Boolean = false,
-    val ajusteExitoso: Boolean = false,
-    val entradasPareja: Int = 0
+    val cargando: Boolean = false,              // Si estamos bajando los datos
+    val error: String? = null,                  // Mensaje si algo sale mal
+    val exitoso: String? = null,                // Mensaje de éxito
+    val usuario: Usuario? = null,               // Nuestra información
+    val pareja: Usuario? = null,                // Información de nuestro novio/a
+    val totalEntradas: Int = 0,                 // Nuestros recuerdos totales
+    val diasJuntos: Long = 0,                   // El contador de nuestra historia
+    val fechaRelacion: String? = null,          // Día del aniversario
+    val guardandoAjuste: Boolean = false,       // Si estamos guardando un cambio
+    val ajusteExitoso: Boolean = false,         // Si el cambio se guardó bien
+    val entradasPareja: Int = 0                 // Recuerdos totales de nuestra pareja
 )
 
+/**
+ * GESTOR DE NUESTRO PERFIL Y CONFIGURACIÓN
+ * 
+ * Qué hace:
+ * Se encarga de descargar y actualizar la información de nuestra cuenta. Nos permite 
+ * cambiar nuestro nombre, el correo, la clave y la foto. También calcula 
+ * automáticamente cuántos días llevamos juntos.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos añadir un sistema de "Nivel de usuario" basado en los recuerdos 
+ * escritos, debemos añadir esa lógica dentro de la función `cargarPerfil`.
+ */
 class PerfilViewModel(
     private val repository: PerfilRepository
 ) : ViewModel() {
@@ -42,17 +59,67 @@ class PerfilViewModel(
         "yyyy-MM-dd", Locale.getDefault()
     )
 
+    private var jobUsuario: kotlinx.coroutines.Job? = null
+
+    /**
+     * INICIAR VIGILANCIA:
+     * Activa la escucha en tiempo real de nuestro perfil para detectar 
+     * vinculaciones o cambios de nombre/foto al instante.
+     */
+    fun iniciarEscucha(usuarioId: String) {
+        if (usuarioId.isBlank()) return
+        jobUsuario?.cancel()
+        jobUsuario = viewModelScope.launch {
+            repository.escucharUsuario(usuarioId).collect { usuario ->
+                _uiState.value = _uiState.value.copy(usuario = usuario)
+                // Si el usuario detecta que tiene pareja, cargamos los datos extra
+                if (usuario?.parejaId != null && usuario.parejaId.isNotBlank()) {
+                    cargarDatosExtras(usuarioId, usuario.parejaId)
+                }
+            }
+        }
+    }
+
+    /**
+     * CARGAR DATOS EXTRAS:
+     * Descarga información adicional como el aniversario y el perfil de la pareja.
+     */
+    private fun cargarDatosExtras(usuarioId: String, parejaId: String) {
+        viewModelScope.launch {
+            val deferredPareja = async { repository.obtenerPareja(parejaId) }
+            val deferredEntradas = async { repository.contarEntradas(usuarioId) }
+            val deferredEntradasPareja = async { repository.contarEntradas(parejaId) }
+            val deferredFecha = async { repository.obtenerFechaRelacion(usuarioId) }
+
+            deferredPareja.await().onSuccess { pareja ->
+                _uiState.value = _uiState.value.copy(pareja = pareja)
+            }
+            deferredEntradas.await().onSuccess { count ->
+                _uiState.value = _uiState.value.copy(totalEntradas = count)
+            }
+            deferredEntradasPareja.await().onSuccess { count ->
+                _uiState.value = _uiState.value.copy(entradasPareja = count)
+            }
+            deferredFecha.await().onSuccess { fecha ->
+                _uiState.value = _uiState.value.copy(
+                    fechaRelacion = fecha,
+                    diasJuntos = calcularDiasJuntos(fecha)
+                )
+            }
+        }
+    }
+
+    /**
+     * CARGAR TODO (OBSOLETO pero mantenido para compatibilidad):
+     * Ahora usamos iniciarEscucha para tiempo real.
+     */
     fun cargarPerfil(usuarioId: String, parejaId: String?) {
-        //Si ya están cargados, no volver a cargar
         if (_uiState.value.usuario != null &&
             _uiState.value.usuario?.id == usuarioId) return
-
-        android.util.Log.d("PerfilVM", "cargarPerfil uid=$usuarioId parejaId=$parejaId")
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(cargando = true)
 
-            //Todas las consultas en paralelo con async
             val deferredUsuario = async { repository.obtenerUsuario(usuarioId) }
             val deferredPareja = if (parejaId != null) {
                 async { repository.obtenerPareja(parejaId) }
@@ -63,7 +130,6 @@ class PerfilViewModel(
             } else null
             val deferredFecha = async { repository.obtenerFechaRelacion(usuarioId) }
 
-            // Esperar resultados
             deferredUsuario.await().fold(
                 onSuccess = { usuario ->
                     _uiState.value = _uiState.value.copy(usuario = usuario)
@@ -108,6 +174,10 @@ class PerfilViewModel(
         }
     }
 
+    /**
+     * CAMBIAR NOMBRE:
+     * Guarda nuestra nueva identidad en la base de datos.
+     */
     fun actualizarNombre(usuarioId: String, nuevoNombre: String) {
         if (nuevoNombre.isBlank()) {
             _uiState.value = _uiState.value.copy(
@@ -138,6 +208,10 @@ class PerfilViewModel(
         }
     }
 
+    /**
+     * CAMBIAR CORREO:
+     * Modifica nuestro correo de acceso, pidiéndonos la clave actual por seguridad.
+     */
     fun actualizarEmail(
         usuarioId: String,
         nuevoEmail: String,
@@ -174,6 +248,10 @@ class PerfilViewModel(
         }
     }
 
+    /**
+     * CAMBIAR CLAVE:
+     * Actualiza nuestra contraseña secreta tras verificar que la escribimos bien dos veces.
+     */
     fun actualizarPassword(
         emailActual: String,
         passwordActual: String,
@@ -214,6 +292,10 @@ class PerfilViewModel(
         }
     }
 
+    /**
+     * CAMBIAR FOTO:
+     * Sube nuestra nueva foto a internet y la guarda como nuestra imagen oficial.
+     */
     fun actualizarFotoPerfil(usuarioId: String, rutaLocal: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(guardandoAjuste = true)
@@ -237,6 +319,10 @@ class PerfilViewModel(
         }
     }
 
+    /**
+     * CAMBIAR ANIVERSARIO:
+     * Modifica el día que empezó nuestra historia y refresca el contador de días.
+     */
     fun actualizarFechaRelacion(usuarioId: String, fecha: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(guardandoAjuste = true)
@@ -261,6 +347,10 @@ class PerfilViewModel(
         }
     }
 
+    /**
+     * LIMPIEZA:
+     * Borra los avisos viejos para que la pantalla de ajustes se vea limpia de nuevo.
+     */
     fun limpiarMensajes() {
         _uiState.value = _uiState.value.copy(
             error = null,
@@ -269,6 +359,10 @@ class PerfilViewModel(
         )
     }
 
+    /**
+     * CÁLCULO DE DÍAS:
+     * Función interna que resta fechas para saber cuántos días llevamos juntos.
+     */
     private fun calcularDiasJuntos(fecha: String?): Long {
         if (fecha == null) return 0
         return try {
@@ -281,6 +375,10 @@ class PerfilViewModel(
         }
     }
 
+    /**
+     * TRADUCTOR DE ERRORES:
+     * Convierte los mensajes técnicos del servidor en avisos que nosotros entendamos bien.
+     */
     private fun traducirError(mensaje: String): String = when {
         "password is invalid" in mensaje ||
                 "wrong-password" in mensaje ->
@@ -290,7 +388,7 @@ class PerfilViewModel(
         "email address is badly formatted" in mensaje ->
             "Formato de correo inválido"
         "requires-recent-login" in mensaje ->
-            "Por seguridad, vuelve a iniciar sesión"
-        else -> "Ocurrió un error, intenta de nuevo"
+            "Por seguridad vuelve a iniciar sesión"
+        else -> "Ocurrió un error intenta de nuevo"
     }
 }

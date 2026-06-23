@@ -3,20 +3,37 @@ package com.cadev.mocaapp.feature.eventos.domain.model
 import com.google.firebase.Timestamp
 import com.cadev.mocaapp.core.model.TipoEvento
 
+/**
+ * EL MODELO DE UN EVENTO
+ * 
+ * Qué hace:
+ * Aquí definimos qué información guardamos de cada cita o plan: el título, la fecha, 
+ * la hora y si queremos que la app nos avise con un recordatorio.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos añadir una ubicación al evento (ej: el nombre del restaurante), 
+ * debemos añadir una propiedad como `val lugar: String = ""`.
+ */
 data class Evento(
-    val id: String = "",
-    val titulo: String = "",
-    val descripcion: String = "",
-    val fecha: String = "",           // "yyyy-MM-dd"
-    val hora: String = "12:00",       // "HH:mm"
-    val tipo: String = TipoEvento.OTRO.name,
-    val creadoPor: String = "",
-    val relacionId: String = "",
-    val recordatorio: Boolean = true,
-    val minutosAntes: Int = 60,
-    val creadoEn: Timestamp = Timestamp.now()
+    val id: String = "",                     // ID único del evento
+    val titulo: String = "",                 // Nombre de la cita (ej: "Cena romántica")
+    val descripcion: String = "",           // Detalles adicionales del plan
+    val fecha: String = "",                  // Día en formato YYYY-MM-DD
+    val hora: String = "12:00",              // Hora en formato HH:mm
+    val tipo: String = TipoEvento.OTRO.name, // Categoría del evento
+    val creadoPor: String = "",              // Quién de los dos creó el plan
+    val relacionId: String = "",             // A qué pareja pertenece el evento
+    val recordatorio: Boolean = true,        // Si se debe activar la alarma
+    val minutosAntes: Int = 60,              // Cuánto tiempo antes avisar
+    val creadoEn: Timestamp = Timestamp.now()// Cuándo se guardó el plan
 )
 
+/**
+ * OPCIONES DE RECORDATORIO
+ * 
+ * Qué hace:
+ * Define las opciones que podemos elegir para que la app nos avise antes de la cita.
+ */
 enum class RecordatorioOpcion(val etiqueta: String, val minutos: Int) {
     QUINCE_MIN("15 minutos antes", 15),
     TREINTA_MIN("30 minutos antes", 30),
@@ -25,3 +42,4 @@ enum class RecordatorioOpcion(val etiqueta: String, val minutos: Int) {
     UN_DIA("1 día antes", 1440),
     UNA_SEMANA("1 semana antes", 10080)
 }
+

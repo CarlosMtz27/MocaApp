@@ -29,6 +29,14 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
 
+/**
+ * ESTA ES LA PANTALLA DEL PERFIL DE NUESTRA PAREJA
+ * 
+ * Qué hace:
+ * Muestra la información pública de nuestro novio/a. Nos permite ver su foto, 
+ * su nombre y las estadísticas de nuestra relación, como el tiempo que 
+ * llevamos juntos y cuántos recuerdos ha compartido con nosotros.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PerfilParejaScreen(
@@ -82,7 +90,9 @@ fun PerfilParejaScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(padding)
         ) {
-            //Header
+            /**
+             * Cabecera visual con la foto de perfil grande y decorada
+             */
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -94,7 +104,6 @@ fun PerfilParejaScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Foto de perfil
                     Box(
                         modifier = Modifier
                             .size(96.dp)
@@ -156,14 +165,15 @@ fun PerfilParejaScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            //Stats
+            /**
+             * Fila con tarjetas de datos sobre la actividad de la pareja en la aplicación
+             */
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Dias juntos (compartido)
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -172,7 +182,12 @@ fun PerfilParejaScreen(
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("💕", fontSize = 28.sp)
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = uiState.diasJuntos.toString(),
@@ -189,7 +204,6 @@ fun PerfilParejaScreen(
                     )
                 }
 
-                // Entradas compartidas con el usuario actual
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -198,7 +212,12 @@ fun PerfilParejaScreen(
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("📖", fontSize = 28.sp)
+                    Icon(
+                        imageVector = Icons.Default.AutoStories,
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = uiState.entradasPareja.toString(),
@@ -218,10 +237,12 @@ fun PerfilParejaScreen(
 
             Spacer(Modifier.height(20.dp))
 
-            //Fecha aniversario
+            /**
+             * Muestra la fecha especial de aniversario decorada con un icono de calendario
+             */
             if (uiState.fechaRelacion != null) {
                 val formatoLegible = SimpleDateFormat(
-                    "d 'de' MMMM, yyyy", Locale("es", "MX")
+                    "d 'de' MMMM, yyyy", Locale.forLanguageTag("es-MX")
                 )
                 val fechaVisible = try {
                     val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -239,7 +260,12 @@ fun PerfilParejaScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("🗓️", fontSize = 24.sp)
+                    Icon(
+                        imageVector = Icons.Default.Event,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
                     Column {
                         Text(
                             "Juntos desde",

@@ -8,6 +8,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,9 +21,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import com.cadev.mocaapp.feature.cuestionarios.domain.model.TipoPregunta
 
+/**
+ * ESTA ES LA PANTALLA DE RESULTADOS DEL TEST
+ * 
+ * Qué hace:
+ * Muestra el porcentaje de match que sacamos con nuestra pareja. Compara las 
+ * respuestas de ambos lado a lado para ver en qué coincidimos y en qué no, 
+ * usando colores verdes para los aciertos y rojos para las diferencias.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos cambiar los mensajes de compatibilidad (ej: "¡Son almas gemelas!"), 
+ * debemos editar la lógica del `when` donde se calcula el `iconRes` y el `mensaje`.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResultadosScreen(
@@ -114,7 +129,12 @@ fun ResultadosScreen(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text("⏳", fontSize = 40.sp)
+                                    Icon(
+                                        painter = painterResource(id = com.cadev.mocaapp.feature.R.drawable.ic_reaccion_espera),
+                                        contentDescription = null,
+                                        tint = Color.Unspecified,
+                                        modifier = Modifier.size(48.dp)
+                                    )
                                     Text(
                                         "¡Lo lograste! Respondiste el cuestionario",
                                         style = MaterialTheme.typography.titleSmall,
@@ -133,11 +153,11 @@ fun ResultadosScreen(
                         } else if (resultado != null) {
                             // ← Resultado con porcentaje
                             val puntaje = resultado.puntajeCompatibilidad
-                            val (emoji, mensaje) = when {
-                                puntaje >= 80 -> "💑" to "¡Son muy compatibles!"
-                                puntaje >= 60 -> "💕" to "¡Buena compatibilidad!"
-                                puntaje >= 40 -> "😊" to "Se complementan bien"
-                                else -> "🌱" to "¡Hay mucho por descubrir!"
+                            val (iconRes, mensaje) = when {
+                                puntaje >= 80 -> com.cadev.mocaapp.feature.R.drawable.ic_corazon to "¡Son muy compatibles!"
+                                puntaje >= 60 -> com.cadev.mocaapp.feature.R.drawable.ic_reaccion_corazon to "¡Buena compatibilidad!"
+                                puntaje >= 40 -> com.cadev.mocaapp.feature.R.drawable.ic_reaccion_risa to "Se complementan bien"
+                                else -> com.cadev.mocaapp.feature.R.drawable.ic_reaccion_semilla to "¡Hay mucho por descubrir!"
                             }
 
                             Box(
@@ -165,7 +185,12 @@ fun ResultadosScreen(
                                 }
                             }
 
-                            Text(emoji, fontSize = 36.sp)
+                            Icon(
+                                painter = painterResource(id = iconRes),
+                                contentDescription = null,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(48.dp)
+                            )
                             Text(
                                 mensaje,
                                 style = MaterialTheme.typography.titleMedium,
@@ -252,9 +277,11 @@ fun ResultadosScreen(
                                 }
                                 if (coinciden != null) {
                                     Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        if (coinciden) "✅" else "❌",
-                                        fontSize = 18.sp
+                                    Icon(
+                                        imageVector = if (coinciden) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
+                                        contentDescription = null,
+                                        tint = if (coinciden) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
                             }

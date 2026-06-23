@@ -9,17 +9,51 @@ import com.cloudinary.android.callback.UploadCallback
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+/**
+ * MOTOR DE NUESTRO PERFIL (FIREBASE Y CLOUDINARY)
+ * 
+ * Qué hace:
+ * Aquí escribimos la programación real para gestionar nuestra cuenta. Usamos 
+ * Firebase Auth para la seguridad (correo y clave), Firestore para guardar 
+ * nuestros datos y Cloudinary para almacenar nuestra foto de perfil.
+ */
 class PerfilRepositoryImpl(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore
 ) : PerfilRepository {
 
+    /**
+     * ESCUCHAR USUARIO:
+     * Implementación del vigilante en tiempo real usando Firestore.
+     */
+    override fun escucharUsuario(usuarioId: String): kotlinx.coroutines.flow.Flow<Usuario?> = kotlinx.coroutines.flow.callbackFlow {
+        val listener = firestore.collection("usuarios")
+            .document(usuarioId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                        close()
+                    } else {
+                        close(error)
+                    }
+                    return@addSnapshotListener
+                }
+                trySend(snapshot?.toObject(Usuario::class.java))
+            }
+        awaitClose { listener.remove() }
+    }
+
+    /**
+     * OBTENER MI PERFIL:
+     * Descarga de la base de datos toda la información de nuestra cuenta.
+     */
     override suspend fun obtenerUsuario(usuarioId: String): Result<Usuario> {
         return try {
             val doc = firestore
@@ -28,22 +62,20 @@ class PerfilRepositoryImpl(
                 .get()
                 .await()
 
-            android.util.Log.d("PerfilRepo", "Doc existe: ${doc.exists()}")
-            android.util.Log.d("PerfilRepo", "Datos: ${doc.data}")
-
             val usuario = doc.toObject(Usuario::class.java)
-            android.util.Log.d("PerfilRepo", "Usuario mapeado: $usuario")
-
             if (usuario == null)
                 return Result.failure(Exception("Usuario no encontrado"))
 
             Result.success(usuario)
         } catch (e: Exception) {
-            android.util.Log.e("PerfilRepo", "Error: ${e.message}")
             Result.failure(e)
         }
     }
 
+    /**
+     * OBTENER PERFIL PAREJA:
+     * Busca los datos públicos de nuestra pareja para mostrarlos en la app.
+     */
     override suspend fun obtenerPareja(parejaId: String): Result<Usuario> {
         return try {
             val doc = firestore
@@ -52,18 +84,19 @@ class PerfilRepositoryImpl(
                 .get()
                 .await()
 
-            android.util.Log.d("PerfilRepo", "PAREJA doc existe: ${doc.exists()}")
-            android.util.Log.d("PerfilRepo", "PAREJA datos: ${doc.data}")
-
             val usuario = doc.toObject(Usuario::class.java)
                 ?: return Result.failure(Exception("Pareja no encontrada"))
 
             Result.success(usuario)
         } catch (e: Exception) {
-            android.util.Log.e("PerfilRepo", "PAREJA error: ${e.message}")
             Result.failure(e)
         }
     }
+
+    /**
+     * ACTUALIZAR NOMBRE:
+     * Cambia cómo nos llamamos dentro de la aplicación.
+     */
     override suspend fun actualizarNombre(
         usuarioId: String,
         nuevoNombre: String
@@ -80,6 +113,12 @@ class PerfilRepositoryImpl(
         }
     }
 
+    /**
+     * ACTUALIZAR CORREO:
+     * 1. Verifica nuestra identidad con la clave actual.
+     * 2. Cambia el correo en el sistema de seguridad.
+     * 3. Actualiza el correo en nuestra ficha de usuario.
+     */
     override suspend fun actualizarEmail(
         usuarioId: String,
         nuevoEmail: String,
@@ -89,15 +128,12 @@ class PerfilRepositoryImpl(
             val user = auth.currentUser
                 ?: return Result.failure(Exception("No hay sesión activa"))
 
-            // Reautenticar antes de cambiar email
             val credencial = EmailAuthProvider
                 .getCredential(user.email ?: "", passwordActual)
             user.reauthenticate(credencial).await()
 
-            // Actualizar en Firebase Auth
             user.updateEmail(nuevoEmail).await()
 
-            // Actualizar en Firestore
             firestore
                 .collection("usuarios")
                 .document(usuarioId)
@@ -110,6 +146,10 @@ class PerfilRepositoryImpl(
         }
     }
 
+    /**
+     * ACTUALIZAR CLAVE:
+     * Comprueba nuestra clave vieja y guarda la nueva de forma segura.
+     */
     override suspend fun actualizarPassword(
         emailActual: String,
         passwordActual: String,
@@ -119,12 +159,10 @@ class PerfilRepositoryImpl(
             val user = auth.currentUser
                 ?: return Result.failure(Exception("No hay sesión activa"))
 
-            // Reautenticar antes de cambiar contraseña
             val credencial = EmailAuthProvider
                 .getCredential(emailActual, passwordActual)
             user.reauthenticate(credencial).await()
 
-            // Actualizar contraseña
             user.updatePassword(nuevoPassword).await()
 
             Result.success(Unit)
@@ -133,15 +171,17 @@ class PerfilRepositoryImpl(
         }
     }
 
+    /**
+     * CAMBIAR FOTO DE PERFIL:
+     * Envía nuestra nueva imagen a la nube y guarda el enlace en nuestro perfil.
+     */
     override suspend fun actualizarFotoPerfil(
     usuarioId: String,
     rutaLocal: String
     ): Result<String> {
         return try {
-            // Subir a Cloudinary
             val url = subirFoto(rutaLocal, usuarioId)
 
-            // Guardar URL en Firestore
             firestore
                 .collection("usuarios")
                 .document(usuarioId)
@@ -154,6 +194,10 @@ class PerfilRepositoryImpl(
         }
     }
 
+    /**
+     * CONTAR RECUERDOS:
+     * Suma cuántas entradas hemos escrito hasta ahora en el diario.
+     */
     override suspend fun contarEntradas(
         usuarioId: String
     ): Result<Int> {
@@ -170,11 +214,14 @@ class PerfilRepositoryImpl(
         }
     }
 
+    /**
+     * BUSCAR ANIVERSARIO:
+     * Busca el documento de nuestra relación para saber cuándo empezamos.
+     */
     override suspend fun obtenerFechaRelacion(
         usuarioId: String
     ): Result<String?> {
         return try {
-            // Buscar por usuario1Id o usuario2Id
             var snapshot = firestore
                 .collection("relaciones")
                 .whereEqualTo("usuario1Id", usuarioId)
@@ -188,8 +235,6 @@ class PerfilRepositoryImpl(
             }
 
             val doc = snapshot.documents.firstOrNull()
-
-            //Leer como Timestamp y convertir a String "yyyy-MM-dd"
             val timestamp = doc?.getTimestamp("fechaInicio")
             val fecha = timestamp?.toDate()?.let { date ->
                 java.text.SimpleDateFormat(
@@ -198,20 +243,21 @@ class PerfilRepositoryImpl(
                 ).format(date)
             }
 
-            android.util.Log.d("PerfilRepo", "Fecha convertida: $fecha")
             Result.success(fecha)
         } catch (e: Exception) {
-            android.util.Log.e("PerfilRepo", "Error fecha: ${e.message}")
             Result.failure(e)
         }
     }
 
+    /**
+     * CAMBIAR ANIVERSARIO:
+     * Guarda en nuestra relación la nueva fecha de inicio elegida.
+     */
     override suspend fun actualizarFechaRelacion(
         usuarioId: String,
         fecha: String
     ): Result<Unit> {
         return try {
-            // Convertir String a Timestamp
             val sdf = java.text.SimpleDateFormat(
                 "yyyy-MM-dd", java.util.Locale.getDefault()
             )
@@ -219,7 +265,6 @@ class PerfilRepositoryImpl(
                 ?: return Result.failure(Exception("Fecha inválida"))
             val timestamp = com.google.firebase.Timestamp(date)
 
-            // Buscar la relacion por usuario1Id o usuario2Id
             var snapshot = firestore
                 .collection("relaciones")
                 .whereEqualTo("usuario1Id", usuarioId)
@@ -247,6 +292,10 @@ class PerfilRepositoryImpl(
         }
     }
 
+    /**
+     * SUBIDA A LA NUBE (CLOUDINARY):
+     * Gestiona el envío de nuestra imagen personal al servidor de fotos.
+     */
     private suspend fun subirFoto(
         rutaLocal: String,
         usuarioId: String

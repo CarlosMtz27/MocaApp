@@ -22,6 +22,18 @@ data class ContadoresBadge(
     val estadoAnimo: Int = 0
 )
 
+/**
+ * EL MOTOR DE LOS AVISOS (FIREBASE Y ONESIGNAL)
+ * 
+ * Qué hace:
+ * Aquí escribimos la lógica para que las notificaciones lleguen de verdad al 
+ * móvil de nuestra pareja. Usamos OneSignal para enviar los avisos por internet 
+ * y Firestore para llevar la cuenta de cuántos mensajes sin leer tenemos.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos añadir un nuevo contador (ej: para "Citas"), debemos actualizar 
+ * el objeto `ContadoresBadge` y la función `escucharNoLeidos`.
+ */
 class NotificacionRepository(
     private val firestore: FirebaseFirestore,
     private val oneSignalAppId: String = "",
@@ -55,7 +67,11 @@ class NotificacionRepository(
         val listener = contadoresRef(usuarioId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    trySend(ContadoresBadge())
+                    if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                        close()
+                    } else {
+                        trySend(ContadoresBadge())
+                    }
                     return@addSnapshotListener
                 }
                 trySend(

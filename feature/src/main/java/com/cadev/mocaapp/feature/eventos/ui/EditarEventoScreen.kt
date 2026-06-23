@@ -20,6 +20,18 @@ import com.cadev.mocaapp.core.model.TipoEvento
 import com.cadev.mocaapp.feature.eventos.domain.model.RecordatorioOpcion
 import java.util.*
 
+/**
+ * ESTA ES LA PANTALLA PARA MODIFICAR EVENTOS
+ * 
+ * Qué hace:
+ * Aquí permitimos cambiar los detalles de un plan que ya guardamos (título, fecha, 
+ * categoría). Nos aseguramos de que solo quien creó el evento pueda editarlo 
+ * para evitar confusiones, y actualizamos los recordatorios del móvil automáticamente.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos permitir que ambos puedan editar cualquier evento, debemos quitar 
+ * la comprobación de `creadoPor != usuarioId`.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditarEventoScreen(
@@ -32,25 +44,32 @@ fun EditarEventoScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    /**
+     * Al entrar se carga la información actual del evento desde la base de datos
+     */
     LaunchedEffect(eventoId) {
         viewModel.limpiarFormulario()
         viewModel.cargarEvento(eventoId)
     }
 
+    /**
+     * Si los cambios se guardan bien se avisa a la aplicación para volver atrás
+     */
     LaunchedEffect(uiState.guardado) {
         if (uiState.guardado) {
             onGuardado()
         }
     }
 
-    // DatePicker state
     val datePickerState = rememberDatePickerState()
     var mostrarDatePicker by remember { mutableStateOf(false) }
     var mostrarTimePicker by remember { mutableStateOf(false) }
     var mostrarTipoPicker by remember { mutableStateOf(false) }
     var mostrarRecordatorioPicker by remember { mutableStateOf(false) }
 
-    // Sincronizar fecha seleccionada
+    /**
+     * Se sincroniza la nueva fecha elegida por el usuario
+     */
     LaunchedEffect(datePickerState.selectedDateMillis) {
         val millis = datePickerState.selectedDateMillis ?: return@LaunchedEffect
         val cal = Calendar.getInstance().apply { timeInMillis = millis }
@@ -62,6 +81,9 @@ fun EditarEventoScreen(
         viewModel.actualizarFecha(fecha)
     }
 
+    /**
+     * Selector de día visual para el calendario
+     */
     if (mostrarDatePicker) {
         DatePickerDialog(
             onDismissRequest = { mostrarDatePicker = false },
@@ -73,6 +95,9 @@ fun EditarEventoScreen(
         }
     }
 
+    /**
+     * Selector de hora para la cita modificada
+     */
     if (mostrarTimePicker) {
         val hora = uiState.hora.split(":").getOrNull(0)?.toIntOrNull() ?: 12
         val min  = uiState.hora.split(":").getOrNull(1)?.toIntOrNull() ?: 0
@@ -95,6 +120,9 @@ fun EditarEventoScreen(
                     }
                 },
                 actions = {
+                    /**
+                     * Botón para confirmar y guardar los nuevos detalles del plan
+                     */
                     TextButton(
                         onClick = {
                             viewModel.actualizarEvento(context)
@@ -119,6 +147,9 @@ fun EditarEventoScreen(
             )
         }
     ) { padding ->
+        /**
+         * Comprobación de seguridad para evitar que alguien edite planes que no ha creado
+         */
         if (uiState.eventoActual != null && uiState.eventoActual?.creadoPor != usuarioId) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Text("No tienes permiso para editar este evento", color = MaterialTheme.colorScheme.error)
@@ -132,7 +163,9 @@ fun EditarEventoScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Tipo de evento
+                /**
+                 * Permite cambiar el tema o categoría del evento
+                 */
                 Card(shape = RoundedCornerShape(16.dp)) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -152,10 +185,17 @@ fun EditarEventoScreen(
                             } catch (e: Exception) { TipoEvento.OTRO }
 
                             OutlinedTextField(
-                                value = "${tipoActual.emoji} ${tipoActual.etiqueta}",
+                                value = tipoActual.etiqueta,
                                 onValueChange = {},
                                 readOnly = true,
                                 label = { Text("Tipo") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = tipoActual.icono,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
                                 trailingIcon = {
                                     ExposedDropdownMenuDefaults.TrailingIcon(mostrarTipoPicker)
                                 },
@@ -168,7 +208,17 @@ fun EditarEventoScreen(
                             ) {
                                 TipoEvento.entries.forEach { tipo ->
                                     DropdownMenuItem(
-                                        text = { Text("${tipo.emoji} ${tipo.etiqueta}") },
+                                        text = {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = tipo.icono,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Spacer(Modifier.width(8.dp))
+                                                Text(tipo.etiqueta)
+                                            }
+                                        },
                                         onClick = {
                                             viewModel.actualizarTipo(tipo.name)
                                             mostrarTipoPicker = false
@@ -180,7 +230,9 @@ fun EditarEventoScreen(
                     }
                 }
 
-                // Info básica
+                /**
+                 * Permite cambiar el nombre y la descripción escrita
+                 */
                 Card(shape = RoundedCornerShape(16.dp)) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -210,7 +262,9 @@ fun EditarEventoScreen(
                     }
                 }
 
-                // Fecha y hora
+                /**
+                 * Permite elegir un nuevo momento para el plan
+                 */
                 Card(shape = RoundedCornerShape(16.dp)) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -267,7 +321,9 @@ fun EditarEventoScreen(
                     }
                 }
 
-                // Recordatorio
+                /**
+                 * Permite cambiar la configuración del aviso automático
+                 */
                 Card(shape = RoundedCornerShape(16.dp)) {
                     Column(
                         modifier = Modifier.padding(16.dp),

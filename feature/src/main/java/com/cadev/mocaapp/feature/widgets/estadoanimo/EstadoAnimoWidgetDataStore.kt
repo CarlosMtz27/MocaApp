@@ -33,24 +33,21 @@ object EstadoAnimoWidgetDataStore {
         pareja: EstadoAnimoActual?,
         nombrePareja: String
     ) {
-        val hoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val hoy = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         context.dataStore.edit { prefs ->
             prefs[EMOJI_PROPIO] = propio?.emoji ?: ""
-            prefs[NOMBRE_PROPIO] = nombrePropio
+            if (nombrePropio.isNotBlank()) prefs[NOMBRE_PROPIO] = nombrePropio
             prefs[EMOJI_PAREJA] = pareja?.emoji ?: ""
-            prefs[NOMBRE_PAREJA] = nombrePareja
+            if (nombrePareja.isNotBlank()) prefs[NOMBRE_PAREJA] = nombrePareja
             prefs[FECHA] = hoy
         }
     }
     
-    suspend fun guardar(context: Context, estados: Pair<EstadoAnimoActual?, EstadoAnimoActual?>) {
-        // Esta versión se usa desde el servicio de mensajería, 
-        // pero necesitaríamos los nombres también si no están guardados.
-        // Por simplicidad, solo actualizamos los emojis si ya existen nombres.
+    suspend fun actualizarSoloEmojis(context: Context, estados: Pair<EstadoAnimoActual?, EstadoAnimoActual?>) {
         context.dataStore.edit { prefs ->
             prefs[EMOJI_PROPIO] = estados.first?.emoji ?: ""
             prefs[EMOJI_PAREJA] = estados.second?.emoji ?: ""
-            prefs[FECHA] = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            prefs[FECHA] = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         }
     }
 

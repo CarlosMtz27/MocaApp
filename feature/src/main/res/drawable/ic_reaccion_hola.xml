@@ -1,0 +1,82 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp"
+    android:height="64dp"
+    android:viewportWidth="64"
+    android:viewportHeight="64">
+
+    <!-- Grupo para la animación de saludo -->
+    <group
+        android:name="hand_group"
+        android:pivotX="32"
+        android:pivotY="60">
+
+        <!-- Mano -->
+        <path
+            android:fillColor="#FFD54F"
+            android:strokeColor="#F9A825"
+            android:strokeWidth="1.5"
+            android:pathData="
+            M20,56
+            C14,56 10,51 10,45
+            V30
+            C10,27 12,25 15,25
+            C18,25 20,27 20,30
+            V12
+            C20,8.7 22.7,6 26,6
+            C29.3,6 32,8.7 32,12
+            V26
+
+            V8
+            C32,4.7 34.7,2 38,2
+            C41.3,2 44,4.7 44,8
+            V28
+
+            V12
+            C44,8.7 46.7,6 50,6
+            C53.3,6 56,8.7 56,12
+            V31
+
+            C56,28.5 58,27 60,27
+            C62.2,27 64,28.8 64,31
+            V43
+
+            C64,51 57,58 49,58
+            H30
+            C27,58 23,57.3 20,56
+            Z" />
+
+        <!-- Pulgar -->
+        <path
+            android:fillColor="#FFD54F"
+            android:strokeColor="#F9A825"
+            android:strokeWidth="1.5"
+            android:pathData="
+            M20,39
+            L12,31
+            C10,29 7,29 5,31
+            C3,33 3,36 5,38
+            L15,49
+            C18,52 21,50 21,46
+            Z" />
+    </group>
+
+    <!-- Líneas de movimiento (fuera del grupo para que no roten o roten distinto) -->
+    <path
+        android:strokeColor="#FFB300"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M54,16 Q60,12 62,6" />
+
+    <path
+        android:strokeColor="#FFB300"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M58,24 H64" />
+
+    <path
+        android:strokeColor="#FFB300"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M54,32 Q60,36 62,42" />
+
+</vector>

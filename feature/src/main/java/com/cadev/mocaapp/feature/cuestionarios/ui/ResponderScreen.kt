@@ -28,6 +28,18 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.cadev.mocaapp.feature.cuestionarios.domain.model.TipoPregunta
 
+/**
+ * ESTA ES LA PANTALLA PARA CONTESTAR TESTS
+ * 
+ * Qué hace:
+ * Muestra las preguntas una por una. Adapta el diseño según si debemos elegir 
+ * una opción, puntuar en una escala, escribir texto o subir una foto. 
+ * Muestra una barra de progreso para que sepamos cuánto nos falta.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos añadir un botón de "Saltar pregunta", debemos añadirlo en la 
+ * sección de navegación inferior y hacer que llame a `viewModel.siguientePregunta()`.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResponderScreen(

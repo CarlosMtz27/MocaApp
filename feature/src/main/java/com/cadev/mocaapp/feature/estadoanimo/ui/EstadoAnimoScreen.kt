@@ -20,9 +20,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cadev.mocaapp.feature.estadoanimo.domain.model.EMOJIS_DISPONIBLES
+import androidx.compose.ui.res.painterResource
+import com.cadev.mocaapp.feature.estadoanimo.domain.model.MAPA_MOODS
+import com.cadev.mocaapp.feature.estadoanimo.domain.model.MOODS_DISPONIBLES
 import com.cadev.mocaapp.feature.perfil.ui.PerfilViewModel
 
+/**
+ * PANTALLA DE SELECCIÓN DE ESTADO DE ÁNIMO
+ * 
+ * Qué hace:
+ * Aquí diseñamos la cuadrícula donde podemos elegir cómo nos sentimos hoy. 
+ * También nos muestra el estado actual de nuestra pareja en la parte de abajo.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos que los iconos sean más grandes, debemos buscar el componente `Box` 
+ * dentro de la cuadrícula y ajustar el valor de `size`.
+ */
 @Composable
 fun EstadoAnimoScreen(
     viewModel: EstadoAnimoViewModel,
@@ -39,7 +52,7 @@ fun EstadoAnimoScreen(
 
     LaunchedEffect(usuario, pareja) {
         if (usuario != null && pareja != null) {
-            viewModel.cargarEstados(relacionId, usuario.id, pareja.nombre)
+            viewModel.cargarEstados(context, relacionId, usuario.id, pareja.nombre)
         }
     }
 
@@ -78,36 +91,49 @@ fun EstadoAnimoScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.heightIn(max = 240.dp)
             ) {
-                items(EMOJIS_DISPONIBLES) { emoji ->
-                    val isSelected = uiState.emojiPropio == emoji
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (isSelected) MaterialTheme.colorScheme.primaryContainer 
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                items(MOODS_DISPONIBLES) { mood ->
+                    val isSelected = uiState.emojiPropio == mood.id
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primaryContainer 
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                )
+                                .border(
+                                    width = if (isSelected) 2.dp else 0.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                    shape = CircleShape
+                                )
+                                .clickable {
+                                    if (usuario != null && pareja != null) {
+                                        viewModel.seleccionarEmoji(
+                                            context = context,
+                                            relacionId = relacionId,
+                                            uid = usuario.id,
+                                            nombreUsuario = usuario.nombre,
+                                            parejaId = pareja.id,
+                                            emoji = mood.id
+                                        )
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = mood.iconRes),
+                                contentDescription = mood.id,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(32.dp)
                             )
-                            .border(
-                                width = if (isSelected) 2.dp else 0.dp,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                shape = CircleShape
-                            )
-                            .clickable {
-                                if (usuario != null && pareja != null) {
-                                    viewModel.seleccionarEmoji(
-                                        context = context,
-                                        relacionId = relacionId,
-                                        uid = usuario.id,
-                                        nombreUsuario = usuario.nombre,
-                                        parejaId = pareja.id,
-                                        emoji = emoji
-                                    )
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = emoji, fontSize = 28.sp)
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = mood.label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
@@ -129,7 +155,25 @@ fun EstadoAnimoScreen(
                             text = "${uiState.nombrePareja} se siente: ",
                             style = MaterialTheme.typography.bodyLarge
                         )
-                        Text(text = uiState.emojiPareja, fontSize = 24.sp)
+                        val moodPareja = MAPA_MOODS[uiState.emojiPareja]
+                        if (moodPareja != null) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    painter = painterResource(id = moodPareja.iconRes),
+                                    contentDescription = null,
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = moodPareja.label,
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                            }
+                        } else {
+                            Text(text = uiState.emojiPareja, fontSize = 24.sp)
+                        }
                     }
                 }
                 Spacer(Modifier.height(24.dp))

@@ -13,6 +13,18 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.cadev.mocaapp.core.model.TipoNotificacion
 
+/**
+ * NUESTRO AYUDANTE DE NOTIFICACIONES VISUALES
+ * 
+ * Qué hace:
+ * Se encarga de construir y mostrar las alertas que aparecen en la barra superior 
+ * del teléfono. Configura el título, el mensaje, la vibración y lo más importante: 
+ * el "Deep Link" que nos lleva a la sección correcta de la app al tocarla.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos que todas las notificaciones tengan un sonido personalizado, debemos 
+ * añadir `.setSound(Uri)` dentro del `NotificationCompat.Builder`.
+ */
 object NotificationHelper {
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
@@ -47,6 +59,15 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        /**
+         * ESTILO ROMÁNTICO Y MINIMALISTA:
+         * 1. Usamos un color Hot Pink suave para acentuar el aviso.
+         * 2. El icono de la barra es nuestro corazón profesional.
+         * 3. La vibración imita un latido (bum-bum... pausa).
+         */
+        val colorRomantico = android.graphics.Color.parseColor("#FF69B4") // Hot Pink
+        val patronLatido = longArrayOf(0, 100, 100, 100, 600) // Vibra como un latido
+
         val prioridad = when (tipo) {
             TipoNotificacion.CHAT,
             TipoNotificacion.ANIVERSARIO -> NotificationCompat.PRIORITY_HIGH
@@ -54,14 +75,16 @@ object NotificationHelper {
         }
 
         val notificacion = NotificationCompat.Builder(context, tipo.canal)
-            .setSmallIcon(R.drawable.ic_dialog_info)
+            .setSmallIcon(com.cadev.mocaapp.feature.R.drawable.ic_corazon)
+            .setColor(colorRomantico)
+            .setColorized(true)
             .setContentTitle(titulo)
             .setContentText(cuerpo)
             .setStyle(NotificationCompat.BigTextStyle().bigText(cuerpo))
             .setPriority(prioridad)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setVibrate(longArrayOf(0, 250, 100, 250))
+            .setVibrate(patronLatido)
             .build()
 
         NotificationManagerCompat.from(context).notify(notifId, notificacion)

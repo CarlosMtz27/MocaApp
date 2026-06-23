@@ -54,8 +54,8 @@ class AniversarioWorker(
                 val anios  = proximo.get(Calendar.YEAR) - anioInicio
 
                 val data = workDataOf(
-                    "titulo"   to "💕 ¡Feliz aniversario!",
-                    "cuerpo"   to "Hoy cumplen $anios año${if (anios != 1) "s" else ""} juntos. ¡Celébralo con tu pareja! 🎉",
+                    "titulo"   to "¡Feliz aniversario!",
+                    "cuerpo"   to "Hoy cumplen $anios año${if (anios != 1) "s" else ""} juntos. ¡Celébralo con tu pareja!",
                     "deepLink" to "main/perfil"
                 )
 

@@ -25,6 +25,18 @@ import coil.compose.AsyncImage
 import com.cadev.mocaapp.feature.cuestionarios.domain.model.*
 import java.util.UUID
 
+/**
+ * ESTA ES LA PANTALLA PARA CREAR NUESTROS PROPIOS TESTS
+ * 
+ * Qué hace:
+ * Permite que nosotros inventemos tests personalizados para nuestra pareja. 
+ * Podemos elegir el título, la descripción y añadir tantas preguntas como 
+ * queramos, eligiendo el tipo de respuesta para cada una.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos que los tests tengan un límite máximo de preguntas, debemos 
+ * añadir una validación en el botón "Guardar".
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CrearCuestionarioScreen(
@@ -354,7 +366,7 @@ private fun EditorPregunta(
                         TipoPregunta.TEXTO_LIBRE -> "Texto libre"
                         TipoPregunta.ESCALA -> "Escala 1-10"
                         TipoPregunta.SI_NO -> "Sí / No"
-                        TipoPregunta.FOTO -> "📷 Respuesta con foto"
+                        TipoPregunta.FOTO -> "Respuesta con foto"
                     },
                     onValueChange = {},
                     readOnly = true,
@@ -376,7 +388,7 @@ private fun EditorPregunta(
                         TipoPregunta.TEXTO_LIBRE to "Texto libre",
                         TipoPregunta.ESCALA to "Escala 1-10",
                         TipoPregunta.SI_NO to "Sí / No",
-                        TipoPregunta.FOTO to "📷 Respuesta con foto"
+                        TipoPregunta.FOTO to "Respuesta con foto"
                     ).forEach { (tipo, etiqueta) ->
                         DropdownMenuItem(
                             text = { Text(etiqueta) },

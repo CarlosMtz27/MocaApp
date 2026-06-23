@@ -4,6 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +20,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * ESTA ES NUESTRA PANTALLA DE VINCULACIÓN
+ * 
+ * Qué hace:
+ * Aquí es donde nos unimos. Mostramos nuestro código para compartirlo y 
+ * también tenemos un espacio para poner el código de nuestra pareja. 
+ * Es el paso más importante para empezar a compartir todo.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos cambiar el icono de enlace, debemos buscar el componente `Icon` 
+ * con `Icons.Default.Link`.
+ */
 @Composable
 fun CodigoParejaScreen(
     viewModel: ParejaViewModel,
@@ -27,15 +43,19 @@ fun CodigoParejaScreen(
     var codigoIngresado by remember { mutableStateOf("") }
     var copiado by remember { mutableStateOf(false) }
 
-    // Cargamos el codigo propio al entrar
+    /**
+     * Se carga el código personal del usuario en cuanto se abre la pantalla
+     */
     LaunchedEffect(Unit) {
         viewModel.cargarMiCodigo(usuarioId)
     }
 
-    // Navegamos cuando se vincule exitosamente
+    /**
+     * Si la unión se realiza con éxito se avisa a la aplicación para pasar a la siguiente fase
+     */
     LaunchedEffect(uiState.vinculado) {
         if (uiState.vinculado) {
-            onVinculado(uiState.relacionId)  //pasa el ID
+            onVinculado(uiState.relacionId)
         }
     }
 
@@ -47,7 +67,12 @@ fun CodigoParejaScreen(
         verticalArrangement = Arrangement.Center
     ) {
 
-        Text(text = "🔗", fontSize = 56.sp)
+        Icon(
+            imageVector = Icons.Default.Link,
+            contentDescription = null,
+            modifier = Modifier.size(56.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
         Spacer(Modifier.height(12.dp))
 
         Text(
@@ -64,7 +89,6 @@ fun CodigoParejaScreen(
 
         Spacer(Modifier.height(40.dp))
 
-        // Campo Tu código
         Text(
             text = "Tu código",
             style = MaterialTheme.typography.titleMedium,
@@ -72,7 +96,9 @@ fun CodigoParejaScreen(
         )
         Spacer(Modifier.height(8.dp))
 
-        // Caja con el código que se puede copiar
+        /**
+         * Espacio visual donde se muestra el código personal del usuario
+         */
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(16.dp))
@@ -84,27 +110,34 @@ fun CodigoParejaScreen(
                 text = if (uiState.miCodigo.isEmpty()) "..." else uiState.miCodigo,
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.primary,
-                letterSpacing = 8.sp  // espaciado para que sea facil de leer
+                letterSpacing = 8.sp
             )
         }
 
         Spacer(Modifier.height(8.dp))
 
-        // Botón copiar
+        /**
+         * Botón para copiar el código al portapapeles del teléfono automáticamente
+         */
         TextButton(
             onClick = {
                 clipboard.setText(AnnotatedString(uiState.miCodigo))
                 copiado = true
             }
         ) {
-            Text(if (copiado) "✅ Copiado" else "📋 Copiar código")
+            Icon(
+                imageVector = if (copiado) Icons.Default.Check else Icons.Default.ContentCopy,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(if (copiado) "Copiado" else "Copiar código")
         }
 
         Spacer(Modifier.height(40.dp))
         HorizontalDivider()
         Spacer(Modifier.height(40.dp))
 
-        // Campo para ingresar codigo de pareja
         Text(
             text = "Código de tu pareja",
             style = MaterialTheme.typography.titleMedium,
@@ -112,15 +145,17 @@ fun CodigoParejaScreen(
         )
         Spacer(Modifier.height(8.dp))
 
+        /**
+         * Cuadro de texto para introducir el código que la pareja ha compartido
+         */
         OutlinedTextField(
             value = codigoIngresado,
             onValueChange = { nuevo ->
-                // Solo letras y numeros, máximo 6 caracteres
                 if (nuevo.length <= 6) {
                     codigoIngresado = nuevo.uppercase()
                 }
             },
-            label = { Text("Ej: XK92AB") },
+            label = { Text("Ejemplo: XK92AB") },
             singleLine = true,
             textStyle = MaterialTheme.typography.headlineMedium.copy(
                 textAlign = TextAlign.Center,
@@ -134,7 +169,6 @@ fun CodigoParejaScreen(
 
         Spacer(Modifier.height(8.dp))
 
-        // Contador de caracteres
         Text(
             text = "${codigoIngresado.length}/6",
             style = MaterialTheme.typography.labelSmall,
@@ -144,7 +178,9 @@ fun CodigoParejaScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Error
+        /**
+         * Muestra avisos si el código introducido no es válido o ya está en uso
+         */
         if (uiState.error != null) {
             Text(
                 text = uiState.error!!,
@@ -155,7 +191,9 @@ fun CodigoParejaScreen(
             Spacer(Modifier.height(12.dp))
         }
 
-        // Botón vincular
+        /**
+         * Botón principal para realizar la unión definitiva de las dos cuentas
+         */
         Button(
             onClick = {
                 viewModel.vincularPorCodigo(codigoIngresado, usuarioId)
@@ -171,7 +209,7 @@ fun CodigoParejaScreen(
                     modifier = Modifier.size(24.dp)
                 )
             } else {
-                Text("Vincularme con mi pareja 💕")
+                Text("Vincularme con mi pareja")
             }
         }
     }

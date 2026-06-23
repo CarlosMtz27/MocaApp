@@ -8,4 +8,6 @@
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:label="@string/widget_distancia_trans_label"
-    android:description="@string/widget_distancia_desc" />
+    android:description="@string/widget_distancia_desc"
+    android:previewImage="@drawable/ic_preview_distancia"
+    android:previewLayout="@layout/widget_preview_transparent_distancia" />

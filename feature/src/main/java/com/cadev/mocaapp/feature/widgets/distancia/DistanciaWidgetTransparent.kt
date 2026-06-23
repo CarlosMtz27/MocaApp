@@ -26,7 +26,15 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import com.cadev.mocaapp.feature.R
 
+/**
+ * WIDGET DE CERCANÍA (FLOTANTE)
+ * 
+ * Qué hace:
+ * Muestra la distancia entre ambos sin ningún fondo, usando las fotos de perfil 
+ * circulares y texto blanco para un look elegante y moderno.
+ */
 class DistanciaWidgetTransparent : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val dataStore = DistanciaWidgetDataStore(context)
@@ -45,13 +53,30 @@ class DistanciaWidgetTransparent : GlanceAppWidget() {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         
-        Box(modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity(intent)), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity(intent)), 
+            contentAlignment = Alignment.Center
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalAlignment = Alignment.CenterHorizontally) {
                 WidgetImage(data.foto1Path)
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = GlanceModifier.padding(horizontal = 8.dp)) {
-                    Text("❤️", style = TextStyle(fontSize = 14.sp))
-                    Text(data.distanciaTexto, style = TextStyle(color = ColorProvider(Color.White), fontSize = 12.sp, fontWeight = FontWeight.Bold))
+                
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = GlanceModifier.padding(horizontal = 12.dp)) {
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_reaccion_corazon),
+                        contentDescription = null,
+                        modifier = GlanceModifier.size(16.dp)
+                    )
+                    Spacer(GlanceModifier.height(4.dp))
+                    Text(
+                        text = data.distanciaTexto, 
+                        style = TextStyle(
+                            color = ColorProvider(Color.White), 
+                            fontSize = 13.sp, 
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
                 }
+                
                 WidgetImage(data.foto2Path)
             }
         }
@@ -61,10 +86,24 @@ class DistanciaWidgetTransparent : GlanceAppWidget() {
     private fun WidgetImage(path: String) {
         val bitmap = try { if (path.isNotEmpty()) BitmapFactory.decodeFile(path) else null } catch (e: Exception) { null }
         if (bitmap != null) {
-            Image(provider = ImageProvider(bitmap), contentDescription = null, modifier = GlanceModifier.size(40.dp).cornerRadius(20.dp))
+            Image(
+                provider = ImageProvider(bitmap), 
+                contentDescription = null, 
+                modifier = GlanceModifier.size(44.dp).cornerRadius(22.dp)
+            )
         } else {
-            Box(modifier = GlanceModifier.size(40.dp).cornerRadius(20.dp).background(ColorProvider(Color.White.copy(alpha = 0.2f))), contentAlignment = Alignment.Center) {
-                Text("👤", style = TextStyle(color = ColorProvider(Color.White)))
+            Box(
+                modifier = GlanceModifier
+                    .size(44.dp)
+                    .cornerRadius(22.dp)
+                    .background(ColorProvider(Color.White.copy(alpha = 0.2f))), 
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    provider = ImageProvider(R.drawable.ic_reaccion_hola),
+                    contentDescription = null,
+                    modifier = GlanceModifier.size(22.dp)
+                )
             }
         }
     }

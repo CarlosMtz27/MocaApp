@@ -24,6 +24,18 @@ import kotlin.math.*
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * RASTREADOR DE DISTANCIA
+ * 
+ * Qué hace:
+ * Es el motor que trabaja en segundo plano para obtener nuestra ubicación actual 
+ * y la de nuestra pareja. Calcula cuántos kilómetros nos separan y guarda esa 
+ * información para que el widget del escritorio siempre esté actualizado.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos que el cálculo sea más preciso, podemos cambiar la prioridad de 
+ * `PRIORITY_BALANCED_POWER_ACCURACY` a `PRIORITY_HIGH_ACCURACY`.
+ */
 class UbicacionWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     @SuppressLint("MissingPermission")
@@ -35,6 +47,7 @@ class UbicacionWorker(context: Context, params: WorkerParameters) : CoroutineWor
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(applicationContext)
         val dataStore = DistanciaWidgetDataStore(applicationContext)
 
+        // Verificamos si tenemos los permisos necesarios para usar el GPS
         val hasFine = ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         val hasCoarse = ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
         
@@ -44,7 +57,11 @@ class UbicacionWorker(context: Context, params: WorkerParameters) : CoroutineWor
         }
 
         return try {
-            // Intentar obtener ubicación actual, si falla usar la última conocida
+            /**
+             * OBTENER UBICACIÓN:
+             * Intentamos conseguir la posición exacta de este momento. Si falla, 
+             * usamos la última posición que el móvil recuerde.
+             */
             val location = try {
                 fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
                     ?: fusedLocationClient.lastLocation.await()
@@ -60,7 +77,11 @@ class UbicacionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                 val lng = location.longitude
                 val ahora = com.google.firebase.Timestamp.now()
 
-                // 1. Subir mi ubicación
+                /**
+                 * 1. SUBIR MI POSICIÓN:
+                 * Enviamos nuestra latitud y longitud a Firebase para que nuestra 
+                 * pareja también pueda verla.
+                 */
                 db.collection("usuarios").document(uid).update(
                     "ubicacion", mapOf(
                         "lat" to lat,
@@ -69,11 +90,16 @@ class UbicacionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                     )
                 ).await()
 
-                if (parejaId == null) {
+                if (parejaId.isNullOrBlank()) {
                     updateTextOnly(dataStore, "¡Vincúlate con tu pareja!")
                     return Result.success()
                 }
 
+                /**
+                 * 2. BUSCAR A MI PAREJA:
+                 * Descargamos la última posición conocida de nuestra pareja para 
+                 * poder hacer la comparación.
+                 */
                 val parejaDoc = db.collection("usuarios").document(parejaId).get().await()
                 
                 val miNombre = miDoc.getString("nombre") ?: "Yo"
@@ -85,18 +111,30 @@ class UbicacionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                 val pLat = parejaUbicacion?.get("lat") as? Double
                 val pLng = parejaUbicacion?.get("lng") as? Double
 
+                /**
+                 * CÁLCULO MATEMÁTICO:
+                 * Si tenemos ambas posiciones, calculamos la distancia "en línea recta" 
+                 * y la formateamos para que sea fácil de leer (m o km).
+                 */
                 val distanciaTexto = if (pLat != null && pLng != null) {
                     val dist = calcularDistanciaKm(lat, lng, pLat, pLng)
                     formatearDistancia(dist)
                 } else {
-                    "📍 Esperando ubicación de pareja..."
+                    "Esperando ubicación de pareja..."
                 }
 
-                // 3. Descargar fotos
+                /**
+                 * 3. DESCARGAR FOTOS:
+                 * Bajamos las fotos de perfil para que el widget no tenga que 
+                 * cargarlas de internet cada vez que se redibuja.
+                 */
                 val miFotoPath = downloadImage(applicationContext, miFotoUrl, "mi_foto.jpg")
                 val parejaFotoPath = downloadImage(applicationContext, parejaFotoUrl, "pareja_foto.jpg")
 
-                // 4. Guardar en DataStore
+                /**
+                 * 4. GUARDAR EN MEMORIA LOCAL (DATASTORE):
+                 * Registramos todo lo calculado para que el widget lo lea.
+                 */
                 val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
                 val actualizadaStr = sdf.format(Date())
 
@@ -111,14 +149,17 @@ class UbicacionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                     actualizadaEn = actualizadaStr
                 )
 
-                // 5. Actualizar Widget
+                /**
+                 * 5. ACTUALIZAR WIDGET:
+                 * Le avisamos al móvil que redibuje el widget del escritorio ahora mismo.
+                 */
                 DistanciaWidget().updateAll(applicationContext)
                 
                 Result.success()
             } else {
                 Log.w("UbicacionWorker", "Ubicación null")
                 if (parejaId != null) {
-                    updateTextOnly(dataStore, "📍 Buscando señal GPS...")
+                    updateTextOnly(dataStore, "Buscando señal GPS...")
                 }
                 Result.retry()
             }
@@ -128,6 +169,9 @@ class UbicacionWorker(context: Context, params: WorkerParameters) : CoroutineWor
         }
     }
 
+    /**
+     * Actualiza solo el texto del widget sin cambiar las fotos de perfil.
+     */
     private suspend fun updateTextOnly(dataStore: DistanciaWidgetDataStore, texto: String) {
         val current = dataStore.widgetData.first()
         dataStore.saveData(
@@ -141,6 +185,11 @@ class UbicacionWorker(context: Context, params: WorkerParameters) : CoroutineWor
         DistanciaWidget().updateAll(applicationContext)
     }
 
+    /**
+     * MÉTODOS DE CÁLCULO:
+     * Implementamos la fórmula de Haversine para saber la distancia entre 
+     * dos puntos del planeta Tierra.
+     */
     private fun calcularDistanciaKm(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
         val r = 6371.0
         val dLat = Math.toRadians(lat2 - lat1)
@@ -150,13 +199,20 @@ class UbicacionWorker(context: Context, params: WorkerParameters) : CoroutineWor
         return r * 2 * asin(sqrt(a))
     }
 
+    /**
+     * Convierte el número de kilómetros a un texto bonito (m si es cerca, km si es lejos).
+     */
     private fun formatearDistancia(km: Double): String = when {
-        km < 0.1 -> "Están juntos ❤️"
+        km < 0.1 -> "Están juntos"
         km < 1.0 -> "${(km * 1000).toInt()} m"
         km < 10.0 -> "%.1f km".format(km)
         else -> "${km.toInt()} km"
     }
 
+    /**
+     * GESTOR DE IMÁGENES:
+     * Descarga la foto de internet y la guarda en la carpeta privada de la app.
+     */
     private suspend fun downloadImage(context: Context, url: String?, fileName: String): String = withContext(Dispatchers.IO) {
         if (url.isNullOrBlank()) return@withContext ""
         try {

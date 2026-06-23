@@ -1,0 +1,21 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="120dp"
+    android:viewportWidth="200"
+    android:viewportHeight="120">
+    <!-- Fondo base -->
+    <path
+        android:fillColor="#263238"
+        android:pathData="M0,0h200v120h-200z" />
+    <!-- Líneas de mapa (estilo sutil) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="0.5"
+        android:strokeAlpha="0.1"
+        android:pathData="M20,0v120M60,0v120M100,0v120M140,0v120M180,0v120M0,20h200M0,60h200M0,100h200" />
+    <!-- Algunas formas de "manzanas" de ciudad -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.05"
+        android:pathData="M30,30h20v20h-20zM80,10h30v40h-30zM150,40h20v60h-20zM20,80h40v20h-40z" />
+</vector>

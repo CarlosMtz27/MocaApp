@@ -9,6 +9,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+/**
+ * GESTOR DE NOVEDADES
+ * 
+ * Qué hace:
+ * Controla los números rojos (globos de notificación) que vemos en el menú 
+ * inferior. Nos avisa en tiempo real cuántas cosas nuevas hay por ver y se 
+ * encarga de limpiar esos números cuando entramos a una sección.
+ */
 class NotificacionViewModel(
     private val repository: NotificacionRepository
 ) : ViewModel() {

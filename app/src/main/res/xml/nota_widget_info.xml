@@ -10,5 +10,7 @@
     android:targetCellHeight="2"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen"
-    android:label="Nota Compartida"
-    android:description="@string/widget_nota_desc" />
+    android:label="@string/widget_nota_label"
+    android:description="@string/widget_nota_desc"
+    android:previewImage="@drawable/ic_preview_nota"
+    android:previewLayout="@layout/widget_preview_nota" />

@@ -8,6 +8,18 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import com.cadev.mocaapp.core.model.TipoNotificacion
 
+/**
+ * NUESTROS CANALES DE AVISO
+ * 
+ * Qué hace:
+ * Organiza las notificaciones de la app en diferentes categorías (Mensajes, 
+ * Diario, Cuestionarios, etc.). Esto permite que el usuario pueda silenciar 
+ * una categoría sin apagar las demás desde los ajustes del móvil.
+ * 
+ * Cómo lo podemos modificar:
+ * Si añadimos una nueva función a la app (ej: "Juegos"), debemos crear aquí 
+ * un nuevo `NotificationChannel` para sus avisos.
+ */
 object NotificationChannels {
 
     fun crearTodos(context: Context) {
@@ -27,45 +39,70 @@ object NotificationChannels {
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    private fun canales(audioAttr: AudioAttributes) = listOf(
+    private fun canales(audioAttr: AudioAttributes): List<NotificationChannel> {
+        val colorRomantico = android.graphics.Color.parseColor("#FF69B4")
+        val patronLatido = longArrayOf(0, 100, 100, 100, 600)
 
-        NotificationChannel(
-            TipoNotificacion.CHAT.canal,
-            "Mensajes",
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = "Nuevos mensajes de tu pareja"
-            enableVibration(true)
-            vibrationPattern = longArrayOf(0, 250, 100, 250)
-        },
+        return listOf(
+            NotificationChannel(
+                TipoNotificacion.CHAT.canal,
+                "Mensajes",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Nuevos mensajes de tu pareja"
+                lightColor = colorRomantico
+                enableLights(true)
+                enableVibration(true)
+                vibrationPattern = patronLatido
+            },
 
-        NotificationChannel(
-            TipoNotificacion.DIARIO.canal,
-            "Diario compartido",
-            NotificationManager.IMPORTANCE_DEFAULT
-        ).apply {
-            description = "Tu pareja agregó un recuerdo"
-            enableVibration(true)
-            vibrationPattern = longArrayOf(0, 150, 100, 150)
-        },
+            NotificationChannel(
+                TipoNotificacion.DIARIO.canal,
+                "Diario compartido",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Tu pareja agregó un recuerdo"
+                lightColor = colorRomantico
+                enableLights(true)
+                enableVibration(true)
+                vibrationPattern = patronLatido
+            },
 
-        NotificationChannel(
-            TipoNotificacion.CUESTIONARIO.canal,
-            "Cuestionarios",
-            NotificationManager.IMPORTANCE_DEFAULT
-        ).apply {
-            description = "Tu pareja respondió un cuestionario"
-            enableVibration(true)
-        },
+            NotificationChannel(
+                TipoNotificacion.CUESTIONARIO.canal,
+                "Cuestionarios",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Tu pareja respondió un cuestionario"
+                lightColor = colorRomantico
+                enableLights(true)
+                enableVibration(true)
+                vibrationPattern = patronLatido
+            },
 
-        NotificationChannel(
-            TipoNotificacion.ANIVERSARIO.canal,
-            "Fechas especiales",
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = "Recordatorios de fechas importantes"
-            enableVibration(true)
-            vibrationPattern = longArrayOf(0, 500, 200, 500)
-        }
-    )
+            NotificationChannel(
+                TipoNotificacion.ANIVERSARIO.canal,
+                "Fechas especiales",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Recordatorios de fechas importantes"
+                lightColor = colorRomantico
+                enableLights(true)
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 200, 100, 200, 100, 200)
+            },
+
+            NotificationChannel(
+                TipoNotificacion.ESTADO_ANIMO.canal,
+                "Estados de Ánimo",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Cambios en el estado de tu pareja"
+                lightColor = colorRomantico
+                enableLights(true)
+                enableVibration(true)
+                vibrationPattern = patronLatido
+            }
+        )
+    }
 }

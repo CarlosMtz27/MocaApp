@@ -7,5 +7,7 @@
     android:updatePeriodMillis="0"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
-    android:label="Distancia Real"
-    android:description="@string/widget_distancia_desc" />
+    android:label="@string/widget_distancia_label"
+    android:description="@string/widget_distancia_desc"
+    android:previewImage="@drawable/ic_preview_distancia"
+    android:previewLayout="@layout/widget_preview_distancia" />

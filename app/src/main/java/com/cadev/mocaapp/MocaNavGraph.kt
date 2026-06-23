@@ -38,6 +38,8 @@ import com.cadev.mocaapp.feature.eventos.ui.EventosScreen
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import com.cadev.mocaapp.feature.home.ui.MainScreen
 import com.cadev.mocaapp.feature.notas.ui.NotaViewModel
 import com.cadev.mocaapp.feature.notas.ui.NotasScreen
@@ -48,11 +50,25 @@ import com.cadev.mocaapp.feature.pareja.ui.ParejaViewModel
 import com.cadev.mocaapp.feature.perfil.ui.AjustesScreen
 import com.cadev.mocaapp.feature.perfil.ui.PerfilParejaScreen
 import com.cadev.mocaapp.feature.perfil.ui.PerfilViewModel
+import com.cadev.mocaapp.feature.widgets.ui.WidgetsPreviewScreen
+import com.cadev.mocaapp.feature.widgets.ui.WidgetsViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 
+/**
+ * ESTE ES EL MAPA DE NAVEGACIÓN
+ * 
+ * Qué hace
+ * Aquí es donde se definen todas las pantallas que existen en la aplicación y cómo se conectan unas con otras. 
+ * Cada bloque que empieza por la palabra composable representa una pantalla distinta.
+ * 
+ * Cómo añadir una nueva pantalla
+ * Primero debes registrar la nueva ruta en el archivo de rutas del núcleo de la aplicación. 
+ * Después añade un nuevo bloque composable aquí abajo indicando esa ruta y llamando a la función 
+ * que dibuja tu pantalla pasándole el gestor de datos o ViewModel que necesite.
+ */
 @RequiresApi(Build.VERSION_CODES.S)
 @Composable
 fun MocaNavGraph(
@@ -60,12 +76,20 @@ fun MocaNavGraph(
     factory: ViewModelProvider.Factory,
     destinoInicial: String = NavRoutes.Login.route
 ) {
+    // Esta pequeña función sirve para volver rápidamente a la pantalla principal de la aplicación
+    val irAlInicio = {
+        navController.navigate(NavRoutes.Main.route) {
+            popUpTo(0) { inclusive = true }
+        }
+    }
+
+    // El NavHost es el encargado de intercambiar las pantallas según la ruta solicitada
     NavHost(
         navController = navController,
         startDestination = destinoInicial
     ) {
 
-        // Auth
+        // PANTALLAS PARA ENTRAR O REGISTRARSE
         composable(NavRoutes.Login.route) {
             val viewModel: AuthViewModel = viewModel(factory = factory)
             LoginScreen(
@@ -81,7 +105,6 @@ fun MocaNavGraph(
             )
         }
 
-
         composable(NavRoutes.Registro.route) {
             val viewModel: AuthViewModel = viewModel(factory = factory)
             RegistroScreen(
@@ -95,7 +118,7 @@ fun MocaNavGraph(
             )
         }
 
-        //Pareja
+        // PANTALLAS PARA CONECTARSE CON LA PAREJA
         composable(NavRoutes.CodigoPareja.route) {
             val viewModel: ParejaViewModel = viewModel(factory = factory)
             val usuarioId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
@@ -103,21 +126,16 @@ fun MocaNavGraph(
                 viewModel = viewModel,
                 usuarioId = usuarioId,
                 onVinculado = { relacionId ->
-                    navController.navigate(
-                        NavRoutes.FechaRelacion.crearRuta(relacionId)
-                    )
+                    navController.navigate(NavRoutes.FechaRelacion.crearRuta(relacionId))
                 }
             )
         }
 
         composable(
             route = NavRoutes.FechaRelacion.route,
-            arguments = listOf(
-                navArgument("relacionId") { type = NavType.StringType }
-            )
+            arguments = listOf(navArgument("relacionId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val relacionId =
-                backStackEntry.arguments?.getString("relacionId") ?: ""
+            val relacionId = backStackEntry.arguments?.getString("relacionId") ?: ""
             val viewModel: ParejaViewModel = viewModel(factory = factory)
             FechaRelacionScreen(
                 viewModel = viewModel,
@@ -130,7 +148,7 @@ fun MocaNavGraph(
             )
         }
 
-        // Reemplaza el composable de Main
+        // PANTALLA PRINCIPAL QUE CONTIENE LAS PESTAÑAS INFERIORES
         composable(
             route = "${NavRoutes.Main.route}?tab={tab}",
             arguments = listOf(
@@ -145,61 +163,44 @@ fun MocaNavGraph(
             MainScreen(
                 factory = factory,
                 navController = navController,
-                initialTab = initialTab    // ← nuevo parámetro
+                initialTab = initialTab
             )
         }
+
+        // PANTALLAS DEL CALENDARIO Y DEL DIARIO DE LA PAREJA
         composable(NavRoutes.Calendario.route) {
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-            val parejaId = remember(uid) {
-                runBlocking { UsuarioHelper.obtenerParejaId(uid) }
-            }
+            val parejaId = remember(uid) { runBlocking { UsuarioHelper.obtenerParejaId(uid) } }
             val diarioViewModel: DiarioViewModel = viewModel(factory = factory)
             CalendarioScreen(
                 viewModel = diarioViewModel,
                 usuarioId = uid,
                 parejaId = parejaId,
+                onRegresar = irAlInicio,
                 onDiaSeleccionado = { fecha ->
                     navController.navigate(NavRoutes.DetalleDia.crearRuta(fecha))
                 },
-                onVerEventos = {
-                    navController.navigate(NavRoutes.Eventos.route)
-                }
+                onVerEventos = { navController.navigate(NavRoutes.Eventos.route) }
             )
         }
-        //Diario
+
         composable(
             route = NavRoutes.DetalleDia.route,
-            arguments = listOf(
-                navArgument("fecha") { type = NavType.StringType }
-            )
+            arguments = listOf(navArgument("fecha") { type = NavType.StringType })
         ) { backStackEntry ->
             val fecha = backStackEntry.arguments?.getString("fecha") ?: ""
             val viewModel: DiarioViewModel = viewModel(factory = factory)
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-            val parejaId = remember(uid) {
-                runBlocking { UsuarioHelper.obtenerParejaId(uid) }
-            }
+            val parejaId = remember(uid) { runBlocking { UsuarioHelper.obtenerParejaId(uid) } }
             DetalleDiaScreen(
                 viewModel = viewModel,
                 usuarioId = uid,
                 parejaId = parejaId,
                 fecha = fecha,
-                onRegresar = { navController.popBackStack() },
-                onEditarEntrada = { entradaId ->
-                    navController.navigate(
-                        NavRoutes.EditarEntrada.crearRuta(entradaId)
-                    )
-                },
-                onCrearEntrada = { f, tipo ->
-                    navController.navigate(
-                        NavRoutes.CrearEntrada.crearRuta(f, tipo)
-                    )
-                },
-                onVerDetalle = { entradaId ->
-                    navController.navigate(
-                        NavRoutes.DetalleEntrada.crearRuta(entradaId)
-                    )
-                }
+                onRegresar = irAlInicio,
+                onEditarEntrada = { id -> navController.navigate(NavRoutes.EditarEntrada.crearRuta(id)) },
+                onCrearEntrada = { f, t -> navController.navigate(NavRoutes.CrearEntrada.crearRuta(f, t)) },
+                onVerDetalle = { id -> navController.navigate(NavRoutes.DetalleEntrada.crearRuta(id)) }
             )
         }
 
@@ -211,144 +212,93 @@ fun MocaNavGraph(
             )
         ) { backStackEntry ->
             val fecha = backStackEntry.arguments?.getString("fecha") ?: ""
-            val tipo = backStackEntry.arguments?.getString("tipo")
-                ?: TipoEntrada.MI_DIA.name
+            val tipo = backStackEntry.arguments?.getString("tipo") ?: TipoEntrada.MI_DIA.name
             val viewModel: DiarioViewModel = viewModel(factory = factory)
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-            val parejaId = remember(uid) {
-                runBlocking { UsuarioHelper.obtenerParejaId(uid) }
-            }
+            val parejaId = remember(uid) { runBlocking { UsuarioHelper.obtenerParejaId(uid) } }
             CrearEntradaScreen(
                 viewModel = viewModel,
                 usuarioId = uid,
                 parejaId = parejaId,
                 fecha = fecha,
                 tipo = tipo,
-                onEntradaGuardada = { navController.popBackStack() },
-                onRegresar = { navController.popBackStack() }
+                onEntradaGuardada = irAlInicio,
+                onRegresar = irAlInicio
             )
         }
 
         composable(
             route = NavRoutes.EditarEntrada.route,
-            arguments = listOf(
-                navArgument("entradaId") { type = NavType.StringType }
-            )
+            arguments = listOf(navArgument("entradaId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val entradaId =
-                backStackEntry.arguments?.getString("entradaId") ?: ""
+            val entradaId = backStackEntry.arguments?.getString("entradaId") ?: ""
             val viewModel: DiarioViewModel = viewModel(factory = factory)
-            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-            val parejaId = remember(uid) {
-                runBlocking { UsuarioHelper.obtenerParejaId(uid) }
-            }
+            val parejaId = remember { runBlocking { UsuarioHelper.obtenerParejaId(FirebaseAuth.getInstance().currentUser?.uid ?: "") } }
             EditarEntradaScreen(
                 viewModel = viewModel,
                 entradaId = entradaId,
                 parejaId = parejaId,
-                onGuardado = { navController.popBackStack() },
-                onRegresar = { navController.popBackStack() }
+                onGuardado = irAlInicio,
+                onRegresar = irAlInicio
             )
         }
 
         composable(
             route = NavRoutes.DetalleEntrada.route,
-            arguments = listOf(
-                navArgument("entradaId") { type = NavType.StringType }
-            )
+            arguments = listOf(navArgument("entradaId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val entradaId =
-                backStackEntry.arguments?.getString("entradaId") ?: ""
+            val entradaId = backStackEntry.arguments?.getString("entradaId") ?: ""
             val viewModel: DiarioViewModel = viewModel(factory = factory)
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
             DetalleEntradaScreen(
                 viewModel = viewModel,
                 entradaId = entradaId,
                 usuarioId = uid,
-                onRegresar = { navController.popBackStack() },
-                onEditar = { id ->
-                    navController.navigate(NavRoutes.EditarEntrada.crearRuta(id))
-                }
+                onRegresar = irAlInicio,
+                onEditar = { id -> navController.navigate(NavRoutes.EditarEntrada.crearRuta(id)) }
             )
         }
 
-        //Perfil, Ajustes
+        // PANTALLAS DE PERFIL Y CONFIGURACIÓN
         composable(NavRoutes.Ajustes.route) { backStackEntry ->
-            //Compartir ViewModel con Main para no perder datos
-            val mainEntry = remember(backStackEntry) {
-                try {
-                    navController.getBackStackEntry(NavRoutes.Main.route)
-                } catch (e: Exception) { backStackEntry }
-            }
-            val viewModel: PerfilViewModel = viewModel(
-                viewModelStoreOwner = mainEntry,
-                factory = factory
-            )
+            val mainEntry = remember(backStackEntry) { try { navController.getBackStackEntry(NavRoutes.Main.route) } catch (e: Exception) { backStackEntry } }
+            val viewModel: PerfilViewModel = viewModel(viewModelStoreOwner = mainEntry, factory = factory)
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-            val parejaId = remember(uid) {
-                runBlocking { UsuarioHelper.obtenerParejaId(uid) }
-            }
-            LaunchedEffect(uid) {
-                if (viewModel.uiState.value.usuario == null) {
-                    viewModel.cargarPerfil(uid, parejaId)
-                }
-            }
+            val parejaId = remember(uid) { runBlocking { UsuarioHelper.obtenerParejaId(uid) } }
             AjustesScreen(
                 viewModel = viewModel,
                 usuarioId = uid,
                 parejaId = parejaId,
-                onRegresar = { navController.popBackStack() }
+                onRegresar = irAlInicio,
+                onNavigateToWidgets = { navController.navigate(NavRoutes.WidgetsPreview.route) }
             )
         }
 
         composable(
             route = NavRoutes.PerfilPareja.route,
-            arguments = listOf(
-                navArgument("parejaId") { type = NavType.StringType }
-            )
+            arguments = listOf(navArgument("parejaId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val parejaId =
-                backStackEntry.arguments?.getString("parejaId") ?: ""
-            // Compartir ViewModel con Main para reusar datos ya cargados
-            val mainEntry = remember(backStackEntry) {
-                try {
-                    navController.getBackStackEntry(NavRoutes.Main.route)
-                } catch (e: Exception) { backStackEntry }
-            }
-            val viewModel: PerfilViewModel = viewModel(
-                viewModelStoreOwner = mainEntry,
-                factory = factory
-            )
+            val pId = backStackEntry.arguments?.getString("parejaId") ?: ""
+            val mainEntry = remember(backStackEntry) { try { navController.getBackStackEntry(NavRoutes.Main.route) } catch (e: Exception) { backStackEntry } }
+            val viewModel: PerfilViewModel = viewModel(viewModelStoreOwner = mainEntry, factory = factory)
             PerfilParejaScreen(
                 viewModel = viewModel,
-                parejaId = parejaId,
-                onRegresar = { navController.popBackStack() }
+                parejaId = pId,
+                onRegresar = irAlInicio
             )
         }
 
-        //Cuestionarios
+        // PANTALLAS PARA RESPONDER Y VER RESULTADOS DE CUESTIONARIOS
         composable(
             route = NavRoutes.ResponderCuestionario.route,
-            arguments = listOf(
-                navArgument("cuestionarioId") { type = NavType.StringType }
-            )
+            arguments = listOf(navArgument("cuestionarioId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val cuestionarioId = backStackEntry.arguments
-                ?.getString("cuestionarioId") ?: ""
+            val cuestionarioId = backStackEntry.arguments?.getString("cuestionarioId") ?: ""
             val viewModel: CuestionarioViewModel = viewModel(factory = factory)
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-            val parejaId = remember(uid) {
-                runBlocking { UsuarioHelper.obtenerParejaId(uid) }
-            }
+            val parejaId = remember(uid) { runBlocking { UsuarioHelper.obtenerParejaId(uid) } }
             val relacionId = remember(uid) {
-                runBlocking {
-                    FirebaseFirestore.getInstance()
-                        .collection("usuarios")
-                        .document(uid)
-                        .get()
-                        .await()
-                        .getString("relacionId") ?: ""
-                }
+                runBlocking { FirebaseFirestore.getInstance().collection("usuarios").document(uid).get().await().getString("relacionId") ?: "" }
             }
             ResponderScreen(
                 viewModel = viewModel,
@@ -357,42 +307,24 @@ fun MocaNavGraph(
                 parejaId = parejaId ?: "",
                 relacionId = relacionId,
                 onCompletado = { id ->
-                    navController.navigate(
-                        NavRoutes.ResultadosCuestionario.crearRuta(id)
-                    ) {
-                        //Sacar ResponderScreen del back stack al completar
-                        popUpTo(
-                            NavRoutes.ResponderCuestionario.crearRuta(id)
-                        ) { inclusive = true }
+                    navController.navigate(NavRoutes.ResultadosCuestionario.crearRuta(id)) {
+                        popUpTo(NavRoutes.ResponderCuestionario.crearRuta(id)) { inclusive = true }
                     }
                 },
-                onRegresar = { navController.popBackStack() }
+                onRegresar = irAlInicio
             )
         }
 
         composable(
             route = NavRoutes.ResultadosCuestionario.route,
-            arguments = listOf(
-                navArgument("cuestionarioId") { type = NavType.StringType }
-            )
+            arguments = listOf(navArgument("cuestionarioId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val cuestionarioId = backStackEntry.arguments
-                ?.getString("cuestionarioId") ?: ""
+            val cuestionarioId = backStackEntry.arguments?.getString("cuestionarioId") ?: ""
             val viewModel: CuestionarioViewModel = viewModel(factory = factory)
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-            val parejaId = remember(uid) {
-                runBlocking { UsuarioHelper.obtenerParejaId(uid) }
-            }
-            //Reusar PerfilViewModel de Main para nombres
-            val mainEntry = remember(backStackEntry) {
-                try {
-                    navController.getBackStackEntry(NavRoutes.Main.route)
-                } catch (e: Exception) { backStackEntry }
-            }
-            val perfilViewModel: PerfilViewModel = viewModel(
-                viewModelStoreOwner = mainEntry,
-                factory = factory
-            )
+            val parejaId = remember(uid) { runBlocking { UsuarioHelper.obtenerParejaId(uid) } }
+            val mainEntry = remember(backStackEntry) { try { navController.getBackStackEntry(NavRoutes.Main.route) } catch (e: Exception) { backStackEntry } }
+            val perfilViewModel: PerfilViewModel = viewModel(viewModelStoreOwner = mainEntry, factory = factory)
             val perfilState by perfilViewModel.uiState.collectAsState()
 
             ResultadosScreen(
@@ -402,77 +334,57 @@ fun MocaNavGraph(
                 parejaId = parejaId ?: "",
                 nombreUsuario = perfilState.usuario?.nombre ?: "Tú",
                 nombrePareja = perfilState.pareja?.nombre ?: "Tu pareja",
-                onRegresar = { navController.popBackStack() }
+                onRegresar = irAlInicio
             )
         }
 
-        composable(NavRoutes.CrearCuestionario.route) { backStackEntry ->
+        composable(NavRoutes.CrearCuestionario.route) {
             val viewModel: CuestionarioViewModel = viewModel(factory = factory)
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-            val parejaId = remember(uid) {           // ← nuevo
-                runBlocking { UsuarioHelper.obtenerParejaId(uid) }
-            }
+            val parejaId = remember(uid) { runBlocking { UsuarioHelper.obtenerParejaId(uid) } }
             val relacionId = remember(uid) {
-                runBlocking {
-                    FirebaseFirestore.getInstance()
-                        .collection("usuarios")
-                        .document(uid)
-                        .get()
-                        .await()
-                        .getString("relacionId") ?: ""
-                }
+                runBlocking { FirebaseFirestore.getInstance().collection("usuarios").document(uid).get().await().getString("relacionId") ?: "" }
             }
             CrearCuestionarioScreen(
                 viewModel = viewModel,
                 usuarioId = uid,
-                parejaId = parejaId ?: "",           // ← agregar
+                parejaId = parejaId ?: "",
                 relacionId = relacionId,
-                onCreado = { navController.popBackStack() },
-                onRegresar = { navController.popBackStack() }
+                onCreado = irAlInicio,
+                onRegresar = irAlInicio
             )
         }
 
+        // PANTALLAS PARA LA GESTIÓN DE EVENTOS COMPARTIDOS
         composable(NavRoutes.Eventos.route) {
             val viewModel: EventoViewModel = viewModel(factory = factory)
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
             val relacionId = remember(uid) {
-                runBlocking {
-                    FirebaseFirestore.getInstance()
-                        .collection("usuarios").document(uid)
-                        .get().await().getString("relacionId") ?: ""
-                }
+                runBlocking { FirebaseFirestore.getInstance().collection("usuarios").document(uid).get().await().getString("relacionId") ?: "" }
             }
             EventosScreen(
                 viewModel = viewModel,
                 relacionId = relacionId,
                 onCrearEvento = { navController.navigate(NavRoutes.CrearEvento.route) },
-                onVerEvento = { id ->
-                    navController.navigate(NavRoutes.DetalleEvento.crearRuta(id))
-                },
-                onRegresar = { navController.popBackStack() }
+                onVerEvento = { id -> navController.navigate(NavRoutes.DetalleEvento.crearRuta(id)) },
+                onRegresar = irAlInicio
             )
         }
 
         composable(NavRoutes.CrearEvento.route) {
             val viewModel: EventoViewModel = viewModel(factory = factory)
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-            val parejaId = remember(uid) {
-                runBlocking { UsuarioHelper.obtenerParejaId(uid) }
-            }
+            val parejaId = remember(uid) { runBlocking { UsuarioHelper.obtenerParejaId(uid) } }
             val relacionId = remember(uid) {
-                runBlocking {
-                    FirebaseFirestore.getInstance()
-                        .collection("usuarios").document(uid)
-                        .get().await().getString("relacionId") ?: ""
-                }
+                runBlocking { FirebaseFirestore.getInstance().collection("usuarios").document(uid).get().await().getString("relacionId") ?: "" }
             }
             CrearEventoScreen(
                 viewModel = viewModel,
                 usuarioId = uid,
                 parejaId = parejaId ?: "",
                 relacionId = relacionId,
-                onGuardado = { navController.popBackStack() },
-                onRegresar = { navController.popBackStack() }
+                onGuardado = irAlInicio,
+                onRegresar = irAlInicio
             )
         }
 
@@ -487,13 +399,12 @@ fun MocaNavGraph(
                 viewModel = viewModel,
                 eventoId = eventoId,
                 usuarioId = uid,
-                onRegresar = { navController.popBackStack() },
-                onEditar = { id ->
-                    navController.navigate(NavRoutes.EditarEvento.crearRuta(id))
-                }
+                onRegresar = irAlInicio,
+                onEditar = { id -> navController.navigate(NavRoutes.EditarEvento.crearRuta(id)) }
             )
         }
 
+        // PANTALLAS PARA EL MURO DE NOTAS COMPARTIDAS
         composable(NavRoutes.Notas.route) {
             val viewModel: NotaViewModel = viewModel(factory = factory)
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
@@ -518,12 +429,10 @@ fun MocaNavGraph(
                     usuarioId = uid,
                     nombreUsuario = nombreUsuario,
                     parejaId = parejaId,
-                    onRegresar = { navController.popBackStack() }
+                    onRegresar = irAlInicio
                 )
             } else {
-                androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             }
         }
 
@@ -538,12 +447,19 @@ fun MocaNavGraph(
                 viewModel = viewModel,
                 eventoId = eventoId,
                 usuarioId = uid,
-                onGuardado = { navController.popBackStack() },
-                onRegresar = { navController.popBackStack() }
+                onGuardado = irAlInicio,
+                onRegresar = irAlInicio
             )
         }
-        composable(NavRoutes.Estados.route) {
-            PlaceholderScreen("📊 Estadísticas")
+        
+        composable(NavRoutes.Estados.route) { PlaceholderScreen("Estadísticas") }
+
+        composable(NavRoutes.WidgetsPreview.route) {
+            val viewModel: WidgetsViewModel = viewModel(factory = factory)
+            WidgetsPreviewScreen(
+                viewModel = viewModel,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }

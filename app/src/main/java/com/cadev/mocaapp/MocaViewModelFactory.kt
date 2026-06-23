@@ -1,5 +1,6 @@
 package com.cadev.mocaapp
 
+import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.cadev.mocaapp.BuildConfig
@@ -23,81 +24,114 @@ import com.cadev.mocaapp.feature.pareja.data.repository.ParejaRepositoryImpl
 import com.cadev.mocaapp.feature.pareja.ui.ParejaViewModel
 import com.cadev.mocaapp.feature.perfil.data.repository.PerfilRepositoryImpl
 import com.cadev.mocaapp.feature.perfil.ui.PerfilViewModel
+import com.cadev.mocaapp.feature.widgets.ui.WidgetsViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
-class MocaViewModelFactory : ViewModelProvider.Factory {
+/**
+ * LA FÁBRICA DE GESTORES DE DATOS
+ * 
+ * Qué hace
+ * Los gestores de datos o ViewModels son los que preparan la información para las pantallas. 
+ * Esta clase se encarga de crearlos dándoles las herramientas necesarias como el acceso a la base de datos 
+ * de Firestore o al sistema de notificaciones.
+ * 
+ * Cómo añadir más cosas
+ * Cuando crees una funcionalidad nueva con su propio gestor de datos debes venir aquí y añadirlo al listado. 
+ * Crea una nueva sección dentro de la función indicando el nombre de tu nuevo gestor y pásale el almacén de datos 
+ * que corresponda.
+ */
+class MocaViewModelFactory(private val application: Application) : ViewModelProvider.Factory {
 
+    // Se obtienen las herramientas de identificación y de base de datos de Google
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
 
-    // Una sola instancia compartida con las keys inyectadas
+    // Se prepara el sistema de notificaciones para que todos los gestores puedan usar el mismo
     private val notificacionRepository = NotificacionRepository(
         firestore        = firestore,
         oneSignalAppId   = BuildConfig.ONESIGNAL_APP_ID,
         oneSignalRestKey = BuildConfig.ONESIGNAL_REST_KEY
     )
 
+    /**
+     * Esta función crea el gestor de datos específico que solicita cada pantalla
+     */
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when {
+            // Gestor para entrar y registrarse en la aplicación
             modelClass.isAssignableFrom(AuthViewModel::class.java) ->
                 AuthViewModel(
                     AuthRepositoryImpl(auth, firestore)
                 ) as T
 
+            // Gestor para conectar y gestionar la relación de pareja
             modelClass.isAssignableFrom(ParejaViewModel::class.java) ->
                 ParejaViewModel(
                     ParejaRepositoryImpl(firestore)
                 ) as T
 
+            // Gestor para el chat de mensajes entre la pareja
             modelClass.isAssignableFrom(ChatViewModel::class.java) ->
                 ChatViewModel(
                     ChatRepositoryImpl(firestore),
-                    notificacionRepository       // instancia compartida
+                    notificacionRepository
                 ) as T
 
+            // Gestor para ver y editar la información del perfil
             modelClass.isAssignableFrom(PerfilViewModel::class.java) ->
                 PerfilViewModel(
                     PerfilRepositoryImpl(auth, firestore)
                 ) as T
 
+            // Gestor para escribir en el diario y ver el calendario
             modelClass.isAssignableFrom(DiarioViewModel::class.java) ->
                 DiarioViewModel(
                     DiarioRepositoryImpl(firestore),
-                    notificacionRepository       // instancia compartida
+                    notificacionRepository
                 ) as T
 
+            // Gestor para crear y responder los tests de pareja
             modelClass.isAssignableFrom(CuestionarioViewModel::class.java) ->
                 CuestionarioViewModel(
                     CuestionarioRepositoryImpl(firestore),
-                    notificacionRepository       // instancia compartida
+                    notificacionRepository
                 ) as T
 
+            // Gestor para manejar los avisos y notificaciones dentro de la app
             modelClass.isAssignableFrom(NotificacionViewModel::class.java) ->
                 NotificacionViewModel(
-                    notificacionRepository       // instancia compartida
+                    notificacionRepository
                 ) as T
 
+            // Gestor para organizar los eventos importantes de la pareja
             modelClass.isAssignableFrom(EventoViewModel::class.java) ->
                 EventoViewModel(
                     EventoRepositoryImpl(firestore),
                     notificacionRepository
                 ) as T
 
+            // Gestor para el muro de notas compartidas
             modelClass.isAssignableFrom(NotaViewModel::class.java) ->
                 NotaViewModel(
                     NotaRepositoryImpl(firestore),
                     notificacionRepository
                 ) as T
 
+            // Gestor para registrar cómo se siente el usuario cada día
             modelClass.isAssignableFrom(EstadoAnimoViewModel::class.java) ->
                 EstadoAnimoViewModel(
                     EstadoAnimoRepositoryImpl(firestore),
                     notificacionRepository
                 ) as T
 
+            // Gestor para el catálogo de widgets
+            modelClass.isAssignableFrom(WidgetsViewModel::class.java) ->
+                WidgetsViewModel(application) as T
+
+            // Si se pide un gestor que no está en la lista la aplicación dará un error avisando de ello
             else -> throw IllegalArgumentException(
-                "ViewModel no registrado: ${modelClass.name}"
+                "El gestor de datos no está registrado en la fábrica"
             )
         }
     }

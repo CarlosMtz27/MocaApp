@@ -26,7 +26,15 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import com.cadev.mocaapp.feature.R
 
+/**
+ * WIDGET DE CERCANÍA
+ * 
+ * Qué hace:
+ * Muestra la distancia en tiempo real que nos separa de nuestra pareja. 
+ * Es ideal para sentir que, aunque estemos lejos, siempre estamos conectados.
+ */
 class DistanciaWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -53,54 +61,60 @@ class DistanciaWidget : GlanceAppWidget() {
         Box(
             modifier = GlanceModifier
                 .fillMaxSize()
-                .background(ColorProvider(Color(0xFF263238))) // Blue Grey 900
+                .background(ImageProvider(R.drawable.bg_map_widget))
                 .cornerRadius(24.dp)
                 .clickable(actionStartActivity(intent)),
             contentAlignment = Alignment.Center
         ) {
-            Column(
-                modifier = GlanceModifier.padding(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalAlignment = Alignment.CenterVertically
+            // Capa de oscurecimiento sutil para que el texto resalte sobre el mapa
+            Box(
+                modifier = GlanceModifier
+                    .fillMaxSize()
+                    .background(ColorProvider(Color.Black.copy(alpha = 0.3f)))
+                    .cornerRadius(24.dp)
             ) {
-                Text(
-                    text = "Distancia",
-                    style = TextStyle(
-                        color = ColorProvider(Color.White.copy(alpha = 0.6f)),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                )
-                Spacer(modifier = GlanceModifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Column(
+                    modifier = GlanceModifier.fillMaxSize().padding(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    WidgetImage(data.foto1Path)
-                    
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = GlanceModifier.padding(horizontal = 8.dp)
+                    Text(
+                        text = "Distancia",
+                        style = TextStyle(
+                            color = ColorProvider(Color.White.copy(alpha = 0.8f)),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                    Spacer(modifier = GlanceModifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = "── ❤️ ──",
-                            style = TextStyle(
-                                color = ColorProvider(Color(0xFFFF5252)),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
+                        WidgetImage(data.foto1Path)
+                        
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = GlanceModifier.padding(horizontal = 8.dp)
+                        ) {
+                            Image(
+                                provider = ImageProvider(R.drawable.ic_reaccion_corazon),
+                                contentDescription = null,
+                                modifier = GlanceModifier.size(16.dp)
                             )
-                        )
-                        Text(
-                            text = data.distanciaTexto,
-                            style = TextStyle(
-                                color = ColorProvider(Color.White),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
+                            Spacer(GlanceModifier.height(4.dp))
+                            Text(
+                                text = data.distanciaTexto,
+                                style = TextStyle(
+                                    color = ColorProvider(Color.White),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             )
-                        )
+                        }
+                        
+                        WidgetImage(data.foto2Path)
                     }
-                    
-                    WidgetImage(data.foto2Path)
                 }
             }
         }
@@ -134,7 +148,11 @@ class DistanciaWidget : GlanceAppWidget() {
                     .background(ColorProvider(Color.White.copy(alpha = 0.15f))),
                 contentAlignment = Alignment.Center
             ) {
-                Text("👤", style = TextStyle(color = ColorProvider(Color.White)))
+                Image(
+                    provider = ImageProvider(R.drawable.ic_reaccion_hola),
+                    contentDescription = null,
+                    modifier = GlanceModifier.size(24.dp)
+                )
             }
         }
     }

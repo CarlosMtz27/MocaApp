@@ -18,6 +18,18 @@ import com.cadev.mocaapp.core.model.TipoEvento
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * ESTA ES LA PANTALLA DE DETALLE DE UN EVENTO
+ * 
+ * Qué hace:
+ * Muestra toda la información de una cita o plan guardado: su categoría, 
+ * fecha exacta, descripción y si tiene activada una alarma. Si somos nosotros 
+ * quienes creamos el evento, también nos permite borrarlo o editarlo.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos que los eventos pasados se vean distintos (ej: con menos brillo), 
+ * debemos comparar la fecha del evento con la fecha actual en esta pantalla.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetalleEventoScreen(
@@ -31,16 +43,25 @@ fun DetalleEventoScreen(
     val context = LocalContext.current
     var mostrarConfirmarEliminar by remember { mutableStateOf(false) }
 
+    /**
+     * Se descarga la información completa del evento al entrar en la pantalla
+     */
     LaunchedEffect(eventoId) {
         viewModel.cargarEvento(eventoId)
     }
 
+    /**
+     * Si el evento se borra correctamente se vuelve de forma automática a la lista principal
+     */
     LaunchedEffect(uiState.eliminado) {
         if (uiState.eliminado) onRegresar()
     }
 
     val evento = uiState.eventoActual
 
+    /**
+     * Cuadro de diálogo para confirmar si el usuario realmente quiere borrar el plan
+     */
     if (mostrarConfirmarEliminar) {
         AlertDialog(
             onDismissRequest = { mostrarConfirmarEliminar = false },
@@ -72,6 +93,9 @@ fun DetalleEventoScreen(
                     }
                 },
                 actions = {
+                    /**
+                     * Opciones de edición y borrado visibles solo para el dueño del evento
+                     */
                     if (evento?.creadoPor == usuarioId) {
                         IconButton(onClick = { onEditar(eventoId) }) {
                             Icon(Icons.Filled.Edit, "Editar")
@@ -98,7 +122,7 @@ fun DetalleEventoScreen(
 
         val formatoEntrada = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val formatoLegible = SimpleDateFormat(
-            "EEEE d 'de' MMMM, yyyy", Locale("es", "MX")
+            "EEEE d 'de' MMMM, yyyy", Locale.forLanguageTag("es-MX")
         )
         val fechaLegible = try {
             formatoLegible.format(formatoEntrada.parse(evento.fecha)!!)
@@ -112,7 +136,9 @@ fun DetalleEventoScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header
+            /**
+             * Cabecera visual con el icono representativo y el título del plan
+             */
             Card(shape = RoundedCornerShape(20.dp)) {
                 Column(
                     modifier = Modifier
@@ -121,7 +147,12 @@ fun DetalleEventoScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(tipo.emoji, fontSize = 52.sp)
+                    Icon(
+                        imageVector = tipo.icono,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Text(
                         evento.titulo,
                         style = MaterialTheme.typography.headlineSmall,
@@ -135,7 +166,9 @@ fun DetalleEventoScreen(
                 }
             }
 
-            // Fecha y hora
+            /**
+             * Filas con la información detallada del evento
+             */
             InfoRow(
                 icon = { Icon(Icons.Filled.CalendarMonth, null) },
                 label = "Fecha",
@@ -147,7 +180,6 @@ fun DetalleEventoScreen(
                 valor = evento.hora
             )
 
-            // Descripción
             if (evento.descripcion.isNotBlank()) {
                 InfoRow(
                     icon = { Icon(Icons.Filled.Notes, null) },
@@ -156,7 +188,6 @@ fun DetalleEventoScreen(
                 )
             }
 
-            // Recordatorio
             if (evento.recordatorio) {
                 val opcion = RecordatorioOpcion.entries
                     .find { it.minutos == evento.minutosAntes }
@@ -170,6 +201,9 @@ fun DetalleEventoScreen(
     }
 }
 
+/**
+ * Función auxiliar para dibujar una fila con icono título y valor de forma elegante
+ */
 @Composable
 private fun InfoRow(
     icon: @Composable () -> Unit,

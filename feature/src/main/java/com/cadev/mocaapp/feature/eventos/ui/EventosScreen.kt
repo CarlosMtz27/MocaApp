@@ -20,11 +20,32 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import com.cadev.mocaapp.feature.eventos.domain.model.Evento
+import androidx.compose.ui.res.painterResource
 import com.cadev.mocaapp.core.model.TipoEvento
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * ESTA ES LA PANTALLA DEL LISTADO DE EVENTOS
+ * 
+ * Qué hace
+ * Muestra todos los planes compartidos de la pareja organizados en dos secciones: los que están 
+ * por venir y los que ya han pasado. Permite añadir nuevos planes y ver el detalle de cada uno.
+ */
+/**
+ * ESTA ES NUESTRA AGENDA DE PAREJA
+ * 
+ * Qué hace:
+ * Aquí mostramos todas las citas y planes que tenemos juntos. Dividimos la lista 
+ * en "Próximos" para lo que está por venir y "Pasados" para recordar lo que 
+ * ya hicimos.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos cambiar cómo se ven las tarjetas de las citas, debemos buscar 
+ * la función `TarjetaEvento` y ajustar sus colores o bordes.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EventosScreen(
@@ -35,15 +56,30 @@ fun EventosScreen(
     onRegresar: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
+    /**
+     * Se cargan todos los eventos de la relación al entrar en la pantalla
+     */
     LaunchedEffect(relacionId) {
-        viewModel.cargarEventos(relacionId)
+        viewModel.cargarEventos(context, relacionId)
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("📅 Eventos", fontWeight = FontWeight.Bold) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(id = com.cadev.mocaapp.feature.R.drawable.ic_reaccion_calendario),
+                            contentDescription = null,
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Eventos", fontWeight = FontWeight.Bold)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onRegresar) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Regresar")
@@ -70,13 +106,21 @@ fun EventosScreen(
         val proximos = viewModel.eventosProximos()
         val pasados  = viewModel.eventosPassados()
 
+        /**
+         * Muestra una pantalla vacía si no hay ninguna cita registrada
+         */
         if (proximos.isEmpty() && pasados.isEmpty()) {
             Column(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text("📅", fontSize = 56.sp)
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(56.dp),
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                )
                 Spacer(Modifier.height(16.dp))
                 Text(
                     "Sin eventos todavía",
@@ -100,6 +144,9 @@ fun EventosScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            /**
+             * Listado de las próximas citas con un indicador de cuántos días faltan
+             */
             if (proximos.isNotEmpty()) {
                 item {
                     Text(
@@ -118,6 +165,9 @@ fun EventosScreen(
                 }
             }
 
+            /**
+             * Listado de eventos antiguos que se muestran con un tono más claro
+             */
             if (pasados.isNotEmpty()) {
                 item {
                     Spacer(Modifier.height(8.dp))
@@ -141,6 +191,9 @@ fun EventosScreen(
     }
 }
 
+/**
+ * Función que crea la tarjeta visual de cada plan indicando su nombre fecha hora y días restantes
+ */
 @Composable
 fun TarjetaEvento(
     evento: Evento,
@@ -150,14 +203,15 @@ fun TarjetaEvento(
     val tipo = try { TipoEvento.valueOf(evento.tipo) } catch (e: Exception) { TipoEvento.OTRO }
     val alpha = if (pasado) 0.5f else 1f
 
-    // Formatear fecha legible
     val formatoEntrada  = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    val formatoLegible  = SimpleDateFormat("d 'de' MMMM, yyyy", Locale("es", "MX"))
+    val formatoLegible  = SimpleDateFormat("d 'de' MMMM, yyyy", Locale.forLanguageTag("es-MX"))
     val fechaLegible = try {
         formatoLegible.format(formatoEntrada.parse(evento.fecha)!!)
     } catch (e: Exception) { evento.fecha }
 
-    // Días restantes
+    /**
+     * Calcula la diferencia de tiempo entre el día de hoy y la fecha de la cita
+     */
     val diasRestantes = try {
         val hoy = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
@@ -182,7 +236,6 @@ fun TarjetaEvento(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icono tipo
             Box(
                 modifier = Modifier
                     .size(52.dp)
@@ -192,7 +245,12 @@ fun TarjetaEvento(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Text(tipo.emoji, fontSize = 26.sp)
+                Icon(
+                    imageVector = tipo.icono,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = alpha)
+                )
             }
 
             Column(modifier = Modifier.weight(1f)) {
@@ -219,7 +277,9 @@ fun TarjetaEvento(
                 }
             }
 
-            // Badge días restantes
+            /**
+             * Muestra un aviso de hoy mañana o el número de días que faltan para la cita
+             */
             if (!pasado) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     when {

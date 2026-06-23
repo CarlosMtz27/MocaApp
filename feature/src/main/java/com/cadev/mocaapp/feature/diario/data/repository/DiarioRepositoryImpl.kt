@@ -16,10 +16,26 @@ import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+/**
+ * EL MOTOR DEL DIARIO (FIREBASE Y CLOUDINARY)
+ * 
+ * Qué hace:
+ * Aquí escribimos la lógica real para que nuestros recuerdos se guarden en la nube. 
+ * Usamos Firestore para los textos y fechas, y Cloudinary para almacenar de 
+ * forma segura nuestras fotos y vídeos.
+ * 
+ * Cómo lo podemos modificar:
+ * Si decidimos cambiar el límite de fotos por recuerdo, debemos controlar esa 
+ * lógica dentro de la función `crearEntrada` o `actualizarEntrada`.
+ */
 class DiarioRepositoryImpl(
     private val firestore: FirebaseFirestore
 ) : DiarioRepository {
 
+    /**
+     * BUSCAR POR MES:
+     * Trae de Firestore todos los recuerdos que escribimos en un mes determinado.
+     */
     override suspend fun obtenerEntradasDelMes(
         usuarioId: String,
         anio: Int,
@@ -48,6 +64,11 @@ class DiarioRepositoryImpl(
         }
     }
 
+    /**
+     * BUSCAR POR DÍA:
+     * Descarga tanto nuestros recuerdos como los que nuestra pareja ha decidido 
+     * compartir con nosotros en una fecha concreta.
+     */
     override suspend fun obtenerEntradasDelDia(
         usuarioId: String,
         parejaId: String?,
@@ -88,6 +109,10 @@ class DiarioRepositoryImpl(
         }
     }
 
+    /**
+     * ÚLTIMA ACTIVIDAD:
+     * Trae los recuerdos más recientes para que podamos verlos rápidamente al abrir la app.
+     */
     override suspend fun obtenerUltimasEntradas(
         usuarioId: String,
         parejaId: String?,
@@ -128,6 +153,12 @@ class DiarioRepositoryImpl(
         }
     }
 
+    /**
+     * CREAR RECUERDO:
+     * 1. Sube las fotos y vídeos a Cloudinary.
+     * 2. Recibe los enlaces de internet.
+     * 3. Guarda el recuerdo completo en Firestore.
+     */
     override suspend fun crearEntrada(
         entrada: EntradaDiario,
         fotosLocales: List<String>,
@@ -160,6 +191,10 @@ class DiarioRepositoryImpl(
         }
     }
 
+    /**
+     * BUSCAR POR ID:
+     * Obtiene toda la información de un recuerdo específico de la base de datos.
+     */
     override suspend fun obtenerEntradaPorId(
         entradaId: String
     ): Result<EntradaDiario> {
@@ -179,6 +214,11 @@ class DiarioRepositoryImpl(
         }
     }
 
+    /**
+     * ACTUALIZAR:
+     * Modifica los textos de un recuerdo y gestiona la subida de nuevas fotos o el 
+     * borrado de las antiguas.
+     */
     override suspend fun actualizarEntrada(
         entrada: EntradaDiario,
         fotosNuevas: List<String>,
@@ -187,7 +227,7 @@ class DiarioRepositoryImpl(
         videosEliminar: List<String>
     ): Result<EntradaDiario> {
         return try {
-            // Eliminar archivos de Cloudinary
+            // Eliminamos los archivos de Cloudinary que ya no queremos
             fotosEliminar.forEach { url ->
                 try { eliminarArchivo(url) } catch (e: Exception) { }
             }
@@ -219,39 +259,52 @@ class DiarioRepositoryImpl(
         }
     }
 
+    /**
+     * DÍAS CON CONTENIDO:
+     * Revisa todo el mes para decirnos qué cuadraditos del calendario deben tener 
+     * color o una foto de miniatura.
+     */
     override suspend fun obtenerDiasConEntrada(
         usuarioId: String,
         parejaId: String?,
         anio: Int,
         mes: Int
-    ): Result<Map<String, List<String>>> {
+    ): Result<Map<String, com.cadev.mocaapp.feature.diario.domain.model.DiaCalendarioInfo>> {
         return try {
             val mesFormateado = mes.toString().padStart(2, '0')
             val prefijo = "$anio-$mesFormateado"
-            val diasConEntrada = mutableMapOf<String, MutableList<String>>()
+            val diasConEntrada = mutableMapOf<String, com.cadev.mocaapp.feature.diario.domain.model.DiaCalendarioInfo>()
 
-            //Solo un whereEqualTo — no requiere índice compuesto
-            firestore.collection("entradas")
+            val processDocs: (List<com.google.firebase.firestore.DocumentSnapshot>) -> Unit = { docs ->
+                docs.forEach { doc ->
+                    val fecha = doc.getString("fecha") ?: return@forEach
+                    if (!fecha.startsWith(prefijo)) return@forEach
+                    
+                    val tipo = doc.getString("tipo") ?: TipoEntrada.MI_DIA.name
+                    val autor = doc.getString("usuarioId") ?: ""
+                    val fotos = doc.get("fotos") as? List<*>
+                    val primeraFoto = fotos?.firstOrNull() as? String
+                    
+                    val infoActual = diasConEntrada[fecha] ?: com.cadev.mocaapp.feature.diario.domain.model.DiaCalendarioInfo()
+                    diasConEntrada[fecha] = infoActual.copy(
+                        tipos = (infoActual.tipos + tipo).distinct(),
+                        primeraFoto = infoActual.primeraFoto ?: primeraFoto,
+                        autores = infoActual.autores + autor
+                    )
+                }
+            }
+
+            val misDocs = firestore.collection("entradas")
                 .whereEqualTo("usuarioId", usuarioId)
                 .get().await()
-                .documents.forEach { doc ->
-                    val fecha = doc.getString("fecha") ?: return@forEach
-                    if (!fecha.startsWith(prefijo)) return@forEach  // filtro en memoria
-                    val tipo = doc.getString("tipo") ?: TipoEntrada.MI_DIA.name
-                    diasConEntrada.getOrPut(fecha) { mutableListOf() }.add(tipo)
-                }
+            processDocs(misDocs.documents)
 
             if (parejaId != null) {
-                firestore.collection("entradas")
+                val parejaDocs = firestore.collection("entradas")
                     .whereEqualTo("usuarioId", parejaId)
                     .whereEqualTo("compartida", true)
                     .get().await()
-                    .documents.forEach { doc ->
-                        val fecha = doc.getString("fecha") ?: return@forEach
-                        if (!fecha.startsWith(prefijo)) return@forEach
-                        val tipo = doc.getString("tipo") ?: TipoEntrada.MI_DIA.name
-                        diasConEntrada.getOrPut(fecha) { mutableListOf() }.add(tipo)
-                    }
+                processDocs(parejaDocs.documents)
             }
 
             Result.success(diasConEntrada)
@@ -260,11 +313,14 @@ class DiarioRepositoryImpl(
         }
     }
 
-    //Cloudinary: subir archivo
+    /**
+     * SUBIDA A LA NUBE (CLOUDINARY):
+     * Envía el archivo local (foto o vídeo) al servidor web de Cloudinary.
+     */
     private suspend fun subirArchivo(
         rutaLocal: String,
         usuarioId: String,
-        carpeta: String  // "fotos" o "videos"
+        carpeta: String 
     ): String = suspendCancellableCoroutine { continuation ->
 
         val resourceType = when (carpeta) {
@@ -307,23 +363,26 @@ class DiarioRepositoryImpl(
             })
             .dispatch()
 
-        // Si la coroutine se cancela, cancelamos el upload
         continuation.invokeOnCancellation {
             MediaManager.get().cancelRequest(requestId)
         }
     }
 
-    // Cloudinary: eliminar archivo
-
+    /**
+     * ELIMINAR ARCHIVO:
+     * Prepara el ID necesario para quitar una imagen de la nube.
+     */
     private fun eliminarArchivo(url: String) {
-        // Extraemos el public_id de la URL de Cloudinary
-        // URL ejemplo: https://res.cloudinary.com/cloud/image/upload/v123/entradas/uid/fotos/uuid.jpg
         val publicId = url
             .substringAfter("/upload/")
-            .substringAfter("/")  // quita la versión v123
-            .substringBeforeLast(".")  // quita la extensión
+            .substringAfter("/") 
+            .substringBeforeLast(".") 
     }
 
+    /**
+     * LISTA DE COMENTARIOS:
+     * Descarga todos los comentarios que ha recibido un recuerdo.
+     */
     override suspend fun obtenerComentarios(
         entradaId: String
     ): Result<List<Comentario>> {
@@ -336,7 +395,7 @@ class DiarioRepositoryImpl(
 
             val comentarios = snapshot.documents
                 .mapNotNull { it.toObject(Comentario::class.java) }
-                .sortedBy { it.creadoEn }  //Ordenamos en memoria
+                .sortedBy { it.creadoEn }
 
             Result.success(comentarios)
         } catch (e: Exception) {
@@ -344,6 +403,10 @@ class DiarioRepositoryImpl(
         }
     }
 
+    /**
+     * PUBLICAR COMENTARIO:
+     * Guarda en Firestore un nuevo mensaje de texto en un recuerdo.
+     */
     override suspend fun agregarComentario(
         comentario: Comentario
     ): Result<Comentario> {
@@ -363,6 +426,10 @@ class DiarioRepositoryImpl(
         }
     }
 
+    /**
+     * BORRAR COMENTARIO:
+     * Quita un mensaje de texto de la base de datos definitivamente.
+     */
     override suspend fun eliminarComentario(
         comentarioId: String
     ): Result<Unit> {

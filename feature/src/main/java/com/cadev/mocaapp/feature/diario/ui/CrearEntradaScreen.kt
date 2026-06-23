@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import com.cadev.mocaapp.core.model.TipoEvento
 import com.cadev.mocaapp.feature.diario.domain.model.Emocion
@@ -37,6 +38,18 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * ESTA ES LA PANTALLA PARA CREAR RECUERDOS
+ * 
+ * Qué hace:
+ * Aquí diseñamos el formulario para guardar lo que pasó en el día. Podemos escribir 
+ * textos, elegir cómo nos sentimos, añadir fotos o vídeos y decidir si queremos 
+ * compartir ese momento con nuestra pareja o guardarlo en privado.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos añadir un campo para "Gasto del día", debemos añadir un nuevo 
+ * `OutlinedTextField` siguiendo la estructura que ya tenemos para el título.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CrearEntradaScreen(
@@ -57,23 +70,25 @@ fun CrearEntradaScreen(
         TipoEntrada.MI_DIA
     }
 
-    // Formato de fecha legible
+    /**
+     * Se prepara la fecha seleccionada para que se lea fácilmente en la parte superior
+     */
     val formatoEntrada = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    val formatoVisible = SimpleDateFormat("EEEE d 'de' MMMM", Locale("es", "MX"))
+    val formatoVisible = SimpleDateFormat("EEEE d 'de' MMMM", Locale.forLanguageTag("es-MX"))
     val fechaVisible = try {
         formatoVisible.format(formatoEntrada.parse(fecha)!!)
             .replaceFirstChar { it.uppercase() }
     } catch (e: Exception) { fecha }
 
-    // URIs temporales para cámara y video
     var uriCameraTemp by remember { mutableStateOf<Uri?>(null) }
     var uriVideoTemp by remember { mutableStateOf<Uri?>(null) }
     var mostrarDialogoMedia by remember { mutableStateOf(false) }
 
-    // Acción pendiente hasta que se conceda el permiso
     var accionPendiente by remember { mutableStateOf<(() -> Unit)?>(null) }
 
-    // Función para crear URI temporal
+    /**
+     * Función interna para crear un archivo vacío donde guardar la foto o vídeo que se va a tomar
+     */
     fun crearUriTemporal(carpeta: String, extension: String): Uri {
         val dir = File(context.cacheDir, carpeta).also { it.mkdirs() }
         val archivo = File(dir, "${UUID.randomUUID()}.$extension")
@@ -84,7 +99,9 @@ fun CrearEntradaScreen(
         )
     }
 
-    // Launchers
+    /**
+     * Gestor para pedir permiso de uso de la cámara al usuario
+     */
     val launcherPermisoCamara = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { concedido ->
@@ -94,17 +111,26 @@ fun CrearEntradaScreen(
         accionPendiente = null
     }
 
+    /**
+     * Función que solicita el permiso de cámara antes de realizar cualquier acción que la necesite
+     */
     fun pedirPermisoYEjecutar(accion: () -> Unit) {
         accionPendiente = accion
         launcherPermisoCamara.launch(android.Manifest.permission.CAMERA)
     }
 
+    /**
+     * Lanzador para abrir la galería y elegir varias fotos a la vez
+     */
     val launcherGaleria = rememberLauncherForActivityResult(
         ActivityResultContracts.GetMultipleContents()
     ) { uris ->
         uris.forEach { uri -> viewModel.agregarFoto(uri.toString()) }
     }
 
+    /**
+     * Lanzador para abrir la cámara de fotos y capturar una imagen nueva
+     */
     val launcherCamara = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { exito ->
@@ -113,6 +139,9 @@ fun CrearEntradaScreen(
         }
     }
 
+    /**
+     * Lanzador para abrir la cámara de vídeo y grabar un clip nuevo
+     */
     val launcherVideo = rememberLauncherForActivityResult(
         ActivityResultContracts.CaptureVideo()
     ) { exito ->
@@ -121,6 +150,9 @@ fun CrearEntradaScreen(
         }
     }
 
+    /**
+     * Al entrar se limpia el formulario y se activa compartir por defecto si es un recuerdo
+     */
     LaunchedEffect(Unit) {
         viewModel.limpiarFormulario()
         if (tipoEntrada == TipoEntrada.RECUERDO && parejaId != null) {
@@ -128,10 +160,16 @@ fun CrearEntradaScreen(
         }
     }
 
+    /**
+     * Si la información se guarda correctamente se avisa para volver atrás
+     */
     LaunchedEffect(uiState.entradaCreada) {
         if (uiState.entradaCreada) onEntradaGuardada()
     }
 
+    /**
+     * Cuadro de diálogo para elegir entre usar la cámara o buscar en la galería
+     */
     if (mostrarDialogoMedia) {
         AlertDialog(
             onDismissRequest = { mostrarDialogoMedia = false },
@@ -207,10 +245,18 @@ fun CrearEntradaScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(
-                            text = "${tipoEntrada.emoji} ${tipoEntrada.etiqueta}",
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = tipoEntrada.icono,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = tipoEntrada.etiqueta,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
                         Text(
                             text = fechaVisible,
                             style = MaterialTheme.typography.labelSmall,
@@ -224,6 +270,9 @@ fun CrearEntradaScreen(
                     }
                 },
                 actions = {
+                    /**
+                     * Botón de confirmación para guardar el recuerdo en la nube
+                     */
                     IconButton(
                         onClick = { viewModel.guardarEntrada(usuarioId, parejaId, fecha, tipo) },
                         enabled = !uiState.cargando
@@ -246,7 +295,9 @@ fun CrearEntradaScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Etiquetas (Solo si es RECUERDO)
+            /**
+             * Listado de temas o categorías solo para la opción de recuerdos
+             */
             if (tipoEntrada == TipoEntrada.RECUERDO) {
                 SeccionEtiquetas(
                     etiquetaSeleccionada = uiState.etiqueta,
@@ -256,6 +307,9 @@ fun CrearEntradaScreen(
                 )
             }
 
+            /**
+             * Cuadro de texto para el título principal del recuerdo
+             */
             OutlinedTextField(
                 value = uiState.titulo,
                 onValueChange = { viewModel.actualizarTitulo(it) },
@@ -271,11 +325,17 @@ fun CrearEntradaScreen(
                 singleLine = true
             )
 
+            /**
+             * Selector de dibujos que representan el estado de ánimo
+             */
             SeccionEmociones(
                 emocionesSeleccionadas = uiState.emocionesSeleccionadas,
                 onToggle = { viewModel.toggleEmocion(it) }
             )
 
+            /**
+             * Cuadro de texto grande para escribir los detalles o la historia del día
+             */
             OutlinedTextField(
                 value = uiState.detalles,
                 onValueChange = { viewModel.actualizarDetalles(it) },
@@ -284,6 +344,9 @@ fun CrearEntradaScreen(
                 maxLines = 8
             )
 
+            /**
+             * Vista previa de las fotos y vídeos que se van a subir
+             */
             SeccionMedia(
                 fotos = uiState.fotosSeleccionadas,
                 videos = uiState.videosSeleccionados,
@@ -292,6 +355,9 @@ fun CrearEntradaScreen(
                 onEliminarVideo = { viewModel.eliminarVideo(it) }
             )
 
+            /**
+             * Interruptor para elegir si la pareja puede ver este recuerdo o no
+             */
             if (parejaId != null) {
                 Row(
                     modifier = Modifier
@@ -304,7 +370,16 @@ fun CrearEntradaScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("💕 Compartir con mi pareja", style = MaterialTheme.typography.titleMedium)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                painter = painterResource(id = com.cadev.mocaapp.feature.R.drawable.ic_corazon),
+                                contentDescription = null,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Compartir con mi pareja", style = MaterialTheme.typography.titleMedium)
+                        }
                         Text(
                             text = if (uiState.compartir) "Tu pareja podrá ver esto" else "Solo tú puedes verlo",
                             style = MaterialTheme.typography.bodySmall,
@@ -315,6 +390,9 @@ fun CrearEntradaScreen(
                 }
             }
 
+            /**
+             * Mensaje de aviso si falta algún dato por completar
+             */
             if (uiState.error != null) {
                 Text(
                     text = uiState.error!!,
@@ -329,6 +407,9 @@ fun CrearEntradaScreen(
     }
 }
 
+/**
+ * Función que dibuja las categorías disponibles para clasificar el recuerdo
+ */
 @Composable
 private fun SeccionEtiquetas(
     etiquetaSeleccionada: String,
@@ -359,8 +440,13 @@ private fun SeccionEtiquetas(
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = tipo.emoji, fontSize = 14.sp)
-                            Spacer(Modifier.width(4.dp))
+                            Icon(
+                                imageVector = tipo.icono,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = if (seleccionada) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.width(6.dp))
                             Text(
                                 text = tipo.etiqueta,
                                 style = MaterialTheme.typography.bodySmall,
@@ -386,6 +472,9 @@ private fun SeccionEtiquetas(
     }
 }
 
+/**
+ * Función que muestra los iconos de emociones para que el usuario elija cómo se siente
+ */
 @Composable
 private fun SeccionEmociones(
     emocionesSeleccionadas: List<Emocion>,
@@ -412,7 +501,12 @@ private fun SeccionEmociones(
                                 .padding(8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(text = emocion.emoji, fontSize = 22.sp)
+                            Icon(
+                                painter = painterResource(id = emocion.iconRes),
+                                contentDescription = null,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(32.dp)
+                            )
                             Text(
                                 text = emocion.etiqueta,
                                 style = MaterialTheme.typography.labelSmall,
@@ -428,6 +522,9 @@ private fun SeccionEmociones(
     }
 }
 
+/**
+ * Función que organiza y muestra las imágenes y vídeos seleccionados antes de guardarlos
+ */
 @Composable
 private fun SeccionMedia(
     fotos: List<String>,
@@ -460,11 +557,19 @@ private fun SeccionMedia(
                     .clickable(onClick = onAgregarMedia),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "📷 Toca para agregar fotos o videos",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.PhotoCamera,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "Toca para agregar fotos o videos",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
             }
         } else {
             val todosLosArchivos = fotos.map { Pair(it, false) } + videos.map { Pair(it, true) }
@@ -482,6 +587,9 @@ private fun SeccionMedia(
                                     Icon(Icons.Outlined.Videocam, "Video", tint = Color.White, modifier = Modifier.size(28.dp))
                                 }
                             }
+                            /**
+                             * Botón para quitar un archivo de la lista antes de subirlo
+                             */
                             IconButton(
                                 onClick = { if (esVideo) onEliminarVideo(uri) else onEliminarFoto(uri) },
                                 modifier = Modifier.align(Alignment.TopEnd).size(28.dp).background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50.dp))

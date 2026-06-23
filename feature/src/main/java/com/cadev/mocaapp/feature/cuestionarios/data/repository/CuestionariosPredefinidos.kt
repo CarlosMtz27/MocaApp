@@ -2,8 +2,19 @@ package com.cadev.mocaapp.feature.cuestionarios.data.repository
 
 import com.cadev.mocaapp.feature.cuestionarios.domain.model.*
 
+/**
+ * LISTA DE TESTS INICIALES
+ * 
+ * Qué hace:
+ * Aquí escribimos los cuestionarios que ya vienen listos en la app para que la pareja 
+ * pueda empezar a jugar desde el primer minuto sin tener que crear nada.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos añadir un test nuevo de fábrica, debemos crear un objeto `Cuestionario` 
+ * nuevo dentro de la lista `listOf(...)` de abajo.
+ */
 fun cuestionariosPredefinidos(): List<Cuestionario> = listOf(
-
+    // TEST 1: Básicos de la relación
     Cuestionario(
         id = "compatibilidad_basica",
         titulo = "¿Qué tanto nos conocemos?",
@@ -51,6 +62,7 @@ fun cuestionariosPredefinidos(): List<Cuestionario> = listOf(
         )
     ),
 
+    // TEST 2: Sueños y planes
     Cuestionario(
         id = "futuro_juntos",
         titulo = "Nuestro futuro",
@@ -88,9 +100,10 @@ fun cuestionariosPredefinidos(): List<Cuestionario> = listOf(
         )
     ),
 
+    // TEST 3: Humor y gustos
     Cuestionario(
         id = "divertido_trivial",
-        titulo = "¿Me conoces bien? 😄",
+        titulo = "¿Me conoces bien?",
         descripcion = "Preguntas divertidas para reírse juntos.",
         categoria = CategoriaCuestionario.DIVERTIDO.name,
         creadoPor = "sistema",

@@ -12,26 +12,46 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+/**
+ * ESTADO DE LOS TESTS Y CUESTIONARIOS
+ * 
+ * Qué hace:
+ * Almacena la lista de tests disponibles, el historial de los completados y el estado 
+ * de cada uno (si falta por responder o si ya están los resultados). También guarda 
+ * las respuestas temporales mientras el usuario está realizando un test.
+ */
 data class CuestionarioUiState(
-    val cargando: Boolean = false,
-    val cuestionarios: List<Cuestionario> = emptyList(),
-    val historial: List<Cuestionario> = emptyList(),
-    val estadosCuestionarios: Map<String, EstadoCuestionario> = emptyMap(),
-    val cuestionarioActual: Cuestionario? = null,
-    val preguntaActual: Int = 0,
-    val respuestas: Map<String, String> = emptyMap(),
-    val respuestasFoto: Map<String, String> = emptyMap(),
-    val subiendoFoto: Boolean = false,
-    val enviando: Boolean = false,
-    val completado: Boolean = false,
-    val resultado: ResultadoCuestionario? = null,
-    val respuestasPareja: Map<String, String> = emptyMap(),
-    val respuestasFotoPareja: Map<String, String> = emptyMap(),
-    val error: String? = null,
-    val creando: Boolean = false,
-    val creadoExitoso: Boolean = false
+    val cargando: Boolean = false,                      // Si estamos descargando datos
+    val cuestionarios: List<Cuestionario> = emptyList(),// Todos los tests que podemos hacer
+    val historial: List<Cuestionario> = emptyList(),    // Los tests que ya terminamos
+    val estadosCuestionarios: Map<String, EstadoCuestionario> = emptyMap(), // Quién respondió qué
+    val cuestionarioActual: Cuestionario? = null,       // El test que estamos haciendo ahora
+    val preguntaActual: Int = 0,                        // En qué número de pregunta vamos
+    val respuestas: Map<String, String> = emptyMap(),   // Lo que vamos contestando
+    val respuestasFoto: Map<String, String> = emptyMap(),// Las fotos que subimos como respuesta
+    val subiendoFoto: Boolean = false,                  // Si una imagen se está enviando a la nube
+    val enviando: Boolean = false,                      // Si estamos guardando todo el test
+    val completado: Boolean = false,                    // Si ya terminamos de responder
+    val resultado: ResultadoCuestionario? = null,       // Los puntos y match final
+    val respuestasPareja: Map<String, String> = emptyMap(),    // Lo que contestó nuestro novio/a
+    val respuestasFotoPareja: Map<String, String> = emptyMap(),// Las fotos que subió nuestro novio/a
+    val error: String? = null,                          // Mensaje si algo sale mal
+    val creando: Boolean = false,                       // Si estamos inventando un test nuevo
+    val creadoExitoso: Boolean = false                  // Si el nuevo test se guardó bien
 )
 
+/**
+ * GESTOR DE TESTS DE PAREJA
+ * 
+ * Qué hace:
+ * Aquí controlamos todas las dinámicas para que la pareja se conozca mejor. Nos 
+ * encargamos de cargar los tests, guardar las respuestas, subir las fotos 
+ * y calcular automáticamente el nivel de compatibilidad.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos que los resultados se muestren con una animación especial, debemos 
+ * avisar a la pantalla cambiando una variable aquí cuando `enviarRespuestas` sea exitoso.
+ */
 class CuestionarioViewModel(
     private val repository: CuestionarioRepository,
     private val notificacionRepository: NotificacionRepository
@@ -40,6 +60,9 @@ class CuestionarioViewModel(
     private val _uiState = MutableStateFlow(CuestionarioUiState())
     val uiState: StateFlow<CuestionarioUiState> = _uiState.asStateFlow()
 
+    /**
+     * Descarga todos los cuestionarios disponibles y el historial de los ya terminados
+     */
     fun cargarCuestionarios(relacionId: String, usuarioId: String, parejaId: String) {
         if (_uiState.value.cuestionarios.isNotEmpty()) return
         viewModelScope.launch {
@@ -74,6 +97,9 @@ class CuestionarioViewModel(
         }
     }
 
+    /**
+     * Refresca el estado de los tests para saber si la pareja ha respondido alguno recientemente
+     */
     fun refrescarEstados(usuarioId: String, parejaId: String) {
         val lista = _uiState.value.cuestionarios
         if (lista.isEmpty()) return
@@ -87,6 +113,9 @@ class CuestionarioViewModel(
         }
     }
 
+    /**
+     * Prepara un test para empezar a ser respondido reiniciando las variables temporales
+     */
     fun iniciarCuestionario(cuestionarioId: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(cargando = true)
@@ -112,12 +141,18 @@ class CuestionarioViewModel(
         }
     }
 
+    /**
+     * Guarda la respuesta del usuario para una pregunta concreta en la memoria temporal
+     */
     fun responderPregunta(preguntaId: String, valor: String) {
         val map = _uiState.value.respuestas.toMutableMap()
         map[preguntaId] = valor
         _uiState.value = _uiState.value.copy(respuestas = map)
     }
 
+    /**
+     * Sube una imagen de respuesta y la asocia a una pregunta del test
+     */
     fun subirFotoRespuesta(preguntaId: String, rutaLocal: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(subiendoFoto = true)
@@ -143,17 +178,26 @@ class CuestionarioViewModel(
         }
     }
 
+    /**
+     * Avanza a la siguiente pregunta del cuestionario
+     */
     fun siguientePregunta() {
         val total = _uiState.value.cuestionarioActual?.preguntas?.size ?: 0
         val actual = _uiState.value.preguntaActual
         if (actual < total - 1) _uiState.value = _uiState.value.copy(preguntaActual = actual + 1)
     }
 
+    /**
+     * Retrocede a la pregunta anterior por si el usuario quiere cambiar su respuesta
+     */
     fun preguntaAnterior() {
         val actual = _uiState.value.preguntaActual
         if (actual > 0) _uiState.value = _uiState.value.copy(preguntaActual = actual - 1)
     }
 
+    /**
+     * Envía todas las respuestas finales a la base de datos y avisa a la pareja
+     */
     fun enviarRespuestas(usuarioId: String, parejaId: String, relacionId: String) {
         val cuestionario = _uiState.value.cuestionarioActual ?: return
         viewModelScope.launch {
@@ -169,13 +213,14 @@ class CuestionarioViewModel(
                         cuestionario.id, usuarioId, parejaId
                     ).getOrDefault(EstadoCuestionario.YO_RESPONDÍ)
 
-                    // Actualizar estado local inmediatamente
                     val estadosActualizados = _uiState.value.estadosCuestionarios.toMutableMap()
                     estadosActualizados[cuestionario.id] = estado
                     _uiState.value = _uiState.value.copy(estadosCuestionarios = estadosActualizados)
 
+                    /**
+                     * Si ambos han terminado se calculan los resultados y se notifica a los dos
+                     */
                     if (estado == EstadoCuestionario.AMBOS) {
-                        // Ambos respondieron → calcular y notificar a los dos
                         repository.calcularResultado(
                             cuestionario.id, relacionId, usuarioId, parejaId
                         ).fold(
@@ -185,28 +230,28 @@ class CuestionarioViewModel(
                             onFailure = { }
                         )
                         val deepLink = "resultados_cuestionario/${cuestionario.id}"
-                        // Notificar pareja
                         launch {
                             notificacionRepository.incrementarBadge(parejaId, "cuestionarios")
                             notificacionRepository.enviarPush(
                                 parejaId = parejaId,
-                                titulo   = "📋 ¡Resultados listos!",
+                                titulo   = "¡Resultados listos!",
                                 cuerpo   = "Ya puedes ver los resultados de \"${cuestionario.titulo}\"",
                                 deepLink = deepLink,
                                 tipo     = "cuestionario"
                             )
                         }
-                        // Notificar al propio usuario también
                         launch {
                             notificacionRepository.incrementarBadge(usuarioId, "cuestionarios")
                         }
                     } else {
-                        // Solo yo respondí → avisar a la pareja que está esperando
+                        /**
+                         * Si solo el usuario ha respondido se avisa a la pareja para que también lo haga
+                         */
                         launch {
                             notificacionRepository.incrementarBadge(parejaId, "cuestionarios")
                             notificacionRepository.enviarPush(
                                 parejaId = parejaId,
-                                titulo   = "📋 ¡Tu pareja ya respondió!",
+                                titulo   = "¡Tu pareja ya respondió!",
                                 cuerpo   = "Es tu turno de responder \"${cuestionario.titulo}\"",
                                 deepLink = "responder_cuestionario/${cuestionario.id}",
                                 tipo     = "cuestionario"
@@ -226,6 +271,9 @@ class CuestionarioViewModel(
         }
     }
 
+    /**
+     * Carga las respuestas de ambos y la comparación final para mostrarla en pantalla
+     */
     fun cargarResultado(cuestionarioId: String, usuarioId: String, parejaId: String) {
         viewModelScope.launch {
             launch {
@@ -273,7 +321,9 @@ class CuestionarioViewModel(
         }
     }
 
-    // ← parejaId agregado para notificar al crear
+    /**
+     * Permite al usuario crear un nuevo test personalizado con sus propias preguntas
+     */
     fun crearCuestionario(cuestionario: Cuestionario, parejaId: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(creando = true)
@@ -284,12 +334,14 @@ class CuestionarioViewModel(
                         creadoExitoso = true,
                         cuestionarios = emptyList()
                     )
-                    // ← Notificar pareja que hay un nuevo cuestionario
+                    /**
+                     * Se envía un aviso a la pareja invitándola a responder el test recién creado
+                     */
                     launch {
                         notificacionRepository.incrementarBadge(parejaId, "cuestionarios")
                         notificacionRepository.enviarPush(
                             parejaId = parejaId,
-                            titulo   = "📋 Nuevo cuestionario",
+                            titulo   = "Nuevo cuestionario",
                             cuerpo   = "Tu pareja creó \"${cuestionario.titulo}\". ¡Respóndelo!",
                             deepLink = "responder_cuestionario/${nuevo.id}",
                             tipo     = "cuestionario"
@@ -306,6 +358,9 @@ class CuestionarioViewModel(
         }
     }
 
+    /**
+     * Sube una imagen decorativa para una pregunta que se está creando
+     */
     fun subirFotoPregunta(rutaLocal: String, onUrl: (String) -> Unit) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(subiendoFoto = true)
@@ -324,14 +379,23 @@ class CuestionarioViewModel(
         }
     }
 
+    /**
+     * Asegura que siempre existan unos tests básicos de ejemplo en la aplicación
+     */
     fun poblarPredefinidos() {
         viewModelScope.launch { repository.poblarPredefinidos() }
     }
 
+    /**
+     * Quita el mensaje de error de la pantalla de cuestionarios
+     */
     fun limpiarError() {
         _uiState.value = _uiState.value.copy(error = null)
     }
 
+    /**
+     * Reinicia el estado de éxito después de haber creado un test nuevo
+     */
     fun resetearCreacion() {
         _uiState.value = _uiState.value.copy(creadoExitoso = false)
     }

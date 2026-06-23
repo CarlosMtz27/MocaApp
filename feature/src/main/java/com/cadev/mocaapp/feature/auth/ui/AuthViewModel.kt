@@ -7,7 +7,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-// Estado de la pantalla — todo lo que la UI necesita saber
+/**
+ * ESTE ES EL GESTOR DE IDENTIFICACIÓN
+ * 
+ * Qué hace:
+ * Aquí controlamos todo lo relacionado con entrar en la aplicación o crear una cuenta nueva. 
+ * Nos comunicamos con el almacén de datos para comprobar si todo es correcto y avisamos a la pantalla.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos añadir una validación extra (ej: que el nombre sea largo), debemos hacerlo dentro de la 
+ * función `registrar` antes de lanzar la petición al servidor.
+ */
 data class AuthUiState(
     val cargando: Boolean = false,
     val error: String? = null,
@@ -18,20 +28,27 @@ class AuthViewModel(
     private val repository: AuthRepository
 ) : ViewModel() {
 
-    // StateFlow es como una variable que la UI puede "observar"
-    // Cuando cambia, la pantalla se redibuja automáticamente
+    /**
+     * Esta variable guarda el estado actual de la pantalla y avisa cuando algo cambia
+     */
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
+    /**
+     * Esta función sirve para que un usuario entre en su cuenta usando su correo y clave
+     */
     fun login(email: String, password: String) {
-        // Validaciones básicas antes de llamar a Firebase
+        /**
+         * Se comprueba que no haya dejado ningún campo vacío antes de continuar
+         */
         if (email.isBlank() || password.isBlank()) {
             _uiState.value = AuthUiState(error = "Completa todos los campos")
             return
         }
 
-        // viewModelScope: el trabajo se cancela si el usuario
-        // sale de la pantalla, evita memory leaks
+        /**
+         * Se inicia la petición de entrada de forma segura
+         */
         viewModelScope.launch {
             _uiState.value = AuthUiState(cargando = true)
 
@@ -39,9 +56,15 @@ class AuthViewModel(
 
             resultado.fold(
                 onSuccess = {
+                    /**
+                     * Si los datos son correctos se marca como exitoso
+                     */
                     _uiState.value = AuthUiState(exitoso = true)
                 },
                 onFailure = { error ->
+                    /**
+                     * Si algo falla se traduce el mensaje técnico a uno que se entienda bien
+                     */
                     _uiState.value = AuthUiState(
                         error = traducirError(error.message ?: "Error desconocido")
                     )
@@ -50,11 +73,20 @@ class AuthViewModel(
         }
     }
 
+    /**
+     * Esta función permite crear una cuenta nueva con nombre correo y contraseña
+     */
     fun registrar(email: String, password: String, nombre: String) {
+        /**
+         * Se verifica que todos los datos necesarios estén escritos
+         */
         if (email.isBlank() || password.isBlank() || nombre.isBlank()) {
             _uiState.value = AuthUiState(error = "Completa todos los campos")
             return
         }
+        /**
+         * Por seguridad se exige que la contraseña tenga una longitud mínima
+         */
         if (password.length < 6) {
             _uiState.value = AuthUiState(error = "La contraseña debe tener al menos 6 caracteres")
             return
@@ -78,11 +110,9 @@ class AuthViewModel(
         }
     }
 
-    fun limpiarError() {
-        _uiState.value = _uiState.value.copy(error = null)
-    }
-
-    // Traduce los errores técnicos de Firebase a mensajes amigables
+    /**
+     * Esta función convierte los mensajes de error técnicos en frases sencillas
+     */
     private fun traducirError(mensaje: String): String = when {
         "email address is already in use" in mensaje ->
             "Este correo ya está registrado"
@@ -93,9 +123,12 @@ class AuthViewModel(
             "El formato del correo no es válido"
         "network error" in mensaje ->
             "Sin conexión a internet"
-        else -> "Ocurrió un error, intenta de nuevo"
+        else -> "Ocurrió un error intenta de nuevo"
     }
 
+    /**
+     * Esta función reinicia el estado para que no aparezcan errores de intentos anteriores
+     */
     fun limpiarEstado() {
         _uiState.value = AuthUiState()
     }

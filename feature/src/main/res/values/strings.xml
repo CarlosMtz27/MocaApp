@@ -1,15 +1,24 @@
 <resources>
+    <!-- Nombres de Widgets (Pestaña de selección) -->
+    <string name="widget_nota_label">Post-it de Amor</string>
+    <string name="widget_dias_1_label">Contador de Días</string>
+    <string name="widget_distancia_label">Siempre Cerca</string>
+    <string name="widget_estado_label">Mi Sentimiento</string>
+    <string name="widget_eventos_label">Próxima Cita</string>
+    <string name="widget_dias_1x1_label">Días (Mini)</string>
+
     <!-- Descripciones de Widgets -->
-    <string name="widget_nota_desc">Un post-it compartido para dejarle mensajes a tu pareja.</string>
-    <string name="widget_dias_1_desc">Contador minimalista de los días que llevan juntos.</string>
-    <string name="widget_dias_2_desc">Contador detallado con la historia de su relación.</string>
-    <string name="widget_distancia_desc">Muestra la distancia en tiempo real entre tú y tu pareja.</string>
-    <string name="widget_estado_animo_desc">Comparte cómo te sientes hoy con un emoji.</string>
+    <string name="widget_nota_desc">Un pequeño rincón para los mensajes dulces que se dejan cada día.</string>
+    <string name="widget_dias_1_desc">El contador minimalista de los días que llevan construyendo algo increíble juntos.</string>
+    <string name="widget_distancia_desc">Para saber a cuántos kilómetros están de volvernos a abrazar en tiempo real.</string>
+    <string name="widget_estado_animo_desc">Comparte cómo te sientes hoy para que tu pareja pueda acompañarte siempre.</string>
+    <string name="widget_eventos_desc">No te olvides de vuestros planes románticos. Tu próxima cita siempre a la vista.</string>
+    <string name="widget_dias_1x1_desc">Un pequeño corazón con tus días de relación.</string>
 
     <!-- Versiones Transparentes -->
-    <string name="widget_nota_trans_label">Nota (Transparente)</string>
-    <string name="widget_dias_1_trans_label">Días 1 (Transparente)</string>
-    <string name="widget_dias_2_trans_label">Días 2 (Transparente)</string>
-    <string name="widget_distancia_trans_label">Distancia (Transparente)</string>
-    <string name="widget_estado_animo_trans_label">Estado (Transparente)</string>
+    <string name="widget_nota_trans_label">Post-it (Minimalista)</string>
+    <string name="widget_dias_1_trans_label">Días (Minimalista)</string>
+    <string name="widget_distancia_trans_label">Distancia (Minimalista)</string>
+    <string name="widget_estado_animo_trans_label">Sentimiento (Minimalista)</string>
+    <string name="widget_eventos_trans_label">Citas (Minimalista)</string>
 </resources>

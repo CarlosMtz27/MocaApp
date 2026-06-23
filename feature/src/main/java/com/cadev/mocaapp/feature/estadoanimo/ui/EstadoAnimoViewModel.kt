@@ -8,6 +8,8 @@ import com.cadev.mocaapp.feature.estadoanimo.domain.repository.EstadoAnimoReposi
 import com.cadev.mocaapp.feature.notificaciones.data.NotificacionRepository
 import com.cadev.mocaapp.feature.widgets.estadoanimo.EstadoAnimoWidget
 import com.cadev.mocaapp.feature.widgets.estadoanimo.EstadoAnimoWidgetDataStore
+import com.cadev.mocaapp.feature.widgets.estadoanimo.EstadoAnimoWidgetTransparent
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,14 +30,33 @@ class EstadoAnimoViewModel(
     private val _uiState = MutableStateFlow(EstadoAnimoUiState())
     val uiState: StateFlow<EstadoAnimoUiState> = _uiState.asStateFlow()
 
-    fun cargarEstados(relacionId: String, uidPropio: String, nombrePareja: String) {
+    private var jobEstados: Job? = null
+
+    fun cargarEstados(context: Context, relacionId: String, uidPropio: String, nombrePareja: String) {
+        if (relacionId.isBlank()) return
+        
         _uiState.value = _uiState.value.copy(nombrePareja = nombrePareja)
-        viewModelScope.launch {
+        jobEstados?.cancel()
+        
+        jobEstados = viewModelScope.launch {
             repository.escucharEstados(relacionId, uidPropio).collect { (propio, pareja) ->
                 _uiState.value = _uiState.value.copy(
                     emojiPropio = propio?.emoji ?: "",
                     emojiPareja = pareja?.emoji ?: ""
                 )
+                
+                // Forzamos actualización de widgets locales con los nuevos datos
+                try {
+                    EstadoAnimoWidgetDataStore.guardar(
+                        context, 
+                        propio, 
+                        "Yo", 
+                        pareja, 
+                        nombrePareja
+                    )
+                    EstadoAnimoWidget().updateAll(context)
+                    EstadoAnimoWidgetTransparent().updateAll(context)
+                } catch (e: Exception) { }
             }
         }
     }
@@ -53,27 +74,21 @@ class EstadoAnimoViewModel(
             try {
                 repository.actualizarEstado(relacionId, uid, emoji)
                 
-                // Actualizar DataStore local para el widget
+                // Actualización local inmediata
                 val estados = repository.obtenerEstados(relacionId, uid)
-                EstadoAnimoWidgetDataStore.guardar(
-                    context, 
-                    estados.first, 
-                    nombreUsuario, 
-                    estados.second, 
-                    _uiState.value.nombrePareja
-                )
-                
-                // Refrescar widget
+                EstadoAnimoWidgetDataStore.guardar(context, estados.first, nombreUsuario, estados.second, _uiState.value.nombrePareja)
                 EstadoAnimoWidget().updateAll(context)
+                EstadoAnimoWidgetTransparent().updateAll(context)
                 
-                // Notificar a la pareja
+                // Enviamos push con el ID de la relación para que el otro móvil sincronice
                 notificacionRepository.incrementarBadge(parejaId, "estadoAnimo")
                 notificacionRepository.enviarPush(
                     parejaId = parejaId,
-                    titulo = "😊 $nombreUsuario cambió su estado",
-                    cuerpo = emoji,
-                    deepLink = "main/estado_animo",
-                    tipo = "estado_animo"
+                    titulo = "$nombreUsuario cambió su estado",
+                    cuerpo = "Entra para ver cómo se siente",
+                    deepLink = "main/home",
+                    tipo = "estado_animo",
+                    extraData = mapOf("relacionId" to relacionId)
                 )
             } catch (e: Exception) {
                 e.printStackTrace()

@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import com.cadev.mocaapp.core.ui.NavRoutes
 import com.cadev.mocaapp.core.utils.ThemeManager
@@ -38,14 +40,33 @@ import com.cadev.mocaapp.feature.cuestionarios.ui.CuestionarioViewModel
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
 import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
 import com.cadev.mocaapp.feature.eventos.ui.EventoViewModel
+import com.cadev.mocaapp.feature.estadoanimo.domain.model.MAPA_MOODS
 import com.cadev.mocaapp.feature.notas.ui.NotaViewModel
 import com.cadev.mocaapp.feature.perfil.ui.PerfilViewModel
+import com.cadev.mocaapp.feature.pareja.ui.ParejaViewModel
+import com.cadev.mocaapp.feature.pareja.ui.ParejaUiState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.LocalClipboardManager
 import com.cadev.mocaapp.feature.estadoanimo.ui.EstadoAnimoViewModel
 import com.cadev.mocaapp.feature.estadoanimo.ui.EstadoAnimoScreen
 import com.cadev.mocaapp.core.model.TipoEvento
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * NUESTRA PANTALLA DE INICIO
+ * 
+ * Qué hace:
+ * Es el centro de mando de nuestra aplicación. Aquí mostramos un resumen de todo 
+ * lo importante: cuántos días llevamos juntos, cómo nos sentimos hoy ambos, 
+ * nuestras próximas citas y los últimos recuerdos que guardamos.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     perfilViewModel: PerfilViewModel,
@@ -54,21 +75,50 @@ fun HomeScreen(
     cuestionarioViewModel: CuestionarioViewModel,
     notaViewModel: NotaViewModel,
     estadoAnimoViewModel: EstadoAnimoViewModel,
+    parejaViewModel: ParejaViewModel,
     onNavigateToTab: (String) -> Unit,
-    onNavigateToScreen: (String) -> Unit
+    onNavigateToScreen: (String) -> Unit,
+    onIrAVincular: () -> Unit,
+    onVinculado: (String) -> Unit
 ) {
     val perfilState by perfilViewModel.uiState.collectAsState()
     val diarioState by diarioViewModel.uiState.collectAsState()
     val cuestionarioState by cuestionarioViewModel.uiState.collectAsState()
     val notaState by notaViewModel.uiState.collectAsState()
     val estadoAnimoState by estadoAnimoViewModel.uiState.collectAsState()
+    val parejaState by parejaViewModel.uiState.collectAsState()
 
     var showMoodSelector by remember { mutableStateOf(false) }
     var visible by remember { mutableStateOf(false) }
+    
+    // SISTEMA DE ACTUALIZACIÓN (PULL-TO-REFRESH)
+    var isRefreshing by remember { mutableStateOf(false) }
+    val refreshState = rememberPullToRefreshState()
+    val coroutineScope = rememberCoroutineScope()
 
     val usuario = perfilState.usuario
     val pareja = perfilState.pareja
-    val tienePareja = pareja != null
+    val context = LocalContext.current
+
+    /**
+     * FUNCIÓN PARA ACTUALIZAR TODO MANUALMENTE
+     */
+    val onRefresh = {
+        isRefreshing = true
+        coroutineScope.launch {
+            if (usuario != null) {
+                perfilViewModel.cargarPerfil(usuario.id, usuario.parejaId)
+                if (usuario.relacionId.isNotBlank()) {
+                    eventoViewModel.cargarEventos(context, usuario.relacionId)
+                    diarioViewModel.cargarUltimaActividad(usuario.id, usuario.parejaId)
+                    notaViewModel.iniciar(context, usuario.relacionId, usuario.id, usuario.parejaId)
+                    estadoAnimoViewModel.cargarEstados(context, usuario.relacionId, usuario.id, pareja?.nombre ?: "Pareja")
+                }
+            }
+            kotlinx.coroutines.delay(1000)
+            isRefreshing = false
+        }
+    }
 
     LaunchedEffect(Unit) {
         visible = true
@@ -76,7 +126,13 @@ fun HomeScreen(
 
     LaunchedEffect(usuario, pareja) {
         if (usuario != null && pareja != null) {
-            estadoAnimoViewModel.cargarEstados(usuario.relacionId, usuario.id, pareja.nombre)
+            estadoAnimoViewModel.cargarEstados(context, usuario.relacionId, usuario.id, pareja.nombre)
+        }
+    }
+
+    LaunchedEffect(parejaState.vinculado) {
+        if (parejaState.vinculado) {
+            onVinculado(parejaState.relacionId)
         }
     }
 
@@ -105,84 +161,87 @@ fun HomeScreen(
                 )
             )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(top = 24.dp, bottom = 100.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+        PullToRefreshBox(
+            state = refreshState,
+            isRefreshing = isRefreshing,
+            onRefresh = { onRefresh() },
+            modifier = Modifier.fillMaxSize()
         ) {
-            // Header
-            AnimatedVisibility(
-                visible = visible,
-                enter = fadeIn() + expandVertically()
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 24.dp, bottom = 100.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                HomeHeader(usuario = usuario, pareja = pareja)
-            }
-
-            if (!tienePareja) {
-                TarjetaSinPareja(miCodigo = usuario?.codigoPareja ?: "")
-            } else {
-                // Bento Grid
                 AnimatedVisibility(
                     visible = visible,
-                    enter = fadeIn(animationSpec = tween(600, 200)) + slideInVertically(initialOffsetY = { 40 })
+                    enter = fadeIn() + expandVertically()
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        CardDiasJuntos(diasJuntos = perfilState.diasJuntos)
+                    HomeHeader(usuario = usuario, pareja = pareja)
+                }
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            SeccionEstadoAnimo(
-                                modifier = Modifier.weight(1.2f),
-                                miEmoji = estadoAnimoState.emojiPropio,
-                                parejaEmoji = estadoAnimoState.emojiPareja,
-                                nombrePareja = pareja.nombre,
-                                onClick = { showMoodSelector = true }
+                if (usuario != null && pareja != null) {
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = fadeIn(animationSpec = tween(600, 200)) + slideInVertically(initialOffsetY = { 40 })
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            CardDiasJuntos(diasJuntos = perfilState.diasJuntos)
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                SeccionEstadoAnimo(
+                                    modifier = Modifier.weight(1.2f),
+                                    miEmoji = estadoAnimoState.emojiPropio,
+                                    parejaEmoji = estadoAnimoState.emojiPareja,
+                                    nombrePareja = pareja.nombre,
+                                    onClick = { showMoodSelector = true }
+                                )
+                                
+                                SeccionNotaPareja(
+                                    modifier = Modifier.weight(1f),
+                                    nota = notaState.notaPareja,
+                                    nombrePareja = pareja.nombre,
+                                    onClick = { onNavigateToScreen(NavRoutes.Notas.route) }
+                                )
+                            }
+
+                            AccesosRapidos(
+                                onNuevaEntrada = {
+                                    val hoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                                    onNavigateToScreen(NavRoutes.CrearEntrada.crearRuta(hoy, TipoEntrada.MI_DIA.name))
+                                },
+                                onNuevoEvento = { onNavigateToScreen(NavRoutes.CrearEvento.route) },
+                                onChat = { onNavigateToTab(NavRoutes.Chat.route) },
+                                onCuestionarios = { onNavigateToTab(NavRoutes.Cuestionarios.route) }
                             )
-                            
-                            SeccionNotaPareja(
-                                modifier = Modifier.weight(1f),
-                                nota = notaState.notaPareja,
-                                nombrePareja = pareja.nombre,
-                                onClick = { onNavigateToScreen(NavRoutes.Notas.route) }
+
+                            val proximoEvento = eventoViewModel.eventosProximos().firstOrNull()
+                            SeccionProximoEvento(
+                                evento = proximoEvento,
+                                onVerTodos = { onNavigateToScreen(NavRoutes.Eventos.route) },
+                                onCrear = { onNavigateToScreen(NavRoutes.CrearEvento.route) },
+                                onVerDetalle = { id -> onNavigateToScreen(NavRoutes.DetalleEvento.crearRuta(id)) }
+                            )
+
+                            val ultimaEntrada = diarioState.ultimasEntradas.firstOrNull()
+                            SeccionUltimaActividad(
+                                entrada = ultimaEntrada,
+                                onVerDiario = { onNavigateToTab(NavRoutes.Calendario.route) },
+                                onVerDetalle = { id -> onNavigateToScreen(NavRoutes.DetalleEntrada.crearRuta(id)) }
+                            )
+
+                            SeccionCuestionarios(
+                                cuestionarios = cuestionarioState.historial,
+                                estados = cuestionarioState.estadosCuestionarios,
+                                onVerCuestionarios = { onNavigateToTab(NavRoutes.Cuestionarios.route) },
+                                onResponder = { id -> onNavigateToScreen(NavRoutes.ResponderCuestionario.crearRuta(id)) }
                             )
                         }
-
-                        AccesosRapidos(
-                            onNuevaEntrada = {
-                                val hoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                                onNavigateToScreen(NavRoutes.CrearEntrada.crearRuta(hoy, TipoEntrada.MI_DIA.name))
-                            },
-                            onNuevoEvento = { onNavigateToScreen(NavRoutes.CrearEvento.route) },
-                            onChat = { onNavigateToTab(NavRoutes.Chat.route) },
-                            onCuestionarios = { onNavigateToTab(NavRoutes.Cuestionarios.route) }
-                        )
-
-                        val proximoEvento = eventoViewModel.eventosProximos().firstOrNull()
-                        SeccionProximoEvento(
-                            evento = proximoEvento,
-                            onVerTodos = { onNavigateToScreen(NavRoutes.Eventos.route) },
-                            onCrear = { onNavigateToScreen(NavRoutes.CrearEvento.route) },
-                            onVerDetalle = { id -> onNavigateToScreen(NavRoutes.DetalleEvento.crearRuta(id)) }
-                        )
-
-                        val ultimaEntrada = diarioState.ultimasEntradas.firstOrNull()
-                        SeccionUltimaActividad(
-                            entrada = ultimaEntrada,
-                            onVerDiario = { onNavigateToTab(NavRoutes.Calendario.route) },
-                            onVerDetalle = { id -> onNavigateToScreen(NavRoutes.DetalleEntrada.crearRuta(id)) }
-                        )
-
-                        SeccionCuestionarios(
-                            cuestionarios = cuestionarioState.historial,
-                            estados = cuestionarioState.estadosCuestionarios,
-                            onVerCuestionarios = { onNavigateToTab(NavRoutes.Cuestionarios.route) },
-                            onResponder = { id -> onNavigateToScreen(NavRoutes.ResponderCuestionario.crearRuta(id)) }
-                        )
                     }
                 }
             }
@@ -190,6 +249,11 @@ fun HomeScreen(
     }
 }
 
+/**
+ * CABECERA:
+ * Dibujamos la cabecera con el saludo personalizado y la opción de cambiar 
+ * entre modo claro y oscuro. También vemos nuestras fotos de perfil.
+ */
 @Composable
 private fun HomeHeader(usuario: Usuario?, pareja: Usuario?) {
     Row(
@@ -198,12 +262,21 @@ private fun HomeHeader(usuario: Usuario?, pareja: Usuario?) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "Hola, ${usuario?.nombre ?: "Usuario"} 👋",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Hola, ${usuario?.nombre ?: "Usuario"}",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(8.dp))
+                Icon(
+                    painter = painterResource(id = com.cadev.mocaapp.feature.R.drawable.ic_reaccion_hola),
+                    contentDescription = null,
+                    tint = Color.Unspecified,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
             Text(
                 text = if (pareja != null) "Tú y ${pareja.nombre} están conectados" else "¡Qué alegría verte de nuevo!",
                 style = MaterialTheme.typography.bodyMedium,
@@ -251,6 +324,11 @@ private fun HomeHeader(usuario: Usuario?, pareja: Usuario?) {
     }
 }
 
+/**
+ * TARJETA DE DÍAS:
+ * Aquí calculamos y mostramos de forma llamativa cuántos días llevamos 
+ * juntos como pareja.
+ */
 @Composable
 private fun CardDiasJuntos(diasJuntos: Long) {
     val brush = Brush.horizontalGradient(
@@ -295,16 +373,29 @@ private fun CardDiasJuntos(diasJuntos: Long) {
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                     )
                 }
-                Text(
-                    text = "creando una historia increíble ✨",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "creando una historia increíble",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Icon(
+                        painter = painterResource(id = com.cadev.mocaapp.feature.R.drawable.ic_reaccion_chispa),
+                        contentDescription = null,
+                        tint = Color.Unspecified,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
     }
 }
 
+/**
+ * ESTADO DE ÁNIMO:
+ * Esta sección nos permite ver y actualizar cómo nos sentimos hoy ambos.
+ */
 @Composable
 private fun SeccionEstadoAnimo(
     modifier: Modifier = Modifier,
@@ -323,7 +414,7 @@ private fun SeccionEstadoAnimo(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -333,22 +424,33 @@ private fun SeccionEstadoAnimo(
                 color = MaterialTheme.colorScheme.tertiary,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                MoodBubble(emoji = miEmoji.ifBlank { "❓" }, label = "Tú")
-                Icon(Icons.Filled.Favorite, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
-                MoodBubble(emoji = parejaEmoji.ifBlank { "❓" }, label = nombrePareja)
+                MoodBubble(emoji = miEmoji.ifBlank { "unknown" }, label = "Tú")
+                Icon(
+                    painter = painterResource(id = com.cadev.mocaapp.feature.R.drawable.ic_reaccion_corazon), 
+                    null, 
+                    tint = Color.Unspecified, 
+                    modifier = Modifier.size(16.dp)
+                )
+                MoodBubble(emoji = parejaEmoji.ifBlank { "unknown" }, label = nombrePareja)
             }
         }
     }
 }
 
+/**
+ * BURBUJA DE ESTADO:
+ * Dibuja un círculo suave con nuestro icono de estado de ánimo y su nombre.
+ */
 @Composable
 private fun MoodBubble(emoji: String, label: String) {
+    val mood = MAPA_MOODS[emoji] ?: MAPA_MOODS["unknown"]!!
+    
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
@@ -357,13 +459,33 @@ private fun MoodBubble(emoji: String, label: String) {
                 .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
         ) {
-            Text(emoji, fontSize = 28.sp)
+            Icon(
+                painter = painterResource(id = mood.iconRes),
+                contentDescription = mood.label,
+                tint = Color.Unspecified,
+                modifier = Modifier.size(28.dp)
+            )
         }
         Spacer(Modifier.height(4.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            text = mood.label, 
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1
+        )
+        Text(
+            text = label, 
+            style = MaterialTheme.typography.labelSmall, 
+            maxLines = 1, 
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
+/**
+ * NOTA DE PAREJA:
+ * Aquí vemos el último mensaje cariñoso o nota rápida que nos dejó nuestra pareja.
+ */
 @Composable
 private fun SeccionNotaPareja(
     modifier: Modifier = Modifier,
@@ -376,11 +498,16 @@ private fun SeccionNotaPareja(
             .height(160.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF9C4)) // Post-it amarillo pastel
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF9C4))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.PushPin, null, tint = Color(0xFFFBC02D), modifier = Modifier.size(14.dp))
+                Icon(
+                    painter = painterResource(id = com.cadev.mocaapp.feature.R.drawable.ic_reaccion_pin), 
+                    null, 
+                    tint = Color.Unspecified, 
+                    modifier = Modifier.size(14.dp)
+                )
                 Spacer(Modifier.width(4.dp))
                 Text(
                     "Nota de $nombrePareja",
@@ -402,50 +529,10 @@ private fun SeccionNotaPareja(
     }
 }
 
-@Composable
-private fun TarjetaSinPareja(miCodigo: String) {
-    Card(
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(Icons.Filled.FavoriteBorder, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = "¡Vincúlate con tu pareja!",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = "Comparte este código para empezar a crear recuerdos juntos:",
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(16.dp))
-            Surface(
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    text = miCodigo,
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 4.sp
-                )
-            }
-        }
-    }
-}
-
+/**
+ * ACCESOS RÁPIDOS:
+ * Botones directos para entrar rápidamente a las funciones que más usamos.
+ */
 @Composable
 private fun AccesosRapidos(
     onNuevaEntrada: () -> Unit,
@@ -497,6 +584,10 @@ private fun AccesosRapidos(
     }
 }
 
+/**
+ * BOTÓN DE ACCESO:
+ * Diseño base para cada uno de nuestros botones de acceso rápido.
+ */
 @Composable
 private fun AccesoItem(
     icon: ImageVector,
@@ -523,6 +614,10 @@ private fun AccesoItem(
     }
 }
 
+/**
+ * PRÓXIMA CITA:
+ * Nos recuerda nuestra próxima cita programada o nos invita a planear algo nuevo.
+ */
 @Composable
 private fun SeccionProximoEvento(
     evento: com.cadev.mocaapp.feature.eventos.domain.model.Evento?,
@@ -558,7 +653,12 @@ private fun SeccionProximoEvento(
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(tipo.emoji, fontSize = 36.sp)
+                    Icon(
+                        imageVector = tipo.icono,
+                        contentDescription = null,
+                        modifier = Modifier.size(40.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(evento.titulo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -574,6 +674,10 @@ private fun SeccionProximoEvento(
     }
 }
 
+/**
+ * ÚLTIMO RECUERDO:
+ * Aquí vemos lo último que escribimos en nuestro diario compartido.
+ */
 @Composable
 private fun SeccionUltimaActividad(
     entrada: com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario?,
@@ -602,7 +706,12 @@ private fun SeccionUltimaActividad(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(tipo.emoji, fontSize = 24.sp)
+                        Icon(
+                            imageVector = tipo.icono,
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                         Column {
                             Text(entrada.titulo, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
                             Text(entrada.fecha, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
@@ -625,6 +734,10 @@ private fun SeccionUltimaActividad(
     }
 }
 
+/**
+ * TEST DE PAREJA:
+ * Nos invita a conocernos mejor respondiendo tests y retos divertidos.
+ */
 @Composable
 private fun SeccionCuestionarios(
     cuestionarios: List<com.cadev.mocaapp.feature.cuestionarios.domain.model.Cuestionario>,
@@ -654,6 +767,9 @@ private fun SeccionCuestionarios(
             )
         }
 
+        /**
+         * Aviso llamativo si la pareja ya ha respondido un test y está esperando por ti
+         */
         if (pendientes.isNotEmpty()) {
             Card(
                 modifier = Modifier.fillMaxWidth().clickable { onResponder(pendientes.first()) },
@@ -672,6 +788,9 @@ private fun SeccionCuestionarios(
             }
         }
 
+        /**
+         * Resumen de cuántos tests han completado juntos
+         */
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<appwidget-provider
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="140dp"
     android:minHeight="80dp"
     android:targetCellWidth="2"
@@ -9,4 +8,6 @@
     android:resizeMode="horizontal"
     android:widgetCategory="home_screen"
     android:label="@string/widget_dias_1_trans_label"
-    android:description="@string/widget_dias_1_desc" />
+    android:description="@string/widget_dias_1_desc"
+    android:previewImage="@drawable/ic_preview_dias"
+    android:previewLayout="@layout/widget_preview_transparent_dias_juntos" />

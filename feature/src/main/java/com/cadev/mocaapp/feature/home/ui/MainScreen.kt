@@ -3,6 +3,7 @@ package com.cadev.mocaapp.feature.home.ui
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.Spring
+import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.*
@@ -40,6 +41,7 @@ import com.cadev.mocaapp.feature.estadoanimo.ui.EstadoAnimoViewModel
 import com.cadev.mocaapp.feature.notas.ui.NotaViewModel
 import com.cadev.mocaapp.feature.notificaciones.ui.NotificacionViewModel
 import com.cadev.mocaapp.feature.pareja.data.UsuarioHelper
+import com.cadev.mocaapp.feature.pareja.ui.ParejaViewModel
 import com.cadev.mocaapp.feature.perfil.ui.AjustesScreen
 import com.cadev.mocaapp.feature.perfil.ui.PerfilParejaScreen
 import com.cadev.mocaapp.feature.perfil.ui.PerfilScreen
@@ -47,6 +49,18 @@ import com.cadev.mocaapp.feature.perfil.ui.PerfilViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.runBlocking
 
+/**
+ * ESTA ES LA PANTALLA CONTENEDORA PRINCIPAL
+ * 
+ * Qué hace:
+ * Se encarga de mostrar nuestro menú de navegación inferior y de intercambiar 
+ * las pantallas principales de la aplicación: Inicio, Diario, Chat, Tests y Perfil. 
+ * También gestionamos aquí la carga inicial de toda nuestra información.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos añadir una nueva pestaña al menú inferior, debemos añadir un 
+ * nuevo `BottomNavItem` en la lista `tabs`.
+ */
 @RequiresApi(Build.VERSION_CODES.S)
 @Composable
 fun MainScreen(
@@ -54,20 +68,31 @@ fun MainScreen(
     navController: NavHostController,
     initialTab: String = ""
 ) {
+    /**
+     * NAVEGACIÓN INTERNA:
+     * Creamos un controlador de navegación interno para manejar las pestañas 
+     * de nuestro menú inferior de forma independiente.
+     */
     val tabNavController = rememberNavController()
     val navBackStackEntry by tabNavController.currentBackStackEntryAsState()
     val destinoActual = navBackStackEntry?.destination
     val rutaActual = destinoActual?.route
     val context = LocalContext.current
 
+    /**
+     * IDENTIFICACIÓN:
+     * Identificamos al usuario conectado y buscamos quién es su pareja 
+     * para cargar toda nuestra información compartida.
+     */
     val uid = remember {
         FirebaseAuth.getInstance().currentUser?.uid ?: ""
     }
-    val parejaId = remember(uid) {
-        runBlocking { UsuarioHelper.obtenerParejaId(uid) }
-    }
 
-    // ViewModels compartidos
+    /**
+     * GESTORES DE DATOS:
+     * Inicializamos todos los ViewModel que nos ayudarán a gestionar 
+     * la información en cada una de nuestras pestañas.
+     */
     val perfilViewModel: PerfilViewModel = viewModel(factory = factory)
     val cuestionarioViewModel: CuestionarioViewModel = viewModel(factory = factory)
     val chatViewModel: ChatViewModel = viewModel(factory = factory)
@@ -76,45 +101,109 @@ fun MainScreen(
     val diarioViewModel: DiarioViewModel = viewModel(factory = factory)
     val notaViewModel: NotaViewModel = viewModel(factory = factory)
     val estadoAnimoViewModel: EstadoAnimoViewModel = viewModel(factory = factory)
+    val parejaViewModel: ParejaViewModel = viewModel(factory = factory)
 
     val perfilState by perfilViewModel.uiState.collectAsState()
     val contadores by notificacionViewModel.contadores.collectAsState()
 
-    // Inicializar escucha de badges
+    /**
+     * Función rápida para volver siempre a la pestaña de inicio
+     */
+    val irAlInicio = {
+        tabNavController.navigate(NavRoutes.Home.route) {
+            popUpTo(tabNavController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
+    /**
+     * NOTIFICACIONES:
+     * Activamos nuestro sistema de avisos en cuanto la aplicación está lista 
+     * para recibir mensajes y alertas push.
+     */
     LaunchedEffect(uid) {
         if (uid.isNotBlank()) {
             notificacionViewModel.iniciar(uid)
         }
     }
 
-    // Precargas
+    /**
+     * PERFIL EN TIEMPO REAL:
+     * Activamos el vigilante de nuestro perfil. Esto nos permite detectar al 
+     * instante si nuestra pareja nos vincula o si cambia algo en su perfil.
+     */
     LaunchedEffect(uid) {
-        perfilViewModel.cargarPerfil(uid, parejaId)
-    }
-
-    LaunchedEffect(uid, parejaId, perfilState.usuario?.relacionId) {
-        val relacionId = perfilState.usuario?.relacionId ?: return@LaunchedEffect
-        eventoViewModel.cargarEventos(relacionId)
-        diarioViewModel.cargarUltimaActividad(uid, parejaId)
-        notaViewModel.iniciar(context, relacionId, uid, parejaId)
-    }
-
-    LaunchedEffect(uid, parejaId) {
-        if (uid.isNotBlank() && !parejaId.isNullOrBlank()) {
-            chatViewModel.inicializar(uid, parejaId)
+        if (uid.isNotBlank()) {
+            perfilViewModel.iniciarEscucha(uid)
         }
     }
 
-    LaunchedEffect(perfilState.usuario?.relacionId) {
-        val relacionId = perfilState.usuario?.relacionId ?: return@LaunchedEffect
-        cuestionarioViewModel.cargarCuestionarios(
-            relacionId = relacionId,
-            usuarioId = uid,
-            parejaId = parejaId ?: ""
-        )
-        cuestionarioViewModel.poblarPredefinidos()
+    val usuario = perfilState.usuario
+    val parejaIdActual = usuario?.parejaId
+    val relacionIdActual = usuario?.relacionId
+
+    // Pantalla de carga mientras se recupera el perfil del usuario
+    if (usuario == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = androidx.compose.ui.Alignment.Center
+        ) {
+            CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.primary,
+                strokeWidth = 3.dp
+            )
+        }
+        return
     }
 
+    /**
+     * CONTENIDO COMPARTIDO:
+     * Cargamos nuestras citas próximas, recuerdos del diario y notas 
+     * rápidas que nos hayamos dejado. Solo si estamos vinculados.
+     */
+    LaunchedEffect(uid, parejaIdActual, relacionIdActual) {
+        if (!relacionIdActual.isNullOrBlank()) {
+            eventoViewModel.cargarEventos(context, relacionIdActual)
+            diarioViewModel.cargarUltimaActividad(uid, parejaIdActual)
+            notaViewModel.iniciar(context, relacionIdActual, uid, parejaIdActual)
+        }
+    }
+
+    /**
+     * CHAT EN VIVO:
+     * Preparamos nuestro chat privado para que podamos enviarnos mensajes, 
+     * fotos y audios al instante.
+     */
+    LaunchedEffect(uid, parejaIdActual) {
+        if (uid.isNotBlank() && !parejaIdActual.isNullOrBlank()) {
+            chatViewModel.inicializar(uid, parejaIdActual)
+        }
+    }
+
+    /**
+     * TESTS DE PAREJA:
+     * Cargamos nuestros retos y tests, asegurándonos de que los básicos 
+     * estén siempre listos para jugar.
+     */
+    LaunchedEffect(relacionIdActual) {
+        if (!relacionIdActual.isNullOrBlank()) {
+            cuestionarioViewModel.cargarCuestionarios(
+                relacionId = relacionIdActual,
+                usuarioId = uid,
+                parejaId = parejaIdActual ?: ""
+            )
+            cuestionarioViewModel.poblarPredefinidos()
+        }
+    }
+
+    /**
+     * LIMPIEZA DE AVISOS:
+     * Cada vez que entramos en una sección, limpiamos los avisos de mensajes 
+     * nuevos de esa parte específica.
+     */
     LaunchedEffect(rutaActual) {
         if (uid.isBlank()) return@LaunchedEffect
         when (rutaActual) {
@@ -124,6 +213,11 @@ fun MainScreen(
         }
     }
 
+    /**
+     * ATAJOS DE INICIO:
+     * Si abrimos la app desde una notificación o un widget, nos encargamos 
+     * de llevarnos directamente a la sección correcta.
+     */
     LaunchedEffect(initialTab) {
         if (initialTab.isBlank()) return@LaunchedEffect
         val ruta = when (initialTab) {
@@ -144,6 +238,11 @@ fun MainScreen(
         }
     }
 
+    /**
+     * MENÚ INFERIOR:
+     * Estas son las cinco pestañas principales que tenemos disponibles 
+     * en nuestra barra de navegación.
+     */
     val tabs = listOf(
         BottomNavItem.Home,
         BottomNavItem.Calendario,
@@ -154,6 +253,11 @@ fun MainScreen(
 
     Scaffold(
         bottomBar = {
+            /**
+             * BARRA DE NAVEGACIÓN:
+             * Diseñamos una barra inferior flotante y moderna que nos permite 
+             * movernos cómodamente por toda la app.
+             */
             Surface(
                 tonalElevation = 8.dp,
                 shadowElevation = 16.dp,
@@ -172,12 +276,22 @@ fun MainScreen(
                             ?.hierarchy
                             ?.any { it.route == tab.route } == true
 
+                        /**
+                         * ANIMACIÓN:
+                         * Añadimos una pequeña animación para que el icono crezca 
+                         * suavemente cuando lo seleccionamos.
+                         */
                         val iconSize by animateDpAsState(
                             targetValue = if (seleccionado) 28.dp else 24.dp,
                             animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
                             label = "iconSize"
                         )
 
+                        /**
+                         * CONTADOR DE NOVEDADES:
+                         * Calculamos si tenemos mensajes nuevos o retos de pareja 
+                         * pendientes por responder.
+                         */
                         val badgeCount = when (tab.route) {
                             NavRoutes.Chat.route -> contadores.chat
                             NavRoutes.Calendario.route -> contadores.diario
@@ -199,6 +313,11 @@ fun MainScreen(
                             icon = {
                                 BadgedBox(
                                     badge = {
+                                        /**
+                                         * AVISO ROJO:
+                                         * Si tenemos novedades, mostramos un círculo rojo 
+                                         * con el número para no olvidarnos de nada.
+                                         */
                                         if (badgeCount > 0) {
                                             Badge(
                                                 containerColor = MaterialTheme.colorScheme.error,
@@ -235,6 +354,11 @@ fun MainScreen(
         }
     ) { paddingValues ->
 
+        /**
+         * CONTENEDOR DE PANTALLAS:
+         * Este es el lugar donde van cambiando nuestras pantallas (Inicio, 
+         * Diario, Chat, etc.) según lo que toquemos en el menú.
+         */
         NavHost(
             navController = tabNavController,
             startDestination = NavRoutes.Home.route,
@@ -249,6 +373,7 @@ fun MainScreen(
                     cuestionarioViewModel = cuestionarioViewModel,
                     notaViewModel = notaViewModel,
                     estadoAnimoViewModel = estadoAnimoViewModel,
+                    parejaViewModel = parejaViewModel,
                     onNavigateToTab = { route ->
                         tabNavController.navigate(route) {
                             popUpTo(tabNavController.graph.findStartDestination().id) {
@@ -260,6 +385,12 @@ fun MainScreen(
                     },
                     onNavigateToScreen = { route ->
                         navController.navigate(route)
+                    },
+                    onIrAVincular = {
+                        navController.navigate(NavRoutes.CodigoPareja.route)
+                    },
+                    onVinculado = { relacionId ->
+                        navController.navigate(NavRoutes.FechaRelacion.crearRuta(relacionId))
                     }
                 )
             }
@@ -268,7 +399,8 @@ fun MainScreen(
                 CalendarioScreen(
                     viewModel = diarioViewModel,
                     usuarioId = uid,
-                    parejaId = parejaId,
+                    parejaId = parejaIdActual,
+                    onRegresar = irAlInicio,
                     onDiaSeleccionado = { fecha ->
                         navController.navigate(NavRoutes.DetalleDia.crearRuta(fecha))
                     },
@@ -279,17 +411,17 @@ fun MainScreen(
             }
 
             composable(NavRoutes.Chat.route) {
-                if (parejaId != null) {
+                if (!parejaIdActual.isNullOrBlank()) {
                     ChatScreen(
                         viewModel = chatViewModel,
                         usuarioId = uid,
-                        parejaId = parejaId,
+                        parejaId = parejaIdActual,
                         nombrePareja = perfilState.pareja?.nombre ?: "Mi pareja",
                         fotoPareja = perfilState.pareja?.fotoPerfil,
-                        onRegresar = { }
+                        onRegresar = irAlInicio
                     )
                 } else {
-                    PlaceholderScreen("💬 Vincula tu pareja primero")
+                    PlaceholderScreen("Vincula tu pareja primero")
                 }
             }
 
@@ -297,8 +429,9 @@ fun MainScreen(
                 CuestionariosScreen(
                     viewModel = cuestionarioViewModel,
                     usuarioId = uid,
-                    parejaId = parejaId ?: "",
-                    relacionId = perfilState.usuario?.relacionId ?: "",
+                    parejaId = parejaIdActual ?: "",
+                    relacionId = relacionIdActual ?: "",
+                    onRegresar = irAlInicio,
                     onIniciarCuestionario = { id ->
                         navController.navigate(NavRoutes.ResponderCuestionario.crearRuta(id))
                     },
@@ -315,7 +448,8 @@ fun MainScreen(
                 PerfilScreen(
                     viewModel = perfilViewModel,
                     usuarioId = uid,
-                    parejaId = parejaId,
+                    parejaId = parejaIdActual,
+                    onRegresar = irAlInicio,
                     onIrAjustes = { navController.navigate(NavRoutes.Ajustes.route) },
                     onVerPerfilPareja = { id ->
                         navController.navigate(NavRoutes.PerfilPareja.crearRuta(id))
@@ -333,7 +467,7 @@ fun MainScreen(
                 AjustesScreen(
                     viewModel = perfilViewModel,
                     usuarioId = uid,
-                    parejaId = parejaId,
+                    parejaId = parejaIdActual,
                     onRegresar = { navController.popBackStack() }
                 )
             }

@@ -5,16 +5,29 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import java.util.Date
 
+/**
+ * EL MOTOR DE LA VINCULACIÓN (FIREBASE)
+ * 
+ * Qué hace:
+ * Aquí escribimos la lógica real para unir dos cuentas. Buscamos el código 
+ * en la base de datos y actualizamos ambos perfiles de forma segura usando 
+ * una transacción atómica.
+ */
 class ParejaRepositoryImpl(
     private val firestore: FirebaseFirestore
 ) : ParejaRepository {
 
+    /**
+     * VINCULAR:
+     * 1. Buscamos quién tiene el código ingresado.
+     * 2. Verificamos que no sea nuestro propio código ni uno ya ocupado.
+     * 3. Creamos la "relación" y actualizamos ambos usuarios al mismo tiempo.
+     */
     override suspend fun vincularPorCodigo(
         codigoPareja: String,
         miUsuarioId: String
     ): Result<String> {
         return try {
-            // Buscamos al usuario que tiene ese código
             val resultado = firestore
                 .collection("usuarios")
                 .whereEqualTo("codigoPareja", codigoPareja.uppercase())
@@ -30,22 +43,21 @@ class ParejaRepositoryImpl(
             val parejaDoc = resultado.documents.first()
             val parejaId = parejaDoc.id
 
-            // No se puede vincular uno mismo
             if (parejaId == miUsuarioId) {
                 return Result.failure(
                     Exception("No puedes usar tu propio código")
                 )
             }
 
-            // Verificamos que la pareja no tenga alguna vinculacion
             val parejaData = parejaDoc.data
-            if (parejaData?.get("parejaId") != null) {
+            val parejaIdRegistrada = parejaData?.get("parejaId") as? String
+            
+            if (!parejaIdRegistrada.isNullOrBlank()) {
                 return Result.failure(
-                    Exception("Este código ya fue usado")
+                    Exception("Este código ya pertenece a una pareja vinculada")
                 )
             }
 
-            // Crear documento de relación
             val relacionId = firestore
                 .collection("relaciones")
                 .document()
@@ -58,18 +70,13 @@ class ParejaRepositoryImpl(
                 "estado" to "activa"
             )
 
-            // Guardamostodo en una transacción atomica
-            // Una transacción garantiza que o todo se guarda
-            // o nada se guarda, nunca queda a medias
+            // Usamos una transacción para que todo se guarde correctamente o nada.
             firestore.runTransaction { transaction ->
-
-                // Guardamos la relación
                 transaction.set(
                     firestore.collection("relaciones").document(relacionId),
                     relacion
                 )
 
-                // Actualizamos el usuario
                 transaction.update(
                     firestore.collection("usuarios").document(miUsuarioId),
                     mapOf(
@@ -78,7 +85,6 @@ class ParejaRepositoryImpl(
                     )
                 )
 
-                // Actualizamos el usuario de la pareja
                 transaction.update(
                     firestore.collection("usuarios").document(parejaId),
                     mapOf(
@@ -95,6 +101,10 @@ class ParejaRepositoryImpl(
         }
     }
 
+    /**
+     * OBTENER MI CÓDIGO:
+     * Trae de nuestra ficha de usuario el código secreto de 6 letras.
+     */
     override suspend fun obtenerMiCodigo(
         usuarioId: String
     ): Result<String> {
@@ -114,6 +124,10 @@ class ParejaRepositoryImpl(
         }
     }
 
+    /**
+     * COMPROBAR VÍNCULO:
+     * Mira si ya tenemos el ID de alguien más guardado en nuestro perfil.
+     */
     override suspend fun tienePareja(usuarioId: String): Boolean {
         return try {
             val doc = firestore
@@ -127,6 +141,10 @@ class ParejaRepositoryImpl(
         }
     }
 
+    /**
+     * FECHA DE INICIO:
+     * Guarda el día que elegimos como nuestro aniversario en el documento de la relación.
+     */
     override suspend fun guardarFechaInicio(
         relacionId: String,
         fecha: Long
@@ -144,4 +162,5 @@ class ParejaRepositoryImpl(
         }
     }
 }
+
 

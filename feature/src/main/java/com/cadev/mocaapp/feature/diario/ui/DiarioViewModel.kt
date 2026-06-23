@@ -19,11 +19,19 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * ESTADO DE LA INFORMACIÓN DEL DIARIO
+ * 
+ * Qué hace
+ * Guarda toda la información que se muestra en las pantallas del diario y el calendario. 
+ * Controla si se está cargando información si hay errores los textos que escribe el usuario 
+ * y las listas de fotos y comentarios.
+ */
 data class DiarioUiState(
     val cargando: Boolean = false,
     val error: String? = null,
     val entradas: List<EntradaDiario> = emptyList(),
-    val diasConEntrada: Map<String, List<String>> = emptyMap(),
+    val diasConEntrada: Map<String, com.cadev.mocaapp.feature.diario.domain.model.DiaCalendarioInfo> = emptyMap(),
     val entradaCreada: Boolean = false,
     val titulo: String = "",
     val detalles: String = "",
@@ -44,6 +52,18 @@ data class DiarioUiState(
     val ultimasEntradas: List<EntradaDiario> = emptyList()
 )
 
+/**
+ * GESTOR DE DATOS DEL DIARIO COMPARTIDO
+ * 
+ * Qué hace:
+ * Aquí es donde controlamos todo lo relacionado con los recuerdos. Nos encargamos 
+ * de guardar los momentos, subir las fotos a internet, organizar el calendario 
+ * y manejar los comentarios que nuestra pareja nos deja.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos que los recuerdos tengan un sistema de "votos" o "likes", debemos 
+ * añadir esa lógica dentro de este ViewModel y avisar a la pantalla.
+ */
 class DiarioViewModel(
     private val repository: DiarioRepository,
     private val notificacionRepository: NotificacionRepository
@@ -55,14 +75,23 @@ class DiarioViewModel(
     private val formatoFecha = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private val entradasVistasSet = mutableSetOf<String>()
 
+    /**
+     * Marca un recuerdo como leído para que no aparezca el aviso de nuevo contenido
+     */
     fun marcarEntradaVista(entradaId: String) {
         entradasVistasSet.add(entradaId)
     }
 
+    /**
+     * Comprueba si el usuario ya ha visto un recuerdo específico
+     */
     fun esEntradaVista(entradaId: String): Boolean {
         return entradaId in entradasVistasSet
     }
 
+    /**
+     * Recupera el nombre del usuario desde la base de datos para mostrarlo en los comentarios
+     */
     fun cargarNombreUsuario(usuarioId: String) {
         viewModelScope.launch {
             try {
@@ -80,6 +109,9 @@ class DiarioViewModel(
         }
     }
 
+    /**
+     * Carga todos los días de un mes concreto que tienen alguna anotación en el diario
+     */
     fun cargarMes(usuarioId: String, parejaId: String?, anio: Int, mes: Int) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(cargando = true)
@@ -99,6 +131,9 @@ class DiarioViewModel(
         }
     }
 
+    /**
+     * Recupera todos los recuerdos escritos en una fecha determinada
+     */
     fun cargarEntradasDelDia(usuarioId: String, parejaId: String?, fecha: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(cargando = true)
@@ -118,6 +153,9 @@ class DiarioViewModel(
         }
     }
 
+    /**
+     * Obtiene los recuerdos más recientes para mostrarlos en la pantalla de inicio
+     */
     fun cargarUltimaActividad(usuarioId: String, parejaId: String?) {
         viewModelScope.launch {
             repository.obtenerUltimasEntradas(usuarioId, parejaId, 5).fold(
@@ -129,22 +167,37 @@ class DiarioViewModel(
         }
     }
 
+    /**
+     * Actualiza el texto del título en el formulario de creación
+     */
     fun actualizarTitulo(valor: String) {
         _uiState.value = _uiState.value.copy(titulo = valor)
     }
 
+    /**
+     * Actualiza la descripción o detalles en el formulario
+     */
     fun actualizarDetalles(valor: String) {
         _uiState.value = _uiState.value.copy(detalles = valor)
     }
 
+    /**
+     * Actualiza la categoría o etiqueta seleccionada para el recuerdo
+     */
     fun actualizarEtiqueta(valor: String) {
         _uiState.value = _uiState.value.copy(etiqueta = valor)
     }
 
+    /**
+     * Guarda el texto de una etiqueta personalizada cuando se elige la opción otros
+     */
     fun actualizarEtiquetaPersonalizada(valor: String) {
         _uiState.value = _uiState.value.copy(etiquetaPersonalizada = valor)
     }
 
+    /**
+     * Añade o quita una emoción de la lista de sentimientos del día
+     */
     fun toggleEmocion(emocion: Emocion) {
         val actuales = _uiState.value.emocionesSeleccionadas.toMutableList()
         if (actuales.contains(emocion)) actuales.remove(emocion)
@@ -152,34 +205,52 @@ class DiarioViewModel(
         _uiState.value = _uiState.value.copy(emocionesSeleccionadas = actuales)
     }
 
+    /**
+     * Añade una foto de la galería al recuerdo que se está creando
+     */
     fun agregarFoto(rutaLocal: String) {
         val fotos = _uiState.value.fotosSeleccionadas.toMutableList()
         fotos.add(rutaLocal)
         _uiState.value = _uiState.value.copy(fotosSeleccionadas = fotos)
     }
 
+    /**
+     * Quita una foto antes de guardar el recuerdo
+     */
     fun eliminarFoto(ruta: String) {
         val fotos = _uiState.value.fotosSeleccionadas.toMutableList()
         fotos.remove(ruta)
         _uiState.value = _uiState.value.copy(fotosSeleccionadas = fotos)
     }
 
+    /**
+     * Añade un vídeo de la galería al nuevo recuerdo
+     */
     fun agregarVideo(rutaLocal: String) {
         val videos = _uiState.value.videosSeleccionados.toMutableList()
         videos.add(rutaLocal)
         _uiState.value = _uiState.value.copy(videosSeleccionados = videos)
     }
 
+    /**
+     * Quita un vídeo antes de guardar
+     */
     fun eliminarVideo(ruta: String) {
         val videos = _uiState.value.videosSeleccionados.toMutableList()
         videos.remove(ruta)
         _uiState.value = _uiState.value.copy(videosSeleccionados = videos)
     }
 
+    /**
+     * Cambia si el recuerdo será privado o se compartirá con la pareja
+     */
     fun toggleCompartir() {
         _uiState.value = _uiState.value.copy(compartir = !_uiState.value.compartir)
     }
 
+    /**
+     * Envía toda la información del nuevo recuerdo a la base de datos y sube los archivos
+     */
     fun guardarEntrada(
         usuarioId: String,
         parejaId: String?,
@@ -224,12 +295,15 @@ class DiarioViewModel(
                         cargando     = false,
                         entradaCreada = true
                     )
+                    /**
+                     * Si se comparte se envía un aviso al teléfono de la pareja
+                     */
                     if (estado.compartir && !parejaId.isNullOrBlank()) {
                         launch {
                             notificacionRepository.incrementarBadge(parejaId, "diario")
                             notificacionRepository.enviarPush(
                                 parejaId = parejaId,
-                                titulo   = "📖 Nuevo recuerdo compartido",
+                                titulo   = "Nuevo recuerdo compartido",
                                 cuerpo   = estado.titulo,
                                 deepLink = "main/calendario",
                                 tipo     = "diario"
@@ -247,6 +321,9 @@ class DiarioViewModel(
         }
     }
 
+    /**
+     * Limpia todos los campos del formulario para dejarlo listo para un nuevo uso
+     */
     fun limpiarFormulario() {
         _uiState.value = _uiState.value.copy(
             titulo = "", detalles = "", etiqueta = "",
@@ -264,6 +341,9 @@ class DiarioViewModel(
         )
     }
 
+    /**
+     * Carga un recuerdo existente para poder modificar sus textos fotos o privacidad
+     */
     fun cargarEntradaParaEditar(entradaId: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(cargando = true)
@@ -293,6 +373,9 @@ class DiarioViewModel(
         }
     }
 
+    /**
+     * Marca una foto que ya estaba guardada en internet para borrarla definitivamente
+     */
     fun eliminarFotoExistente(url: String) {
         val entrada = _uiState.value.entradaActual ?: return
         _uiState.value = _uiState.value.copy(
@@ -301,6 +384,9 @@ class DiarioViewModel(
         )
     }
 
+    /**
+     * Marca un vídeo existente para ser borrado del servidor
+     */
     fun eliminarVideoExistente(url: String) {
         val entrada = _uiState.value.entradaActual ?: return
         _uiState.value = _uiState.value.copy(
@@ -309,6 +395,9 @@ class DiarioViewModel(
         )
     }
 
+    /**
+     * Guarda todos los cambios realizados en un recuerdo que ya existía
+     */
     fun guardarEdicion(parejaId: String?) {
         val estado = _uiState.value
         val entradaOriginal = estado.entradaActual ?: return
@@ -355,6 +444,9 @@ class DiarioViewModel(
         }
     }
 
+    /**
+     * Recupera toda la información de un recuerdo incluyendo sus comentarios
+     */
     fun cargarDetalle(entradaId: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
@@ -376,6 +468,9 @@ class DiarioViewModel(
         }
     }
 
+    /**
+     * Busca y organiza todos los comentarios que ha recibido un recuerdo específico
+     */
     fun cargarComentarios(entradaId: String) {
         viewModelScope.launch {
             repository.obtenerComentarios(entradaId).fold(
@@ -403,10 +498,16 @@ class DiarioViewModel(
         }
     }
 
+    /**
+     * Actualiza el texto que el usuario está escribiendo en el cuadro de comentarios
+     */
     fun actualizarNuevoComentario(valor: String) {
         _uiState.value = _uiState.value.copy(nuevoComentario = valor)
     }
 
+    /**
+     * Publica un nuevo comentario en el recuerdo actual
+     */
     fun publicarComentario(usuarioId: String, nombreUsuario: String) {
         val texto = _uiState.value.nuevoComentario.trim()
         val entradaId = _uiState.value.entradaDetalle?.id ?: return
@@ -434,6 +535,9 @@ class DiarioViewModel(
         }
     }
 
+    /**
+     * Borra un comentario que el usuario ha escrito previamente
+     */
     fun eliminarComentario(comentarioId: String) {
         val entradaId = _uiState.value.entradaDetalle?.id ?: return
         viewModelScope.launch {
@@ -444,5 +548,8 @@ class DiarioViewModel(
         }
     }
 
+    /**
+     * Función que devuelve la fecha actual en un formato que la base de datos entiende
+     */
     fun fechaHoy(): String = formatoFecha.format(Date())
 }

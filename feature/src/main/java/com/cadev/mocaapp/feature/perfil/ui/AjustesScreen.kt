@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.ripple
@@ -23,16 +24,32 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 
+/**
+ * ESTA ES NUESTRA PANTALLA DE AJUSTES Y CONFIGURACIÓN
+ * 
+ * Qué hace:
+ * Ofrece un panel donde podemos modificar todos los datos de nuestra cuenta. 
+ * Permite cambiar nuestro nombre, correo y contraseña. También podemos 
+ * ajustar la fecha de aniversario y consultar nuestro código compartido.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos añadir un interruptor para "Notificaciones silenciosas", debemos 
+ * añadir un nuevo componente `Switch` dentro de la `Column` principal.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AjustesScreen(
     viewModel: PerfilViewModel,
     usuarioId: String,
     parejaId: String?,
-    onRegresar: () -> Unit
+    onRegresar: () -> Unit,
+    onNavigateToWidgets: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    /**
+     * Se asegura de que la información del perfil esté cargada al entrar
+     */
     LaunchedEffect(usuarioId) {
         if (uiState.usuario == null) {
             viewModel.cargarPerfil(usuarioId, parejaId)
@@ -41,13 +58,11 @@ fun AjustesScreen(
 
     val context = LocalContext.current
 
-    //Estados de edición por campo
     var editandoNombre by remember { mutableStateOf(false) }
     var editandoEmail by remember { mutableStateOf(false) }
     var editandoPassword by remember { mutableStateOf(false) }
     var editandoFecha by remember { mutableStateOf(false) }
 
-    // Valores locales de edicion
     var valorNombre by remember(uiState.usuario?.nombre) {
         mutableStateOf(uiState.usuario?.nombre ?: "")
     }
@@ -58,7 +73,6 @@ fun AjustesScreen(
     var valorPasswordNuevo by remember { mutableStateOf("") }
     var valorPasswordConfirmar by remember { mutableStateOf("") }
 
-    //Fecha
     val partesF = (uiState.fechaRelacion ?: "").split("-")
     var valorAnio by remember(uiState.fechaRelacion) {
         mutableStateOf(partesF.getOrNull(0) ?: "")
@@ -70,7 +84,9 @@ fun AjustesScreen(
         mutableStateOf(partesF.getOrNull(2) ?: "")
     }
 
-    //Cerrar edición y limpiar al guardar con éxito
+    /**
+     * Cierra todos los paneles de edición cuando los cambios se guardan bien
+     */
     LaunchedEffect(uiState.ajusteExitoso) {
         if (uiState.ajusteExitoso) {
             editandoNombre = false
@@ -105,7 +121,9 @@ fun AjustesScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            //Banner de error
+            /**
+             * Muestra un aviso rojo si ha ocurrido un error al intentar cambiar algún dato
+             */
             if (uiState.error != null) {
                 Card(
                     colors = CardDefaults.cardColors(
@@ -131,7 +149,9 @@ fun AjustesScreen(
                 }
             }
 
-            //Banner de exito
+            /**
+             * Muestra un aviso de confirmación cuando los datos se actualizan correctamente
+             */
             if (uiState.ajusteExitoso) {
                 Card(
                     colors = CardDefaults.cardColors(
@@ -164,7 +184,9 @@ fun AjustesScreen(
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)
             )
 
-            // Nombre
+            /**
+             * Sección para editar el nombre público
+             */
             CampoEditable(
                 icono = Icons.Filled.Person,
                 etiqueta = "Nombre",
@@ -188,7 +210,9 @@ fun AjustesScreen(
                 }
             )
 
-            //Email
+            /**
+             * Sección para cambiar el correo electrónico asociado a la cuenta
+             */
             CampoEditable(
                 icono = Icons.Filled.Email,
                 etiqueta = "Correo electrónico",
@@ -226,7 +250,9 @@ fun AjustesScreen(
                 } else null
             )
 
-            // Contraseña
+            /**
+             * Panel especial para el cambio de contraseña por motivos de seguridad
+             */
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp)
@@ -366,7 +392,9 @@ fun AjustesScreen(
                 }
             }
 
-            //Fecha aniversario
+            /**
+             * Panel para modificar el día en que comenzó la relación sentimental
+             */
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp)
@@ -496,7 +524,9 @@ fun AjustesScreen(
                 modifier = Modifier.padding(start = 4.dp)
             )
 
-            //Código de pareja
+            /**
+             * Muestra el código de invitación para compartirlo de nuevo si se necesita
+             */
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -551,11 +581,58 @@ fun AjustesScreen(
                     }
                 }
             }
+
+            Spacer(Modifier.height(4.dp))
+
+            Text(
+                "Personalización",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                modifier = Modifier.padding(start = 4.dp)
+            )
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onNavigateToWidgets() },
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Widgets,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Widgets de pantalla de inicio",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            "Explora y añade widgets para tu escritorio",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    )
+                }
+            }
         }
     }
 }
 
-//Campo editable genérico
+/**
+ * Función genérica para dibujar un panel de información que se despliega al editar
+ */
 @Composable
 private fun CampoEditable(
     icono: androidx.compose.ui.graphics.vector.ImageVector,
@@ -576,7 +653,6 @@ private fun CampoEditable(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                // clickable con ripple explícito para evitar conflicto M2,M3
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = ripple()

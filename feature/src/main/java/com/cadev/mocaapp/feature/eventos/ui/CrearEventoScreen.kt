@@ -20,6 +20,18 @@ import com.cadev.mocaapp.feature.eventos.domain.model.RecordatorioOpcion
 import com.cadev.mocaapp.core.model.TipoEvento
 import java.util.*
 
+/**
+ * ESTA ES LA PANTALLA PARA CREAR PLANES
+ * 
+ * Qué hace:
+ * Aquí permitimos que la pareja registre un nuevo evento en nuestro calendario 
+ * compartido. Podemos elegir el tipo de cita, ponerle un título, definir la 
+ * fecha y la hora, y activar un recordatorio para que la app nos avise.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos que por defecto el recordatorio sea de "2 horas antes", debemos 
+ * cambiar el valor inicial en el `EventoUiState` del ViewModel.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CrearEventoScreen(
@@ -33,6 +45,9 @@ fun CrearEventoScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    /**
+     * Si el evento se guarda bien se limpia el formulario y se vuelve atrás
+     */
     LaunchedEffect(uiState.guardado) {
         if (uiState.guardado) {
             viewModel.limpiarFormulario()
@@ -40,14 +55,15 @@ fun CrearEventoScreen(
         }
     }
 
-    // DatePicker state
     val datePickerState = rememberDatePickerState()
     var mostrarDatePicker by remember { mutableStateOf(false) }
     var mostrarTimePicker by remember { mutableStateOf(false) }
     var mostrarTipoPicker by remember { mutableStateOf(false) }
     var mostrarRecordatorioPicker by remember { mutableStateOf(false) }
 
-    // Sincronizar fecha seleccionada
+    /**
+     * Se actualiza la fecha en el gestor de datos cuando el usuario la elige en el calendario
+     */
     LaunchedEffect(datePickerState.selectedDateMillis) {
         val millis = datePickerState.selectedDateMillis ?: return@LaunchedEffect
         val cal = Calendar.getInstance().apply { timeInMillis = millis }
@@ -59,6 +75,9 @@ fun CrearEventoScreen(
         viewModel.actualizarFecha(fecha)
     }
 
+    /**
+     * Diálogo para elegir el día en un calendario visual
+     */
     if (mostrarDatePicker) {
         DatePickerDialog(
             onDismissRequest = { mostrarDatePicker = false },
@@ -70,6 +89,9 @@ fun CrearEventoScreen(
         }
     }
 
+    /**
+     * Diálogo para elegir la hora exacta de la cita
+     */
     if (mostrarTimePicker) {
         val hora = uiState.hora.split(":").getOrNull(0)?.toIntOrNull() ?: 12
         val min  = uiState.hora.split(":").getOrNull(1)?.toIntOrNull() ?: 0
@@ -92,6 +114,9 @@ fun CrearEventoScreen(
                     }
                 },
                 actions = {
+                    /**
+                     * Botón para enviar los datos del nuevo plan a la base de datos
+                     */
                     TextButton(
                         onClick = {
                             viewModel.guardarEvento(context, usuarioId, parejaId, relacionId)
@@ -124,7 +149,9 @@ fun CrearEventoScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Tipo de evento
+            /**
+             * Tarjeta para seleccionar qué tipo de evento es (Cita Viaje Cumpleaños etc)
+             */
             Card(shape = RoundedCornerShape(16.dp)) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -144,10 +171,17 @@ fun CrearEventoScreen(
                         } catch (e: Exception) { TipoEvento.OTRO }
 
                         OutlinedTextField(
-                            value = "${tipoActual.emoji} ${tipoActual.etiqueta}",
+                            value = tipoActual.etiqueta,
                             onValueChange = {},
                             readOnly = true,
                             label = { Text("Tipo") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = tipoActual.icono,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
                             trailingIcon = {
                                 ExposedDropdownMenuDefaults.TrailingIcon(mostrarTipoPicker)
                             },
@@ -160,7 +194,17 @@ fun CrearEventoScreen(
                         ) {
                             TipoEvento.entries.forEach { tipo ->
                                 DropdownMenuItem(
-                                    text = { Text("${tipo.emoji} ${tipo.etiqueta}") },
+                                    text = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = tipo.icono,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(tipo.etiqueta)
+                                        }
+                                    },
                                     onClick = {
                                         viewModel.actualizarTipo(tipo.name)
                                         mostrarTipoPicker = false
@@ -172,7 +216,9 @@ fun CrearEventoScreen(
                 }
             }
 
-            // Info básica
+            /**
+             * Sección para escribir el nombre del plan y una descripción opcional
+             */
             Card(shape = RoundedCornerShape(16.dp)) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -202,7 +248,9 @@ fun CrearEventoScreen(
                 }
             }
 
-            // Fecha y hora
+            /**
+             * Botones para abrir los selectores de fecha y hora
+             */
             Card(shape = RoundedCornerShape(16.dp)) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -259,7 +307,9 @@ fun CrearEventoScreen(
                 }
             }
 
-            // Recordatorio
+            /**
+             * Configuración de la alarma de aviso automático
+             */
             Card(shape = RoundedCornerShape(16.dp)) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -281,6 +331,9 @@ fun CrearEventoScreen(
                         )
                     }
 
+                    /**
+                     * Selector de cuánto tiempo antes se debe mostrar el aviso
+                     */
                     if (uiState.recordatorio) {
                         ExposedDropdownMenuBox(
                             expanded = mostrarRecordatorioPicker,
@@ -328,6 +381,9 @@ fun CrearEventoScreen(
                 }
             }
 
+            /**
+             * Aviso de error si se intenta guardar sin título o fecha
+             */
             if (uiState.error != null) {
                 Text(
                     uiState.error!!,

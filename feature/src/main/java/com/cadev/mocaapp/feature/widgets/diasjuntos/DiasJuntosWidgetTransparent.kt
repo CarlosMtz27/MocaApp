@@ -13,6 +13,8 @@ import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -23,7 +25,15 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import com.cadev.mocaapp.feature.R
 
+/**
+ * WIDGET DE NUESTRA HISTORIA (MINIMALISTA FLOTANTE)
+ * 
+ * Qué hace:
+ * Versión ultra-minimalista sin fondo, para que el contador parezca 
+ * grabado directamente sobre el fondo de pantalla del móvil.
+ */
 class DiasJuntosWidgetTransparent : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val dataStore = DiasJuntosWidgetDataStore(context)
@@ -48,11 +58,37 @@ class DiasJuntosWidgetTransparent : GlanceAppWidget() {
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 if (data.configurado) {
-                    Text("❤️", style = TextStyle(fontSize = 20.sp))
-                    Text("${data.diasJuntos}", style = TextStyle(fontSize = 28.sp, fontWeight = FontWeight.Bold, color = ColorProvider(Color.White)))
-                    Text("días juntos", style = TextStyle(fontSize = 11.sp, color = ColorProvider(Color.White.copy(alpha = 0.8f))))
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_corazon),
+                        contentDescription = null,
+                        modifier = GlanceModifier.size(24.dp)
+                    )
+                    Spacer(GlanceModifier.height(4.dp))
+                    Text(
+                        text = "${data.diasJuntos}", 
+                        style = TextStyle(
+                            fontSize = 32.sp, 
+                            fontWeight = FontWeight.Bold, 
+                            color = ColorProvider(Color.White)
+                        )
+                    )
+                    Text(
+                        text = "días juntos", 
+                        style = TextStyle(
+                            fontSize = 12.sp, 
+                            color = ColorProvider(Color.White.copy(alpha = 0.8f))
+                        )
+                    )
                 } else {
-                    Text("Configurar ❤️", style = TextStyle(fontSize = 14.sp, color = ColorProvider(Color.White)))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Configurar", style = TextStyle(fontSize = 14.sp, color = ColorProvider(Color.White)))
+                        Spacer(GlanceModifier.width(4.dp))
+                        Image(
+                            provider = ImageProvider(R.drawable.ic_reaccion_corazon),
+                            contentDescription = null,
+                            modifier = GlanceModifier.size(14.dp)
+                        )
+                    }
                 }
             }
         }

@@ -12,25 +12,45 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * ESTA ES LA PANTALLA DE INICIO DE SESIÓN
+ * 
+ * Qué hace:
+ * Aquí diseñamos el formulario donde el usuario escribe sus datos para entrar. 
+ * También pusimos botones para navegar a otras pantallas como la de registro.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos cambiar el diseño o los textos, debemos buscar los componentes como `Button` 
+ * o `Text` y ajustar sus propiedades.
+ */
 @Composable
 fun LoginScreen(
     viewModel: AuthViewModel,
     onLoginExitoso: () -> Unit,
     onIrARegistro: () -> Unit
 ) {
+    /**
+     * Se observa la información que viene del gestor de datos
+     */
     val uiState by viewModel.uiState.collectAsState()
 
-    // Variables locales para los campos del formulario
+    /**
+     * Estas variables guardan lo que el usuario escribe en cada cuadro de texto
+     */
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    // Limpia errores previos al entrar a esta pantalla
+    /**
+     * Se asegura de que al entrar en esta pantalla no queden avisos de errores previos
+     */
     LaunchedEffect(Unit) {
         viewModel.limpiarEstado()
     }
 
-    // Cuando el login es exitoso, navegamos afuera
+    /**
+     * Si la entrada es correcta se avisa a la aplicación para que cambie de pantalla
+     */
     LaunchedEffect(uiState.exitoso) {
         if (uiState.exitoso) onLoginExitoso()
     }
@@ -43,12 +63,11 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center
     ) {
 
-        // Logo / Título
-        Text(
-            text = "💕",
-            style = MaterialTheme.typography.headlineLarge.copy(fontSize = 64.sp)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
+        /**
+         * Título y presentación de la aplicación
+         */
+        HeartLogo(size = 100.dp)
+        Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "MocaApp",
             style = MaterialTheme.typography.headlineLarge,
@@ -62,7 +81,9 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        // Campo Email
+        /**
+         * Cuadro de texto para escribir el correo electrónico
+         */
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
@@ -74,7 +95,9 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Campo Contraseña
+        /**
+         * Cuadro de texto para escribir la contraseña con opción de ver lo que se escribe
+         */
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
@@ -95,7 +118,9 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        //Error
+        /**
+         * Si ocurre algún problema se muestra el aviso de error aquí
+         */
         if (uiState.error != null) {
             Text(
                 text = uiState.error!!,
@@ -106,7 +131,9 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(12.dp))
         }
 
-        //Botón Login
+        /**
+         * Botón principal para intentar entrar en la aplicación
+         */
         Button(
             onClick = { viewModel.login(email, password) },
             enabled = !uiState.cargando,
@@ -114,6 +141,9 @@ fun LoginScreen(
                 .fillMaxWidth()
                 .height(50.dp)
         ) {
+            /**
+             * Si la aplicación está comprobando los datos se muestra un círculo de carga
+             */
             if (uiState.cargando) {
                 CircularProgressIndicator(
                     color = MaterialTheme.colorScheme.onPrimary,
@@ -126,7 +156,9 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        //Ir a Registro
+        /**
+         * Botón secundario por si el usuario todavía no tiene una cuenta creada
+         */
         TextButton(onClick = onIrARegistro) {
             Text("¿No tienes cuenta? Regístrate")
         }

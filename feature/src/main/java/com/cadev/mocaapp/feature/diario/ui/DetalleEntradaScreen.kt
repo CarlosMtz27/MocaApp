@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -43,6 +44,18 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * ESTA ES LA PANTALLA DE DETALLE DE UN RECUERDO
+ * 
+ * Qué hace:
+ * Aquí mostramos toda la información de un momento guardado: la historia completa, 
+ * el mosaico de fotos y vídeos, y la sección de comentarios de nuestra pareja. 
+ * También permitimos ver fotos a pantalla completa y descargarlas.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos añadir un botón para "Compartir en redes sociales", debemos añadirlo 
+ * en las `actions` de la barra superior (TopAppBar).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetalleEntradaScreen(
@@ -55,6 +68,9 @@ fun DetalleEntradaScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    /**
+     * Se cargan todos los datos del recuerdo y el nombre del usuario al entrar
+     */
     LaunchedEffect(entradaId) {
         viewModel.cargarDetalle(entradaId)
         viewModel.cargarNombreUsuario(usuarioId)
@@ -64,9 +80,10 @@ fun DetalleEntradaScreen(
     val esMia = entrada?.usuarioId == usuarioId
     val nombreUsuario = uiState.nombreUsuario
 
-    //Visor de media (foto o video)
+    /**
+     * Variable para controlar qué foto o vídeo se está viendo en pantalla completa
+     */
     var mediaVisor by remember { mutableStateOf<Pair<String, Boolean>?>(null) }
-    // Pair(url, esVideo)
 
     if (mediaVisor != null) {
         val (url, esVideo) = mediaVisor!!
@@ -93,10 +110,18 @@ fun DetalleEntradaScreen(
                         val tipo = try {
                             TipoEntrada.valueOf(entrada.tipo)
                         } catch (e: Exception) { TipoEntrada.MI_DIA }
-                        Text(
-                            text = "${tipo.emoji} ${entrada.titulo}",
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = tipo.icono,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = entrada.titulo,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
@@ -105,6 +130,9 @@ fun DetalleEntradaScreen(
                     }
                 },
                 actions = {
+                    /**
+                     * Botón para ir a la pantalla de edición solo si el recuerdo es tuyo
+                     */
                     if (esMia && entrada != null) {
                         IconButton(onClick = { onEditar(entrada.id) }) {
                             Icon(
@@ -132,6 +160,9 @@ fun DetalleEntradaScreen(
 
         if (entrada == null) return@Scaffold
 
+        /**
+         * Contenedor que permite deslizar para leer toda la información del recuerdo
+         */
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -139,17 +170,23 @@ fun DetalleEntradaScreen(
             contentPadding = PaddingValues(bottom = 100.dp)
         ) {
 
-            //Encabezado
+            /**
+             * Muestra el tipo de recuerdo la categoría y la fecha
+             */
             item { EncabezadoEntrada(entrada = entrada) }
 
-            //Emociones
+            /**
+             * Muestra la lista de sentimientos asociados a este momento
+             */
             if (entrada.emociones.isNotEmpty()) {
                 item {
                     SeccionEmocionesDetalle(emociones = entrada.emociones)
                 }
             }
 
-            //Descripcion
+            /**
+             * Muestra el texto largo de la historia
+             */
             if (entrada.detalles.isNotBlank()) {
                 item {
                     Text(
@@ -163,7 +200,9 @@ fun DetalleEntradaScreen(
                 }
             }
 
-            //Grid de fotos y videos
+            /**
+             * Muestra una cuadrícula con todas las fotos y vídeos guardados
+             */
             if (entrada.fotos.isNotEmpty() || entrada.videos.isNotEmpty()) {
                 item {
                     SeccionMediaDetalle(
@@ -179,7 +218,9 @@ fun DetalleEntradaScreen(
                 }
             }
 
-            //Divisor comentarios
+            /**
+             * Título de la sección de comentarios
+             */
             item {
                 HorizontalDivider(
                     modifier = Modifier.padding(
@@ -187,7 +228,7 @@ fun DetalleEntradaScreen(
                     )
                 )
                 Text(
-                    text = "💬 Comentarios (${uiState.comentarios.size})",
+                    text = "Comentarios (${uiState.comentarios.size})",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 20.dp)
@@ -195,11 +236,13 @@ fun DetalleEntradaScreen(
                 Spacer(Modifier.height(8.dp))
             }
 
-            //Lista comentarios
+            /**
+             * Lista de todos los comentarios dejados por la pareja
+             */
             if (uiState.comentarios.isEmpty()) {
                 item {
                     Text(
-                        text = "Sé el primero en comentar 💕",
+                        text = "Sé el primero en comentar",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                         textAlign = TextAlign.Center,
@@ -220,7 +263,9 @@ fun DetalleEntradaScreen(
                 }
             }
 
-            //Input comentario
+            /**
+             * Cuadro de texto al final para escribir un comentario nuevo
+             */
             item {
                 InputComentario(
                     texto = uiState.nuevoComentario,
@@ -234,8 +279,9 @@ fun DetalleEntradaScreen(
     }
 }
 
-//Encabezado de la entrada
-
+/**
+ * Función que dibuja la parte superior del detalle con iconos y colores representativos
+ */
 @Composable
 private fun EncabezadoEntrada(entrada: EntradaDiario) {
     val tipo = try {
@@ -247,7 +293,7 @@ private fun EncabezadoEntrada(entrada: EntradaDiario) {
     )
 
     val formatoFecha = SimpleDateFormat(
-        "EEEE d 'de' MMMM, yyyy", Locale("es", "MX")
+        "EEEE d 'de' MMMM, yyyy", Locale.forLanguageTag("es-MX")
     )
     val fechaVisible = try {
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -271,23 +317,48 @@ private fun EncabezadoEntrada(entrada: EntradaDiario) {
                     .background(colorTipo.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = tipo.emoji, fontSize = 18.sp)
+                Icon(
+                    imageVector = tipo.icono,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = colorTipo
+                )
             }
-    Column {
+            Column {
                 val etiquetaMostrada = if (entrada.etiqueta.isNotBlank()) {
                     val tipoEvento = TipoEvento.entries.find { it.name == entrada.etiqueta }
                     if (tipoEvento != null) {
-                        " · ${tipoEvento.emoji} ${tipoEvento.etiqueta}"
+                        tipoEvento.etiqueta
                     } else {
-                        " · ${entrada.etiqueta}"
+                        entrada.etiqueta
                     }
                 } else ""
 
-                Text(
-                    text = tipo.etiqueta + etiquetaMostrada,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = colorTipo
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = tipo.etiqueta,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = colorTipo
+                    )
+                    if (etiquetaMostrada.isNotBlank()) {
+                        val tipoEvento = TipoEvento.entries.find { it.name == entrada.etiqueta }
+                        Text(text = " · ", color = colorTipo)
+                        if (tipoEvento != null) {
+                            Icon(
+                                imageVector = tipoEvento.icono,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = colorTipo
+                            )
+                            Spacer(Modifier.width(4.dp))
+                        }
+                        Text(
+                            text = etiquetaMostrada,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = colorTipo
+                        )
+                    }
+                }
                 Text(
                     text = fechaVisible,
                     style = MaterialTheme.typography.labelSmall,
@@ -310,7 +381,7 @@ private fun EncabezadoEntrada(entrada: EntradaDiario) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text("💕", fontSize = 12.sp)
+                Icon(Icons.Default.Favorite, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(12.dp))
                 Text(
                     text = "Compartida con tu pareja",
                     style = MaterialTheme.typography.labelSmall,
@@ -321,8 +392,9 @@ private fun EncabezadoEntrada(entrada: EntradaDiario) {
     }
 }
 
-//Emociones en detalle
-
+/**
+ * Muestra los dibujos de emociones seleccionados para este recuerdo
+ */
 @Composable
 private fun SeccionEmocionesDetalle(emociones: List<String>) {
     Row(
@@ -337,7 +409,12 @@ private fun SeccionEmocionesDetalle(emociones: List<String>) {
             } catch (e: Exception) { null }
             if (emocion != null) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = emocion.emoji, fontSize = 24.sp)
+                    Icon(
+                        painter = painterResource(id = emocion.iconRes),
+                        contentDescription = emocion.etiqueta,
+                        tint = Color.Unspecified,
+                        modifier = Modifier.size(28.dp)
+                    )
                     Text(
                         text = emocion.etiqueta,
                         style = MaterialTheme.typography.labelSmall,
@@ -349,8 +426,9 @@ private fun SeccionEmocionesDetalle(emociones: List<String>) {
     }
 }
 
-//Grid de fotos y videos
-
+/**
+ * Organiza las fotos y vídeos en un mosaico interactivo
+ */
 @Composable
 private fun SeccionMediaDetalle(
     fotos: List<String>,
@@ -366,7 +444,7 @@ private fun SeccionMediaDetalle(
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Text(
-            text = "📷 Fotos y videos (${todosLosItems.size})",
+            text = "Fotos y videos (${todosLosItems.size})",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
@@ -400,7 +478,6 @@ private fun SeccionMediaDetalle(
                             modifier = Modifier.fillMaxSize()
                         )
                         if (esVideo) {
-                            //Overlay con ícono de play
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -425,7 +502,6 @@ private fun SeccionMediaDetalle(
                         }
                     }
                 }
-                // Relleno si la fila no está completa
                 repeat(3 - fila.size) {
                     Box(modifier = Modifier.weight(1f))
                 }
@@ -434,8 +510,9 @@ private fun SeccionMediaDetalle(
     }
 }
 
-//Visor de foto fullscreen
-
+/**
+ * Muestra una imagen ocupando toda la pantalla y permite descargarla
+ */
 @Composable
 private fun VisorFoto(
     url: String,
@@ -479,8 +556,9 @@ private fun VisorFoto(
     }
 }
 
-//Visor de video fullscreen con ExoPlayer
-
+/**
+ * Reproductor de vídeo a pantalla completa con controles de pausa y volumen
+ */
 @Composable
 private fun VisorVideo(
     url: String,
@@ -510,7 +588,6 @@ private fun VisorVideo(
                 onDispose { exoPlayer.release() }
             }
 
-            //PlayerView con controles nativos
             AndroidView(
                 factory = {
                     androidx.media3.ui.PlayerView(it).apply {
@@ -521,7 +598,6 @@ private fun VisorVideo(
                 modifier = Modifier.fillMaxSize()
             )
 
-            //Botones overlay
             Row(
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -550,8 +626,9 @@ private fun VisorVideo(
     }
 }
 
-//Descarga
-
+/**
+ * Inicia la descarga de un archivo multimedia a la carpeta de imágenes del teléfono
+ */
 private fun descargarArchivo(context: Context, url: String) {
     try {
         val nombreArchivo = url.substringAfterLast("/")
@@ -576,15 +653,16 @@ private fun descargarArchivo(context: Context, url: String) {
     } catch (e: Exception) { }
 }
 
-//Tarjeta de comentario
-
+/**
+ * Función que dibuja la burbuja de cada comentario individual
+ */
 @Composable
 private fun TarjetaComentario(
     comentario: Comentario,
     esMio: Boolean,
     onEliminar: () -> Unit
 ) {
-    val formatoHora = SimpleDateFormat("d MMM · HH:mm", Locale("es", "MX"))
+    val formatoHora = SimpleDateFormat("d MMM · HH:mm", Locale.forLanguageTag("es-MX"))
 
     Row(
         modifier = Modifier
@@ -642,6 +720,9 @@ private fun TarjetaComentario(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                /**
+                 * Permite borrar el comentario si tú eres el autor
+                 */
                 if (esMio) {
                     IconButton(
                         onClick = onEliminar,
@@ -666,8 +747,9 @@ private fun TarjetaComentario(
     }
 }
 
-//Input de nuevo comentario
-
+/**
+ * Función que crea el campo de texto inferior para enviar nuevos comentarios
+ */
 @Composable
 private fun InputComentario(
     texto: String,

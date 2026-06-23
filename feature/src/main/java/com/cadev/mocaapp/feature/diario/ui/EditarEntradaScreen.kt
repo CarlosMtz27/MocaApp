@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import com.cadev.mocaapp.core.model.TipoEvento
 import com.cadev.mocaapp.feature.diario.domain.model.Emocion
@@ -36,6 +37,18 @@ import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
 import java.io.File
 import java.util.*
 
+/**
+ * ESTA ES LA PANTALLA PARA MODIFICAR RECUERDOS
+ * 
+ * Qué hace:
+ * Aquí permitimos que el usuario cambie algo que ya guardó antes. Se pueden 
+ * editar los textos, las emociones y añadir o quitar fotos y vídeos. Lo que 
+ * se acaba de añadir aparece con una etiqueta de "Nueva".
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos que no se puedan borrar fotos antiguas, debemos ocultar el botón 
+ * de eliminar dentro de la función `SeccionMediaEditar` para los items existentes.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditarEntradaScreen(
@@ -48,11 +61,17 @@ fun EditarEntradaScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    /**
+     * Se limpia el formulario y se descarga el recuerdo elegido al entrar
+     */
     LaunchedEffect(entradaId) {
         viewModel.limpiarFormulario()
         viewModel.cargarEntradaParaEditar(entradaId)
     }
 
+    /**
+     * Si los cambios se guardan bien se avisa para salir de esta pantalla
+     */
     LaunchedEffect(uiState.entradaActualizada) {
         if (uiState.entradaActualizada) onGuardado()
     }
@@ -69,12 +88,18 @@ fun EditarEntradaScreen(
     var mostrarDialogoMedia by remember { mutableStateOf(false) }
     var accionPendiente by remember { mutableStateOf<(() -> Unit)?>(null) }
 
+    /**
+     * Crea un archivo temporal para guardar lo que capture la cámara
+     */
     fun crearUriTemporal(carpeta: String, extension: String): Uri {
         val dir = File(context.cacheDir, carpeta).also { it.mkdirs() }
         val archivo = File(dir, "${UUID.randomUUID()}.$extension")
         return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", archivo)
     }
 
+    /**
+     * Gestor para solicitar permiso de cámara
+     */
     val launcherPermiso = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { concedido ->
@@ -82,27 +107,42 @@ fun EditarEntradaScreen(
         accionPendiente = null
     }
 
+    /**
+     * Pide permiso antes de abrir la cámara
+     */
     fun pedirPermisoYEjecutar(accion: () -> Unit) {
         accionPendiente = accion
         launcherPermiso.launch(android.Manifest.permission.CAMERA)
     }
 
+    /**
+     * Selecciona archivos nuevos de la galería
+     */
     val launcherGaleria = rememberLauncherForActivityResult(
         ActivityResultContracts.GetMultipleContents()
     ) { uris -> uris.forEach { viewModel.agregarFoto(it.toString()) } }
 
+    /**
+     * Toma una foto nueva con la cámara
+     */
     val launcherCamara = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { exito ->
         if (exito) uriCameraTemp?.let { viewModel.agregarFoto(it.toString()) }
     }
 
+    /**
+     * Graba un vídeo nuevo con la cámara
+     */
     val launcherVideo = rememberLauncherForActivityResult(
         ActivityResultContracts.CaptureVideo()
     ) { exito ->
         if (exito) uriVideoTemp?.let { viewModel.agregarVideo(it.toString()) }
     }
 
+    /**
+     * Diálogo para elegir el origen de los nuevos archivos multimedia
+     */
     if (mostrarDialogoMedia) {
         AlertDialog(
             onDismissRequest = { mostrarDialogoMedia = false },
@@ -167,7 +207,7 @@ fun EditarEntradaScreen(
                 title = {
                     Column {
                         Text(
-                            text = "✏️ Editar ${tipoEntrada.etiqueta.lowercase()}",
+                            text = "Editar ${tipoEntrada.etiqueta.lowercase()}",
                             style = MaterialTheme.typography.titleMedium
                         )
                         if (entrada != null) {
@@ -185,6 +225,9 @@ fun EditarEntradaScreen(
                     }
                 },
                 actions = {
+                    /**
+                     * Botón para confirmar y guardar todos los cambios realizados
+                     */
                     IconButton(
                         onClick = { viewModel.guardarEdicion(parejaId) },
                         enabled = !uiState.cargando && entrada != null
@@ -200,6 +243,9 @@ fun EditarEntradaScreen(
         }
     ) { padding ->
 
+        /**
+         * Pantalla de carga si todavía no se ha bajado la información del recuerdo
+         */
         if (uiState.cargando && entrada == null) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
@@ -215,6 +261,9 @@ fun EditarEntradaScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            /**
+             * Selector de categoría si es un tipo de entrada de tipo recuerdo
+             */
             if (tipoEntrada == TipoEntrada.RECUERDO) {
                 SeccionEtiquetasEditar(
                     etiquetaSeleccionada = uiState.etiqueta,
@@ -224,6 +273,9 @@ fun EditarEntradaScreen(
                 )
             }
 
+            /**
+             * Campo para cambiar el título principal
+             */
             OutlinedTextField(
                 value = uiState.titulo,
                 onValueChange = { viewModel.actualizarTitulo(it) },
@@ -237,11 +289,17 @@ fun EditarEntradaScreen(
                 singleLine = true
             )
 
+            /**
+             * Selector de emociones para modificar cómo te sentías ese día
+             */
             SeccionEmocionesEditar(
                 emocionesSeleccionadas = uiState.emocionesSeleccionadas,
                 onToggle = { viewModel.toggleEmocion(it) }
             )
 
+            /**
+             * Campo de texto grande para modificar la historia o los detalles
+             */
             OutlinedTextField(
                 value = uiState.detalles,
                 onValueChange = { viewModel.actualizarDetalles(it) },
@@ -250,6 +308,9 @@ fun EditarEntradaScreen(
                 maxLines = 8
             )
 
+            /**
+             * Gestión combinada de archivos viejos y archivos recién añadidos
+             */
             SeccionMediaEditar(
                 fotosExistentes = entrada?.fotos ?: emptyList(),
                 videosExistentes = entrada?.videos ?: emptyList(),
@@ -262,6 +323,9 @@ fun EditarEntradaScreen(
                 onEliminarVideoNuevo = { viewModel.eliminarVideo(it) }
             )
 
+            /**
+             * Opción para cambiar si el recuerdo es privado o compartido con la pareja
+             */
             if (parejaId != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant).clickable { viewModel.toggleCompartir() }.padding(16.dp),
@@ -269,7 +333,16 @@ fun EditarEntradaScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("💕 Compartir con mi pareja", style = MaterialTheme.typography.titleMedium)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                painter = painterResource(id = com.cadev.mocaapp.feature.R.drawable.ic_corazon),
+                                contentDescription = null,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Compartir con mi pareja", style = MaterialTheme.typography.titleMedium)
+                        }
                         Text(
                             text = if (uiState.compartir) "Tu pareja podrá ver esto" else "Solo tú puedes verlo",
                             style = MaterialTheme.typography.bodySmall,
@@ -280,6 +353,9 @@ fun EditarEntradaScreen(
                 }
             }
 
+            /**
+             * Muestra mensajes si hay errores al intentar guardar los cambios
+             */
             if (uiState.error != null) {
                 Text(text = uiState.error!!, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             }
@@ -288,6 +364,9 @@ fun EditarEntradaScreen(
     }
 }
 
+/**
+ * Función que muestra los temas para clasificar el recuerdo en el modo edición
+ */
 @Composable
 private fun SeccionEtiquetasEditar(
     etiquetaSeleccionada: String,
@@ -306,8 +385,13 @@ private fun SeccionEtiquetasEditar(
                             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(50.dp)).background(if (seleccionada) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface).border(1.dp, if (seleccionada) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, RoundedCornerShape(50.dp)).clickable { onEtiquetaSeleccionada(tipo.name) }.padding(horizontal = 10.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(tipo.emoji, fontSize = 14.sp)
-                            Spacer(Modifier.width(4.dp))
+                            Icon(
+                                imageVector = tipo.icono,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = if (seleccionada) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.width(6.dp))
                             Text(tipo.etiqueta, style = MaterialTheme.typography.bodySmall, color = if (seleccionada) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, maxLines = 1)
                         }
                     }
@@ -321,6 +405,9 @@ private fun SeccionEtiquetasEditar(
     }
 }
 
+/**
+ * Función que muestra el selector de estados de ánimo en el modo edición
+ */
 @Composable
 private fun SeccionEmocionesEditar(
     emocionesSeleccionadas: List<Emocion>,
@@ -337,7 +424,12 @@ private fun SeccionEmocionesEditar(
                             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (seleccionada) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant).border(1.dp, if (seleccionada) MaterialTheme.colorScheme.primary else Color.Transparent, RoundedCornerShape(12.dp)).clickable { onToggle(emocion) }.padding(8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(emocion.emoji, fontSize = 22.sp)
+                            Icon(
+                                painter = painterResource(id = emocion.iconRes),
+                                contentDescription = null,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(32.dp)
+                            )
                             Text(emocion.etiqueta, style = MaterialTheme.typography.labelSmall, color = if (seleccionada) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
                         }
                     }
@@ -348,6 +440,9 @@ private fun SeccionEmocionesEditar(
     }
 }
 
+/**
+ * Función que permite gestionar tanto las fotos que ya estaban guardadas como las nuevas que se añadan
+ */
 @Composable
 private fun SeccionMediaEditar(
     fotosExistentes: List<String>,
@@ -372,7 +467,15 @@ private fun SeccionMediaEditar(
         }
         if (!hayMedia) {
             Box(modifier = Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant).clickable(onClick = onAgregarMedia), contentAlignment = Alignment.Center) {
-                Text(text = "📷 Toca para agregar fotos o videos", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.PhotoCamera,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(text = "Toca para agregar fotos o videos", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                }
             }
         } else {
             data class ItemMedia(val uri: String, val esVideo: Boolean, val esExistente: Boolean)
@@ -383,6 +486,9 @@ private fun SeccionMediaEditar(
                     fila.forEach { item ->
                         Box(modifier = Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(8.dp))) {
                             AsyncImage(model = item.uri, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                            /**
+                             * Pequeño aviso para diferenciar lo que se acaba de añadir de lo que ya estaba guardado
+                             */
                             if (!item.esExistente) {
                                 Box(modifier = Modifier.align(Alignment.BottomStart).padding(4.dp).clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)).padding(horizontal = 4.dp, vertical = 2.dp)) {
                                     Text(text = "Nueva", style = MaterialTheme.typography.labelSmall, color = Color.White)
@@ -393,6 +499,9 @@ private fun SeccionMediaEditar(
                                     Icon(Icons.Outlined.Videocam, null, tint = Color.White, modifier = Modifier.size(28.dp))
                                 }
                             }
+                            /**
+                             * Botón para borrar el archivo del recuerdo
+                             */
                             IconButton(
                                 onClick = {
                                     when {

@@ -9,6 +9,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,10 +20,23 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
 import com.cadev.mocaapp.feature.notas.domain.model.NotaActual
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+/**
+ * ESTA ES NUESTRO MURO DE NOTAS
+ * 
+ * Qué hace:
+ * Aquí tenemos nuestro rincón compartido con dos notas adhesivas. En una vemos 
+ * lo que nuestra pareja nos escribió y en la otra podemos escribirle nosotros 
+ * algo rápido. Todo lo que pongamos se verá también en el widget del móvil.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos cambiar el color de fondo de los "post-it", debemos ir a los 
+ * componentes `Card` de cada sección y ajustar el `containerColor`.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotasScreen(
@@ -36,11 +51,17 @@ fun NotasScreen(
     val context = LocalContext.current
     var mostrarConfirmarEliminar by remember { mutableStateOf(false) }
 
+    /**
+     * Se conecta al sistema de notas y se quita el aviso de mensajes nuevos al entrar
+     */
     LaunchedEffect(relacionId, usuarioId, parejaId) {
         viewModel.iniciar(context, relacionId, usuarioId, parejaId)
         viewModel.limpiarBadge(usuarioId)
     }
 
+    /**
+     * Cuadro de diálogo para confirmar si se desea borrar la propia nota
+     */
     if (mostrarConfirmarEliminar) {
         AlertDialog(
             onDismissRequest = { mostrarConfirmarEliminar = false },
@@ -78,19 +99,30 @@ fun NotasScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // SECCIÓN 1: NOTA DE MI PAREJA (Lectura)
+            /**
+             * SECCIÓN SUPERIOR NOTA RECIBIDA DE LA PAREJA
+             */
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "💝 Nota de tu pareja para ti",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.secondary
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        painter = painterResource(id = com.cadev.mocaapp.feature.R.drawable.ic_reaccion_regalo),
+                        contentDescription = null,
+                        tint = Color.Unspecified,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "Nota de tu pareja para ti",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
                 
                 Card(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE1F5FE)) // Light Blue Post-it
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE1F5FE))
                 ) {
                     Box(modifier = Modifier.padding(16.dp)) {
                         if (uiState.notaPareja != null) {
@@ -121,21 +153,32 @@ fun NotasScreen(
                 }
             }
 
-            Divider()
+            HorizontalDivider()
 
-            // SECCIÓN 2: MI NOTA PARA MI PAREJA (Edición)
+            /**
+             * SECCIÓN INFERIOR TU PROPIA NOTA PARA TU PAREJA
+             */
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "📝 Tu nota para tu pareja",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(id = com.cadev.mocaapp.feature.R.drawable.ic_reaccion_nota),
+                            contentDescription = null,
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "Tu nota para tu pareja",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     
                     Row {
                         if (uiState.miNota != null) {
@@ -158,11 +201,34 @@ fun NotasScreen(
                     }
                 }
                 
+                // Selector de color para el widget
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Color letra widget:", style = MaterialTheme.typography.labelSmall)
+                    listOf("#4A4A4A", "#D81B60", "#1976D2", "#388E3C", "#FFFFFF").forEach { hex ->
+                        val color = Color(android.graphics.Color.parseColor(hex))
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(color)
+                                .clickable { viewModel.cambiarColor(context, hex) }
+                                .padding(if (uiState.colorTexto == hex) 2.dp else 0.dp)
+                        )
+                    }
+                }
+
                 Card(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 150.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF9C4)) // Post-it yellow
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF9C4))
                 ) {
+                    /**
+                     * Campo de texto para escribir el mensaje sin bordes visibles para parecer papel
+                     */
                     TextField(
                         value = uiState.borrador,
                         onValueChange = { viewModel.actualizarBorrador(it) },
@@ -178,6 +244,9 @@ fun NotasScreen(
                     )
                 }
                 
+                /**
+                 * Indica cuándo fue la última vez que se guardó el mensaje
+                 */
                 if (uiState.miNota != null) {
                     val fechaStr = SimpleDateFormat("d MMM, HH:mm", Locale.getDefault())
                         .format(uiState.miNota!!.actualizadaEn.toDate())

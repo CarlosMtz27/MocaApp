@@ -19,15 +19,32 @@ import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+/**
+ * EL MOTOR DEL CHAT (FIREBASE Y CLOUDINARY)
+ * 
+ * Qué hace:
+ * Aquí escribimos la lógica real para que los mensajes viajen por internet. Usamos 
+ * Firebase para los textos y Cloudinary para guardar las fotos y audios en la nube.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos cambiar dónde guardamos las fotos, debemos modificar la función 
+ * `subirArchivo` para que apunte a otro servicio (ej: Firebase Storage).
+ */
 class ChatRepositoryImpl(
     private val firestore: FirebaseFirestore
 ) : ChatRepository {
 
+    /**
+     * Crea un nombre para la sala de chat uniendo los IDs de la pareja en orden alfabético.
+     */
     override fun obtenerConversacionId(uid1: String, uid2: String): String {
-        // Ordenar para que siempre sea el mismo ID sin importar quien inicia
         return listOf(uid1, uid2).sorted().joinToString("_")
     }
 
+    /**
+     * SECCIÓN DE MENSAJES EN VIVO:
+     * Nos conectamos a Firestore y pedimos que nos avise cada vez que aparezca un mensaje nuevo.
+     */
     override fun escucharMensajes(conversacionId: String): Flow<List<Mensaje>> = callbackFlow {
         val listener = firestore
             .collection("conversaciones")
@@ -36,7 +53,11 @@ class ChatRepositoryImpl(
             .orderBy("creadoEn", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close()
+                    if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                        close()
+                    } else {
+                        close(error)
+                    }
                     return@addSnapshotListener
                 }
                 val mensajes = snapshot?.documents
@@ -47,6 +68,10 @@ class ChatRepositoryImpl(
         awaitClose { listener.remove() }
     }
 
+    /**
+     * ENVÍO DE TEXTO:
+     * Guardamos el mensaje en la base de datos y actualizamos la vista previa del chat.
+     */
     override suspend fun enviarMensaje(
         mensaje: Mensaje
     ): Result<Mensaje> {
@@ -72,13 +97,13 @@ class ChatRepositoryImpl(
                 .set(mensajeFinal)
                 .await()
 
-            // Actualizar metadatos de la conversación
+            // Actualizamos el resumen de la conversación para que aparezca en la lista
             firestore
                 .collection("conversaciones")
                 .document(mensaje.conversacionId)
                 .set(
                     mapOf(
-                        "ultimoMensaje" to mensaje.texto.ifBlank { "📎 Archivo" },
+                        "ultimoMensaje" to mensaje.texto.ifBlank { "Archivo" },
                         "ultimaActividad" to Timestamp.now(),
                         "participantes" to listOf(
                             mensaje.remitenteId,
@@ -97,6 +122,11 @@ class ChatRepositoryImpl(
         }
     }
 
+    /**
+     * ENVÍO DE ARCHIVOS (FOTOS/AUDIOS):
+     * 1. Primero subimos el archivo a Cloudinary.
+     * 2. Cuando nos dan el enlace web, enviamos el mensaje al chat.
+     */
     override suspend fun enviarMensajeConMedia(
         mensaje: Mensaje,
         rutaLocal: String
@@ -116,6 +146,10 @@ class ChatRepositoryImpl(
         }
     }
 
+    /**
+     * CONFIRMACIÓN DE LECTURA:
+     * Buscamos los mensajes de la pareja que todavía no hayamos leído y les cambiamos el estado.
+     */
     override suspend fun marcarComoLeido(
         conversacionId: String,
         usuarioId: String
@@ -142,6 +176,10 @@ class ChatRepositoryImpl(
         }
     }
 
+    /**
+     * ESTADO ESCRIBIENDO:
+     * Avisamos a la base de datos si estamos tecleando algo ahora mismo.
+     */
     override suspend fun actualizarEscribiendo(
         conversacionId: String,
         usuarioId: String,
@@ -162,16 +200,28 @@ class ChatRepositoryImpl(
         }
     }
 
+    /**
+     * ESCUCHA DE PAREJA ESCRIBIENDO:
+     * Vigila la base de datos para avisarnos en cuanto la pareja empiece a escribir.
+     */
     override fun escucharEscribiendo(
         conversacionId: String,
         parejaId: String
     ): Flow<Boolean> = callbackFlow {
+        if (parejaId.isBlank()) {
+            trySend(false)
+            return@callbackFlow
+        }
         val listener = firestore
             .collection("typing")
             .document(conversacionId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close()
+                    if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                        close()
+                    } else {
+                        close(error)
+                    }
                     return@addSnapshotListener
                 }
                 trySend(snapshot?.getBoolean(parejaId) ?: false)
@@ -179,6 +229,10 @@ class ChatRepositoryImpl(
         awaitClose { listener.remove() }
     }
 
+    /**
+     * REACCIONES:
+     * Guarda el dibujo (emoji) que elegimos para un mensaje en particular.
+     */
     override suspend fun agregarReaccion(
         conversacionId: String,
         mensajeId: String,
@@ -199,6 +253,10 @@ class ChatRepositoryImpl(
         }
     }
 
+    /**
+     * BORRADO:
+     * Quita el mensaje de la base de datos para que desaparezca de ambos móviles.
+     */
     override suspend fun eliminarMensaje(
         conversacionId: String,
         mensajeId: String
@@ -217,12 +275,15 @@ class ChatRepositoryImpl(
         }
     }
 
+    /**
+     * SUBIDA A LA NUBE (CLOUDINARY):
+     * Envía el archivo local (foto, vídeo o audio) al servidor web de Cloudinary.
+     */
     private suspend fun subirArchivo(
         rutaLocal: String,
         carpeta: String
     ): String = suspendCancellableCoroutine { continuation ->
 
-        // Cloudinary usa "video" para audio Y video
         val resourceType = when (carpeta) {
             "fotos" -> "image"
             "videos", "audios" -> "video"

@@ -9,6 +9,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -21,22 +23,24 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import com.cadev.mocaapp.feature.R
 import com.cadev.mocaapp.feature.notas.domain.model.NotaActual
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 class NotaWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
-            val nota = NotaWidgetDataStore.obtener(context).collectAsState(initial = null).value
-            NotaWidgetContent(nota)
+            val data = NotaWidgetDataStore.obtener(context).collectAsState(initial = NotaWidgetData(null, "#4A4A4A")).value
+            NotaWidgetContent(data)
         }
     }
 
     @Composable
-    private fun NotaWidgetContent(nota: NotaActual?) {
+    private fun NotaWidgetContent(data: NotaWidgetData) {
         val context = LocalContext.current
+        val nota = data.nota
+        val colorTexto = try { Color(android.graphics.Color.parseColor(data.colorTexto)) } catch (e: Exception) { Color(0xFF4A4A4A) }
+
         val intent = Intent().apply {
             setClassName(context.packageName, "com.cadev.mocaapp.MainActivity")
             putExtra("deepLink", "main/notas")
@@ -46,32 +50,33 @@ class NotaWidget : GlanceAppWidget() {
         Box(
             modifier = GlanceModifier
                 .fillMaxSize()
-                .background(ColorProvider(Color(0xFFFFF9C4))) // Classic post-it yellow
-                .cornerRadius(12.dp)
+                .background(ColorProvider(Color(0xFFFFF0F5)))
+                .cornerRadius(24.dp)
                 .clickable(actionStartActivity(intent))
-                .padding(12.dp)
+                .padding(16.dp)
         ) {
             Column(modifier = GlanceModifier.fillMaxSize()) {
                 Row(
                     modifier = GlanceModifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "📌",
-                        style = TextStyle(fontSize = 14.sp)
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_reaccion_corazon),
+                        contentDescription = null,
+                        modifier = GlanceModifier.size(18.dp)
                     )
-                    Spacer(GlanceModifier.width(4.dp))
+                    Spacer(GlanceModifier.width(6.dp))
                     Text(
-                        text = "Nota compartida",
+                        text = "Para ti",
                         style = TextStyle(
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = ColorProvider(Color(0xFFFBC02D))
+                            color = ColorProvider(Color(0xFFFF69B4))
                         )
                     )
                 }
                 
-                Spacer(GlanceModifier.height(8.dp))
+                Spacer(GlanceModifier.height(10.dp))
 
                 if (nota == null) {
                     Box(
@@ -79,10 +84,10 @@ class NotaWidget : GlanceAppWidget() {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Toca para escribir algo...",
+                            text = "Toca para escribir algo lindo...",
                             style = TextStyle(
                                 fontSize = 13.sp,
-                                color = ColorProvider(Color.Gray)
+                                color = ColorProvider(Color(0xFFDB7093).copy(alpha = 0.6f))
                             )
                         )
                     }
@@ -93,20 +98,17 @@ class NotaWidget : GlanceAppWidget() {
                         style = TextStyle(
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
-                            color = ColorProvider(Color.Black)
+                            color = ColorProvider(colorTexto)
                         ),
-                        maxLines = 6
+                        maxLines = 5
                     )
                     
-                    val fechaStr = SimpleDateFormat("d MMM, HH:mm", Locale.getDefault())
-                        .format(nota.actualizadaEn.toDate())
-
                     Text(
-                        text = "De: ${nota.nombreAutor} • $fechaStr",
+                        text = "— ${nota.nombreAutor}",
                         style = TextStyle(
-                            fontSize = 9.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = ColorProvider(Color.Black.copy(alpha = 0.5f))
+                            color = ColorProvider(Color(0xFFFF69B4).copy(alpha = 0.7f))
                         )
                     )
                 }

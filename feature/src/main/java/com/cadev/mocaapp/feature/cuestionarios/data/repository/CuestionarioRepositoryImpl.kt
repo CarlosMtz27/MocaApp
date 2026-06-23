@@ -15,10 +15,26 @@ import kotlinx.coroutines.tasks.await
 import java.util.UUID
 import kotlin.coroutines.resume
 
+/**
+ * EL MOTOR DE LOS TESTS (FIREBASE Y CLOUDINARY)
+ * 
+ * Qué hace:
+ * Aquí escribimos la lógica real para manejar los cuestionarios. Usamos Firestore 
+ * para guardar las preguntas y respuestas, y Cloudinary para las fotos. 
+ * También calculamos el porcentaje de compatibilidad comparando las respuestas.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos cambiar la forma en que calculamos el match (ej: dar más puntos a 
+ * las respuestas que coinciden exactamente), debemos editar la función `calcularResultado`.
+ */
 class CuestionarioRepositoryImpl(
     private val firestore: FirebaseFirestore
 ) : CuestionarioRepository {
 
+    /**
+     * BUSCAR TESTS:
+     * Trae de la base de datos tanto los tests oficiales como los que creó la pareja.
+     */
     override suspend fun obtenerCuestionarios(
         relacionId: String
     ): Result<List<Cuestionario>> = try {
@@ -37,6 +53,10 @@ class CuestionarioRepositoryImpl(
         Result.success(predefinidos + personalizados)
     } catch (e: Exception) { Result.failure(e) }
 
+    /**
+     * TRAER UN TEST:
+     * Obtiene toda la información de un cuestionario específico por su ID.
+     */
     override suspend fun obtenerCuestionario(
         id: String
     ): Result<Cuestionario> {
@@ -51,7 +71,11 @@ class CuestionarioRepositoryImpl(
         }
     }
 
-
+    /**
+     * GUARDAR RESPUESTAS:
+     * Registra en la base de datos lo que el usuario contestó y añade su ID a la 
+     * lista de "personas que completaron el test".
+     */
     override suspend fun guardarRespuestas(
         cuestionarioId: String,
         usuarioId: String,
@@ -90,6 +114,10 @@ class CuestionarioRepositoryImpl(
         Result.success(Unit)
     } catch (e: Exception) { Result.failure(e) }
 
+    /**
+     * TRAER RESPUESTAS DE TEXTO:
+     * Descarga lo que el usuario escribió o seleccionó en un test.
+     */
     override suspend fun obtenerRespuestas(
         cuestionarioId: String,
         usuarioId: String
@@ -108,6 +136,10 @@ class CuestionarioRepositoryImpl(
         Result.success(map)
     } catch (e: Exception) { Result.failure(e) }
 
+    /**
+     * TRAER RESPUESTAS DE FOTO:
+     * Descarga los enlaces de las imágenes que el usuario subió como respuesta.
+     */
     override suspend fun obtenerRespuestasFoto(
         cuestionarioId: String,
         usuarioId: String
@@ -128,6 +160,10 @@ class CuestionarioRepositoryImpl(
         Result.success(map)
     } catch (e: Exception) { Result.failure(e) }
 
+    /**
+     * CONSULTAR ESTADO:
+     * Revisa quién de los dos ha terminado el test para saber si podemos mostrar resultados.
+     */
     override suspend fun obtenerEstado(
         cuestionarioId: String,
         usuarioId: String,
@@ -151,7 +187,10 @@ class CuestionarioRepositoryImpl(
         Result.success(estado)
     } catch (e: Exception) { Result.failure(e) }
 
-    // paralelo con async, awaitAll
+    /**
+     * ESTADO DE TODOS:
+     * Consulta el estado de una lista de tests al mismo tiempo para ganar velocidad.
+     */
     override suspend fun obtenerEstadosTodos(
         cuestionarios: List<Cuestionario>,
         usuarioId: String,
@@ -169,6 +208,11 @@ class CuestionarioRepositoryImpl(
         }
     } catch (e: Exception) { Result.failure(e) }
 
+    /**
+     * CALCULAR COMPATIBILIDAD:
+     * Compara las respuestas de ambos. Si coinciden o están cerca (en escalas), 
+     * suma puntos y saca un porcentaje final.
+     */
     override suspend fun calcularResultado(
         cuestionarioId: String,
         relacionId: String,
@@ -224,6 +268,10 @@ class CuestionarioRepositoryImpl(
         Result.success(resultado)
     } catch (e: Exception) { Result.failure(e) }
 
+    /**
+     * TRAER RESULTADO:
+     * Obtiene el porcentaje de match que ya se calculó anteriormente.
+     */
     override suspend fun obtenerResultado(
         cuestionarioId: String
     ): Result<ResultadoCuestionario?> = try {
@@ -232,13 +280,16 @@ class CuestionarioRepositoryImpl(
         Result.success(doc.toObject(ResultadoCuestionario::class.java))
     } catch (e: Exception) { Result.failure(e) }
 
+    /**
+     * HISTORIAL:
+     * Busca todos los tests en los que el usuario ha participado.
+     */
     override suspend fun obtenerHistorial(
         relacionId: String,
         usuarioId: String
     ): Result<List<Cuestionario>> = try {
         coroutineScope {
             val todos = obtenerCuestionarios(relacionId).getOrThrow()
-            //También paralelo
             val checks = todos.map { cuestionario ->
                 async {
                     val doc = firestore.collection("respuestas")
@@ -251,6 +302,10 @@ class CuestionarioRepositoryImpl(
         }
     } catch (e: Exception) { Result.failure(e) }
 
+    /**
+     * CREAR TEST PROPIO:
+     * Guarda un nuevo cuestionario personalizado hecho por la pareja.
+     */
     override suspend fun crearCuestionario(
         cuestionario: Cuestionario
     ): Result<Cuestionario> = try {
@@ -260,8 +315,11 @@ class CuestionarioRepositoryImpl(
         Result.success(nuevo)
     } catch (e: Exception) { Result.failure(e) }
 
+    /**
+     * SEMBRAR TESTS OFICIALES:
+     * Si es la primera vez que se usa la app, crea automáticamente los tests por defecto.
+     */
     override suspend fun poblarPredefinidos(): Result<Unit> = try {
-        // Solo poblar si no existen aún
         val yaExisten = firestore.collection("cuestionarios")
             .whereEqualTo("creadoPor", "sistema")
             .limit(1)
@@ -281,6 +339,10 @@ class CuestionarioRepositoryImpl(
         Result.success(Unit)
     } catch (e: Exception) { Result.failure(e) }
 
+    /**
+     * SUBIR FOTO A LA NUBE:
+     * Envía una imagen local a Cloudinary para que podamos verla en cualquier móvil.
+     */
     override suspend fun subirFoto(rutaLocal: String): Result<String> =
         suspendCancellableCoroutine { continuation ->
             val requestId = MediaManager.get()

@@ -3,6 +3,9 @@ package com.cadev.mocaapp.feature.pareja.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,6 +17,18 @@ import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * ESTA ES NUESTRA PANTALLA DE ANIVERSARIO
+ * 
+ * Qué hace:
+ * Aquí elegimos el día exacto en que empezó nuestra historia. Es muy 
+ * importante porque de aquí sacamos los días que llevamos juntos para 
+ * mostrarlo en nuestra pantalla de inicio.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos que el calendario empiece en una fecha específica del pasado, 
+ * debemos ajustar el `initialSelectedDateMillis`.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FechaRelacionScreen(
@@ -23,15 +38,18 @@ fun FechaRelacionScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // DatePickerState maneja todo el estado del selector de fecha
+    /**
+     * El estado del calendario visual que por defecto marca el día de hoy
+     */
     val datePickerState = rememberDatePickerState(
-        // Por defecto selecciona hoy
         initialSelectedDateMillis = System.currentTimeMillis()
     )
 
-    val formatoFecha = SimpleDateFormat("d 'de' MMMM, yyyy", Locale("es", "MX"))
+    val formatoFecha = SimpleDateFormat("d 'de' MMMM, yyyy", Locale.forLanguageTag("es-MX"))
 
-    // Navegar cuando la fecha se guarda exitosamente
+    /**
+     * Si la fecha se guarda correctamente se avisa a la aplicación para entrar a la pantalla principal
+     */
     LaunchedEffect(uiState.fechaGuardada) {
         if (uiState.fechaGuardada) onFechaGuardada()
     }
@@ -44,8 +62,12 @@ fun FechaRelacionScreen(
         verticalArrangement = Arrangement.Center
     ) {
 
-        //Encabezado
-        Text(text = "🗓️", fontSize = 56.sp)
+        Icon(
+            imageVector = Icons.Default.CalendarMonth,
+            contentDescription = null,
+            modifier = Modifier.size(56.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
         Spacer(Modifier.height(12.dp))
 
         Text(
@@ -64,8 +86,9 @@ fun FechaRelacionScreen(
 
         Spacer(Modifier.height(28.dp))
 
-        // Selector de fecha
-        // Tarjeta contenedora para el DatePicker
+        /**
+         * Contenedor visual para el selector de fechas integrado de Android
+         */
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -74,7 +97,6 @@ fun FechaRelacionScreen(
         ) {
             DatePicker(
                 state = datePickerState,
-                // Oculta el campo de texto manual — solo calendario visual
                 showModeToggle = false,
                 title = null,
                 headline = null,
@@ -84,7 +106,9 @@ fun FechaRelacionScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        //Fecha seleccionada
+        /**
+         * Muestra una previsualización de la fecha elegida con un icono de corazón
+         */
         val fechaSeleccionada = datePickerState.selectedDateMillis
         if (fechaSeleccionada != null) {
             val fechaTexto = formatoFecha.format(Date(fechaSeleccionada))
@@ -97,18 +121,26 @@ fun FechaRelacionScreen(
                     .padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "💕 $fechaTexto",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.Center
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = fechaTexto,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
 
         Spacer(Modifier.height(16.dp))
 
-        // Error
         if (uiState.error != null) {
             Text(
                 text = uiState.error!!,
@@ -119,7 +151,9 @@ fun FechaRelacionScreen(
             Spacer(Modifier.height(8.dp))
         }
 
-        //Botón confirmar
+        /**
+         * Botón de confirmación para guardar definitivamente el día de aniversario
+         */
         Button(
             onClick = {
                 val fecha = datePickerState.selectedDateMillis
@@ -139,7 +173,7 @@ fun FechaRelacionScreen(
                     modifier = Modifier.size(24.dp)
                 )
             } else {
-                Text("Confirmar fecha 💕")
+                Text("Confirmar fecha")
             }
         }
     }

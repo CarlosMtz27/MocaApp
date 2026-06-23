@@ -3,64 +3,99 @@ package com.cadev.mocaapp.feature.diario.domain.repository
 import com.cadev.mocaapp.feature.diario.domain.model.Comentario
 import com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario
 
+/**
+ * REGLAS DEL DIARIO COMPARTIDO
+ * 
+ * Qué hace:
+ * Aquí definimos todas las acciones que podemos hacer con nuestro diario: 
+ * guardar momentos, subir fotos y vídeos, ver el calendario o comentar lo 
+ * que nuestra pareja ha escrito.
+ * 
+ * Cómo lo podemos ampliar:
+ * Si queremos que los recuerdos se puedan "archivar", debemos añadir aquí:
+ * suspend fun archivarEntrada(entradaId: String): Result<Unit>
+ */
 interface DiarioRepository {
 
+    /**
+     * Trae todos los recuerdos guardados por nosotros en un mes específico.
+     */
     suspend fun obtenerEntradasDelMes(
         usuarioId: String,
         anio: Int,
         mes: Int
     ): Result<List<EntradaDiario>>
 
+    /**
+     * Busca los recuerdos (nuestros y de nuestra pareja) de un día concreto.
+     */
     suspend fun obtenerEntradasDelDia(
         usuarioId: String,
         parejaId: String?,
         fecha: String
     ): Result<List<EntradaDiario>>
 
+    /**
+     * Obtiene los últimos recuerdos guardados para verlos en la pantalla de inicio.
+     */
     suspend fun obtenerUltimasEntradas(
         usuarioId: String,
         parejaId: String?,
         limite: Int
     ): Result<List<EntradaDiario>>
 
-    // incluye videosLocales
+    /**
+     * Crea un nuevo recuerdo, subiendo primero las fotos y vídeos locales a la nube.
+     */
     suspend fun crearEntrada(
         entrada: EntradaDiario,
         fotosLocales: List<String>,
         videosLocales: List<String>
     ): Result<EntradaDiario>
 
+    /**
+     * Nos dice qué días del mes tienen algo escrito para marcarlos en el calendario.
+     */
     suspend fun obtenerDiasConEntrada(
         usuarioId: String,
         parejaId: String?,
         anio: Int,
         mes: Int
-    ): Result<Map<String, List<String>>>
+    ): Result<Map<String, com.cadev.mocaapp.feature.diario.domain.model.DiaCalendarioInfo>>
 
-
+    /**
+     * Obtiene toda la información de un solo recuerdo usando su ID.
+     */
     suspend fun obtenerEntradaPorId(entradaId: String): Result<EntradaDiario>
 
-    // Actualizar una entrada existente
+    /**
+     * Modifica un recuerdo existente, gestionando las fotos nuevas y las que queremos borrar.
+     */
     suspend fun actualizarEntrada(
         entrada: EntradaDiario,
-        fotosNuevas: List<String>,      // rutas locales de fotos nuevas
-        videosNuevos: List<String>,     // rutas locales de videos nuevos
-        fotosEliminar: List<String>,    // URLs de fotos a eliminar de Storage
-        videosEliminar: List<String>    // URLs de videos a eliminar de Storage
+        fotosNuevas: List<String>,
+        videosNuevos: List<String>,
+        fotosEliminar: List<String>,
+        videosEliminar: List<String>
     ): Result<EntradaDiario>
 
-
-    // Obtener comentarios de una entrada
+    /**
+     * Trae todos los comentarios de nuestra pareja en un recuerdo.
+     */
     suspend fun obtenerComentarios(
         entradaId: String
     ): Result<List<Comentario>>
 
-    // Agregar comentario
+    /**
+     * Guarda un nuevo comentario en un recuerdo.
+     */
     suspend fun agregarComentario(
         comentario: Comentario
     ): Result<Comentario>
 
-    // Eliminar comentario
+    /**
+     * Borra un comentario que hayamos escrito.
+     */
     suspend fun eliminarComentario(
         comentarioId: String
     ): Result<Unit>

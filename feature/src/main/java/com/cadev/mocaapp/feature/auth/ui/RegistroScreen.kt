@@ -15,14 +15,31 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * ESTA ES LA PANTALLA PARA CREAR UNA CUENTA
+ * 
+ * Qué hace:
+ * Aquí permitimos que los nuevos usuarios se registren. Nos aseguramos de que escriban bien 
+ * su nombre, correo y que las contraseñas coincidan antes de enviarlo.
+ * 
+ * Cómo lo podemos modificar:
+ * Si queremos pedir un dato nuevo (ej: fecha de nacimiento), debemos añadir un nuevo 
+ * `OutlinedTextField` siguiendo la estructura que ya tenemos.
+ */
 @Composable
 fun RegistroScreen(
     viewModel: AuthViewModel,
     onRegistroExitoso: () -> Unit,
     onIrALogin: () -> Unit
 ) {
+    /**
+     * Se vigila la información del gestor para saber si hay errores o si el proceso terminó bien
+     */
     val uiState by viewModel.uiState.collectAsState()
 
+    /**
+     * Estas variables guardan lo que el usuario va escribiendo en el formulario
+     */
     var nombre by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -30,17 +47,23 @@ fun RegistroScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var errorLocal by remember { mutableStateOf<String?>(null) }
 
-    // Limpia errores previos al entrar a esta pantalla
+    /**
+     * Se reinicia cualquier aviso de error anterior al entrar en la pantalla
+     */
     LaunchedEffect(Unit) {
         viewModel.limpiarEstado()
     }
 
-    // Cuando el registro es exitoso, navegamos afuera
+    /**
+     * Si el registro se completa con éxito se avisa a la aplicación para avanzar
+     */
     LaunchedEffect(uiState.exitoso) {
         if (uiState.exitoso) onRegistroExitoso()
     }
 
-    // Scroll por si el teclado empuja el contenido
+    /**
+     * Se usa un contenedor que permite deslizar hacia arriba si el teclado tapa los cuadros
+     */
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -50,12 +73,13 @@ fun RegistroScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
-        // Título
-        Text(
-            text = "💕",
-            fontSize = 48.sp
-        )
-        Spacer(Modifier.height(8.dp))
+        /**
+         * Cabecera visual de la pantalla
+         */
+
+        HeartLogo(size = 80.dp)
+        
+        Spacer(Modifier.height(16.dp))
         Text(
             text = "Crear cuenta",
             style = MaterialTheme.typography.headlineLarge,
@@ -69,7 +93,9 @@ fun RegistroScreen(
 
         Spacer(Modifier.height(40.dp))
 
-        // Campo Nombre
+        /**
+         * Cuadro para escribir el nombre personal
+         */
         OutlinedTextField(
             value = nombre,
             onValueChange = { nombre = it },
@@ -80,7 +106,9 @@ fun RegistroScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        //Campo Email
+        /**
+         * Cuadro para escribir el correo electrónico
+         */
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
@@ -94,7 +122,9 @@ fun RegistroScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Campo Contraseña
+        /**
+         * Cuadro para elegir una contraseña secreta
+         */
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
@@ -105,6 +135,9 @@ fun RegistroScreen(
             else
                 PasswordVisualTransformation(),
             trailingIcon = {
+                /**
+                 * Botón para mostrar u ocultar los caracteres de la clave
+                 */
                 TextButton(onClick = { passwordVisible = !passwordVisible }) {
                     Text(if (passwordVisible) "Ocultar" else "Ver")
                 }
@@ -117,7 +150,9 @@ fun RegistroScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Confirmar Contraseña
+        /**
+         * Cuadro para repetir la contraseña y estar seguros de que no hay errores
+         */
         OutlinedTextField(
             value = confirmarPassword,
             onValueChange = { confirmarPassword = it },
@@ -127,7 +162,9 @@ fun RegistroScreen(
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Password
             ),
-            // Borde rojo si las contraseñas no coinciden
+            /**
+             * Se marca en rojo si las dos contraseñas escritas son distintas
+             */
             isError = confirmarPassword.isNotEmpty()
                     && password != confirmarPassword,
             supportingText = {
@@ -144,7 +181,9 @@ fun RegistroScreen(
 
         Spacer(Modifier.height(28.dp))
 
-        // Errores
+        /**
+         * Aquí se muestran los avisos si algo ha salido mal durante el registro
+         */
         val errorMostrar = errorLocal ?: uiState.error
         if (errorMostrar != null) {
             Text(
@@ -156,10 +195,14 @@ fun RegistroScreen(
             Spacer(Modifier.height(12.dp))
         }
 
-        // Botón Registrarse
+        /**
+         * Botón principal para realizar el registro en la base de datos
+         */
         Button(
             onClick = {
-                // Validacion local antes de llamar al ViewModel
+                /**
+                 * Se comprueba que todo esté bien antes de enviar los datos al servidor
+                 */
                 errorLocal = when {
                     password != confirmarPassword ->
                         "Las contraseñas no coinciden"
@@ -176,6 +219,9 @@ fun RegistroScreen(
                 .fillMaxWidth()
                 .height(50.dp)
         ) {
+            /**
+             * Mientras se crea la cuenta se muestra un indicador de que la aplicación está trabajando
+             */
             if (uiState.cargando) {
                 CircularProgressIndicator(
                     color = MaterialTheme.colorScheme.onPrimary,
@@ -188,7 +234,9 @@ fun RegistroScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Ir a Login
+        /**
+         * Botón para volver atrás si el usuario ya tiene una cuenta activa
+         */
         TextButton(onClick = onIrALogin) {
             Text("¿Ya tienes cuenta? Inicia sesión")
         }
