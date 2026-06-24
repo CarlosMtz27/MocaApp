@@ -211,9 +211,20 @@ fun ChatScreen(
      */
     if (mostrarMenuMedia) {
         MediaMenu(
-            onGallery = { launcherGaleria.launch("image/*") },
-            onCamera = { accionPendiente = "foto"; launcherPermisoCamara.launch(android.Manifest.permission.CAMERA) },
-            onVideo = { accionPendiente = "video"; launcherPermisoCamara.launch(android.Manifest.permission.CAMERA) },
+            onGallery = { 
+                mostrarMenuMedia = false
+                launcherGaleria.launch("image/*") 
+            },
+            onCamera = { 
+                mostrarMenuMedia = false
+                accionPendiente = "foto"
+                launcherPermisoCamara.launch(android.Manifest.permission.CAMERA) 
+            },
+            onVideo = { 
+                mostrarMenuMedia = false
+                accionPendiente = "video"
+                launcherPermisoCamara.launch(android.Manifest.permission.CAMERA) 
+            },
             onDismiss = { mostrarMenuMedia = false }
         )
     }

@@ -102,8 +102,6 @@ fun HomeScreen(
                     eventoViewModel.iniciarEscucha(usuario.relacionId)
                     diarioViewModel.iniciarEscucha(usuario.id, usuario.parejaId, usuario.relacionId)
                     notaViewModel.iniciar(context, usuario.relacionId, usuario.id, usuario.parejaId)
-                    // El estado de ánimo ya tiene un listener en tiempo real activo
-                    // que se inició en el LaunchedEffect principal.
                 }
             }
             kotlinx.coroutines.delay(1000)
