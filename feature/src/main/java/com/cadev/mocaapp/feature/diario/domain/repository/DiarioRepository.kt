@@ -66,9 +66,9 @@ interface DiarioRepository {
     ): Result<Map<String, com.cadev.mocaapp.feature.diario.domain.model.DiaCalendarioInfo>>
 
     /**
-     * Obtiene toda la información de un solo recuerdo usando su ID.
+     * Obtiene toda la información de un solo recuerdo usando su ID en tiempo real.
      */
-    suspend fun obtenerEntradaPorId(entradaId: String): Result<EntradaDiario>
+    fun escucharEntrada(entradaId: String): Flow<EntradaDiario?>
 
     /**
      * Modifica un recuerdo existente, gestionando las fotos nuevas y las que queremos borrar.
@@ -87,6 +87,11 @@ interface DiarioRepository {
     suspend fun obtenerComentarios(
         entradaId: String
     ): Result<List<Comentario>>
+
+    /**
+     * Trae todos los comentarios de un recuerdo en tiempo real.
+     */
+    fun escucharComentarios(entradaId: String): Flow<List<Comentario>>
 
     /**
      * Guarda un nuevo comentario en un recuerdo.

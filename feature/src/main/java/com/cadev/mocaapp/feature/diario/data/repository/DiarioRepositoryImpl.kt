@@ -209,14 +209,17 @@ class DiarioRepositoryImpl(
         }
     }
 
-    override suspend fun obtenerEntradaPorId(entradaId: String): Result<EntradaDiario> {
-        return try {
-            val doc = firestore.collection("entradas").document(entradaId).get().await()
-            val entrada = mapToEntradaDiario(doc) ?: return Result.failure(Exception("No encontrada"))
-            Result.success(entrada)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    override fun escucharEntrada(entradaId: String): Flow<EntradaDiario?> = callbackFlow {
+        val listener = firestore.collection("entradas").document(entradaId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                val entrada = snapshot?.let { mapToEntradaDiario(it) }
+                trySend(entrada)
+            }
+        awaitClose { listener.remove() }
     }
 
     override suspend fun actualizarEntrada(
@@ -332,6 +335,21 @@ class DiarioRepositoryImpl(
             val comentarios = snapshot.documents.mapNotNull { mapToComentario(it) }.sortedBy { it.creadoEn }
             Result.success(comentarios)
         } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override fun escucharComentarios(entradaId: String): Flow<List<Comentario>> = callbackFlow {
+        val listener = firestore.collection("entradas").document(entradaId)
+            .collection("comentarios")
+            .orderBy("creadoEn", com.google.firebase.firestore.Query.Direction.ASCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                val comentarios = snapshot?.documents?.mapNotNull { mapToComentario(it) } ?: emptyList()
+                trySend(comentarios)
+            }
+        awaitClose { listener.remove() }
     }
 
     override suspend fun agregarComentario(comentario: Comentario): Result<Comentario> {

@@ -153,11 +153,14 @@ fun DetalleEntradaScreen(
              * Cuadro de texto fijo al final para escribir un comentario nuevo
              */
             if (entrada != null) {
+                val parejaId = remember(entrada, usuarioId) {
+                    if (entrada.usuarioId == usuarioId) entrada.parejaId else entrada.usuarioId
+                }
                 InputComentario(
                     texto = uiState.nuevoComentario,
                     onTextoChange = { viewModel.actualizarNuevoComentario(it) },
                     onEnviar = {
-                        viewModel.publicarComentario(usuarioId, nombreUsuario)
+                        viewModel.publicarComentario(usuarioId, nombreUsuario, parejaId)
                     }
                 )
             }

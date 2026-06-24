@@ -266,8 +266,14 @@ class DiarioViewModel(
         tipo: String = TipoEntrada.MI_DIA.name
     ) {
         val estado = _uiState.value
+        
+        // VALIDACIÓN DE CAMPOS OBLIGATORIOS
         if (estado.titulo.isBlank()) {
-            _uiState.value = estado.copy(error = "Agrega un título")
+            _uiState.value = estado.copy(error = "El título es obligatorio")
+            return
+        }
+        if (estado.detalles.isBlank()) {
+            _uiState.value = estado.copy(error = "Los detalles son obligatorios para guardar el recuerdo")
             return
         }
 
@@ -346,10 +352,14 @@ class DiarioViewModel(
     fun cargarEntradaParaEditar(entradaId: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(cargando = true)
-            repository.obtenerEntradaPorId(entradaId).fold(
-                onSuccess = { entrada ->
+            repository.escucharEntrada(entradaId).collect { entrada ->
+                if (entrada != null) {
                     val emociones = entrada.emociones.mapNotNull { nombre ->
-                        try { Emocion.valueOf(nombre) } catch (e: Exception) { null }
+                        try {
+                            Emocion.valueOf(nombre)
+                        } catch (e: Exception) {
+                            null
+                        }
                     }
                     _uiState.value = _uiState.value.copy(
                         cargando = false,
@@ -361,14 +371,13 @@ class DiarioViewModel(
                         compartir = entrada.compartida,
                         entradaActualizada = false
                     )
-                },
-                onFailure = {
+                } else {
                     _uiState.value = _uiState.value.copy(
                         cargando = false,
                         error = "No se pudo cargar la entrada"
                     )
                 }
-            )
+            }
         }
     }
 
@@ -391,8 +400,14 @@ class DiarioViewModel(
     fun guardarEdicion(parejaId: String?) {
         val estado = _uiState.value
         val entradaOriginal = estado.entradaActual ?: return
+        
+        // VALIDACIÓN DE CAMPOS OBLIGATORIOS
         if (estado.titulo.isBlank()) {
-            _uiState.value = estado.copy(error = "Agrega un título")
+            _uiState.value = estado.copy(error = "El título es obligatorio")
+            return
+        }
+        if (estado.detalles.isBlank()) {
+            _uiState.value = estado.copy(error = "Los detalles son obligatorios")
             return
         }
 
@@ -423,6 +438,17 @@ class DiarioViewModel(
                     _uiState.value = _uiState.value.copy(
                         cargando = false, entradaActualizada = true
                     )
+                    if (estado.compartir && !parejaId.isNullOrBlank()) {
+                        launch {
+                            notificacionRepository.enviarPush(
+                                parejaId = parejaId,
+                                titulo   = "Recuerdo editado",
+                                cuerpo   = "Se ha actualizado: ${estado.titulo}",
+                                deepLink = "main/calendario",
+                                tipo     = "diario"
+                            )
+                        }
+                    }
                 },
                 onFailure = {
                     _uiState.value = _uiState.value.copy(
@@ -439,50 +465,47 @@ class DiarioViewModel(
             _uiState.value = _uiState.value.copy(
                 cargando = true, comentarios = emptyList(), entradaDetalle = null
             )
-            repository.obtenerEntradaPorId(entradaId).fold(
-                onSuccess = { entrada ->
+            
+            // Escuchar cambios en la entrada en tiempo real
+            launch {
+                repository.escucharEntrada(entradaId).collect { entrada ->
                     _uiState.value = _uiState.value.copy(
-                        entradaDetalle = entrada, cargando = false
-                    )
-                },
-                onFailure = {
-                    _uiState.value = _uiState.value.copy(
-                        cargando = false, error = "No se pudo cargar la entrada"
+                        entradaDetalle = entrada, 
+                        cargando = false
                     )
                 }
-            )
-            cargarComentarios(entradaId)
+            }
+            
+            // Escuchar cambios en los comentarios en tiempo real
+            launch {
+                cargarComentarios(entradaId)
+            }
         }
     }
 
     fun cargarComentarios(entradaId: String) {
         viewModelScope.launch {
-            repository.obtenerComentarios(entradaId).fold(
-                onSuccess = { comentarios ->
-                    val usuariosUnicos = comentarios.map { it.usuarioId }.distinct()
-                    val nombresMap = mutableMapOf<String, String>()
-                    usuariosUnicos.forEach { uid ->
-                        try {
-                            val doc = FirebaseFirestore.getInstance()
-                                .collection("usuarios").document(uid).get().await()
-                            nombresMap[uid] = doc.getString("nombre") ?: "Usuario"
-                        } catch (e: Exception) { nombresMap[uid] = "Usuario" }
+            repository.escucharComentarios(entradaId).collect { comentarios ->
+                val usuariosUnicos = comentarios.map { it.usuarioId }.distinct()
+                val nombresMap = mutableMapOf<String, String>()
+                usuariosUnicos.forEach { uid ->
+                    try {
+                        val doc = FirebaseFirestore.getInstance()
+                            .collection("usuarios").document(uid).get().await()
+                        nombresMap[uid] = doc.getString("nombre") ?: "Usuario"
+                    } catch (e: Exception) {
+                        nombresMap[uid] = "Usuario"
                     }
-                    val comentariosConNombre = comentarios.map { c ->
-                        if (c.nombreUsuario.isBlank())
-                            c.copy(nombreUsuario = nombresMap[c.usuarioId] ?: "Usuario")
-                        else c
-                    }
-                    _uiState.value = _uiState.value.copy(
-                        comentarios = comentariosConNombre
-                    )
-                },
-                onFailure = {
-                    _uiState.value = _uiState.value.copy(
-                        error = "No se pudieron cargar los comentarios"
-                    )
                 }
-            )
+                val comentariosConNombre = comentarios.map { c ->
+                    if (c.nombreUsuario.isBlank())
+                        c.copy(nombreUsuario = nombresMap[c.usuarioId] ?: "Usuario")
+                    else c
+                }
+                _uiState.value = _uiState.value.copy(
+                    comentarios = comentariosConNombre
+                )
+            }
         }
     }
 
@@ -490,7 +513,7 @@ class DiarioViewModel(
         _uiState.value = _uiState.value.copy(nuevoComentario = valor)
     }
 
-    fun publicarComentario(usuarioId: String, nombreUsuario: String) {
+    fun publicarComentario(usuarioId: String, nombreUsuario: String, parejaId: String?) {
         val texto = _uiState.value.nuevoComentario.trim()
         val entradaId = _uiState.value.entradaDetalle?.id ?: return
         if (texto.isBlank()) return
@@ -509,7 +532,18 @@ class DiarioViewModel(
             repository.agregarComentario(comentario).fold(
                 onSuccess = {
                     _uiState.value = _uiState.value.copy(nuevoComentario = "")
-                    cargarComentarios(entradaId)
+                    // Notificación push para la pareja
+                    if (!parejaId.isNullOrBlank() && usuarioId != parejaId) {
+                        launch {
+                            notificacionRepository.enviarPush(
+                                parejaId = parejaId,
+                                titulo   = "Nuevo comentario",
+                                cuerpo   = "$nombreUsuario comentó en un recuerdo",
+                                deepLink = "main/calendario",
+                                tipo     = "diario"
+                            )
+                        }
+                    }
                 },
                 onFailure = {
                     _uiState.value = _uiState.value.copy(

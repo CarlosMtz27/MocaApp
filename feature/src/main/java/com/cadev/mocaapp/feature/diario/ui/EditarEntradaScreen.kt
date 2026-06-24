@@ -280,13 +280,21 @@ fun EditarEntradaScreen(
                 value = uiState.titulo,
                 onValueChange = { viewModel.actualizarTitulo(it) },
                 label = {
-                    Text(when (tipoEntrada) {
-                        TipoEntrada.MI_DIA -> "¿Cómo fue tu día?"
-                        TipoEntrada.RECUERDO -> "¿Qué quieres recordar?"
-                    })
+                    Text(
+                        text = (when (tipoEntrada) {
+                            TipoEntrada.MI_DIA -> "¿Cómo fue tu día?"
+                            TipoEntrada.RECUERDO -> "¿Qué quieres recordar?"
+                        }) + " *"
+                    )
                 },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                isError = uiState.error != null && uiState.titulo.isBlank(),
+                supportingText = {
+                    if (uiState.error != null && uiState.titulo.isBlank()) {
+                        Text("El título no puede estar vacío", color = MaterialTheme.colorScheme.error)
+                    }
+                }
             )
 
             /**
@@ -303,9 +311,15 @@ fun EditarEntradaScreen(
             OutlinedTextField(
                 value = uiState.detalles,
                 onValueChange = { viewModel.actualizarDetalles(it) },
-                label = { Text("Cuéntame más...") },
+                label = { Text("Cuéntame más... *") },
                 modifier = Modifier.fillMaxWidth().height(140.dp),
-                maxLines = 8
+                maxLines = 8,
+                isError = uiState.error != null && uiState.detalles.isBlank(),
+                supportingText = {
+                    if (uiState.error != null && uiState.detalles.isBlank()) {
+                        Text("Los detalles son obligatorios", color = MaterialTheme.colorScheme.error)
+                    }
+                }
             )
 
             /**
