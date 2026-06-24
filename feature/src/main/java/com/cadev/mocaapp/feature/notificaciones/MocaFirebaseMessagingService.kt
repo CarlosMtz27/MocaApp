@@ -55,8 +55,35 @@ class MocaFirebaseMessagingService : FirebaseMessagingService() {
         Log.d("MOCA_FCM", "Mensaje recibido de: ${message.from}")
 
         val data = message.data
-        val tipoStr = data["tipo"] ?: ""
-        Log.d("MOCA_FCM", "Datos recibidos: $data")
+        Log.d("MOCA_FCM", "Datos brutos: $data")
+        
+        // OneSignal envía los datos personalizados dentro de un JSON string llamado "custom"
+        // Estructura: {"i":"id", "a":{"campo1":"valor1", "tipo":"evento"}}
+        val customStr = data["custom"]
+        val dataFinal = if (!customStr.isNullOrBlank()) {
+            try {
+                val customJson = org.json.JSONObject(customStr)
+                val a = customJson.optJSONObject("a")
+                val mapa = mutableMapOf<String, String>()
+                if (a != null) {
+                    val keys = a.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        mapa[key] = a.optString(key)
+                    }
+                }
+                // Fusionamos con los datos de primer nivel por si acaso
+                data + mapa
+            } catch (e: Exception) { 
+                Log.e("MOCA_FCM", "Error parseando custom data", e)
+                data 
+            }
+        } else {
+            data
+        }
+
+        val tipoStr = dataFinal["tipo"] ?: ""
+        Log.d("MOCA_FCM", "Tipo extraído: $tipoStr. Datos procesados: $dataFinal")
 
         val tipo = when (tipoStr) {
             "chat"         -> TipoNotificacion.CHAT
@@ -72,11 +99,12 @@ class MocaFirebaseMessagingService : FirebaseMessagingService() {
             }
         }
 
-        val titulo = data["titulo"] ?: message.notification?.title ?: "MocaApp"
-        val cuerpo = data["cuerpo"] ?: message.notification?.body ?: "Tienes una novedad"
-        val deepLink = data["deepLink"] ?: ""
+        val titulo = dataFinal["titulo"]
+        val cuerpo = dataFinal["cuerpo"]
+        val deepLink = dataFinal["deepLink"] ?: ""
 
-        if (tipo != null) {
+        // Solo mostramos nuestra notificación personalizada si hay contenido visual y un tipo reconocido
+        if (tipo != null && !titulo.isNullOrBlank() && !cuerpo.isNullOrBlank()) {
             NotificationHelper.mostrar(
                 context  = applicationContext,
                 tipo     = tipo,
@@ -88,8 +116,8 @@ class MocaFirebaseMessagingService : FirebaseMessagingService() {
 
         // Sincronización automática de Notas
         if (tipoStr == "nota") {
-            val relacionId = data["relacionId"] ?: ""
-            val autorId = data["autorId"] ?: ""
+            val relacionId = dataFinal["relacionId"] ?: ""
+            val autorId = dataFinal["autorId"] ?: ""
             if (relacionId.isNotBlank() && autorId.isNotBlank()) {
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
@@ -99,6 +127,7 @@ class MocaFirebaseMessagingService : FirebaseMessagingService() {
                         result.onSuccess { nota ->
                             NotaWidgetDataStore.guardar(applicationContext, nota)
                             NotaWidget().updateAll(applicationContext)
+                            com.cadev.mocaapp.feature.notas.widget.NotaWidgetTransparent().updateAll(applicationContext)
                         }
                     } catch (e: Exception) { Log.e("MOCA_FCM", "Error sincronizando nota", e) }
                 }
@@ -107,7 +136,7 @@ class MocaFirebaseMessagingService : FirebaseMessagingService() {
 
         // Sincronización automática de Estado de Ánimo
         if (tipoStr == "estado_animo") {
-            val relacionId = data["relacionId"] ?: ""
+            val relacionId = dataFinal["relacionId"] ?: ""
             val uidPropio = FirebaseAuth.getInstance().currentUser?.uid ?: ""
             
             if (relacionId.isNotBlank() && uidPropio.isNotBlank()) {
@@ -117,34 +146,30 @@ class MocaFirebaseMessagingService : FirebaseMessagingService() {
                         val repo = EstadoAnimoRepositoryImpl(FirebaseFirestore.getInstance())
                         val estados = repo.obtenerEstados(relacionId, uidPropio)
                         
-                        Log.d("MOCA_FCM", "Nuevos estados obtenidos: $estados")
-                        
                         // Guardamos solo los emojis para no pisar los nombres en el widget
                         EstadoAnimoWidgetDataStore.actualizarSoloEmojis(applicationContext, estados)
                         
                         // Refrescamos todos los widgets de sentimientos
                         EstadoAnimoWidget().updateAll(applicationContext)
                         EstadoAnimoWidgetTransparent().updateAll(applicationContext)
-                        
-                        Log.d("MOCA_FCM", "Widgets de estado actualizados con éxito")
                     } catch (e: Exception) { Log.e("MOCA_FCM", "Error sincronizando estado", e) }
                 }
-            } else {
-                Log.w("MOCA_FCM", "Faltan datos para sincronizar estado: rel=$relacionId, uid=$uidPropio")
             }
         }
         // Sincronización automática de Eventos
         if (tipoStr == "evento") {
-            val relacionId = data["relacionId"] ?: ""
+            val relacionId = dataFinal["relacionId"] ?: ""
             if (relacionId.isNotBlank()) {
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
                         val repo = EventoRepositoryImpl(FirebaseFirestore.getInstance())
                         repo.obtenerEventos(relacionId).onSuccess { lista ->
                             val hoy = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
-                            val proximos = lista.filter { it.fecha >= hoy }.map { 
-                                EventoWidgetInfo(it.titulo, it.fecha, it.hora, it.id)
-                            }
+                            val proximos = lista.filter { it.fecha >= hoy }
+                                .sortedWith(compareBy({ it.fecha }, { it.hora }))
+                                .map { 
+                                    EventoWidgetInfo(it.titulo, it.fecha, it.hora, it.id)
+                                }
                             EventosWidgetDataStore.guardarEventos(applicationContext, proximos)
                             EventosWidget().updateAll(applicationContext)
                             EventosWidgetTransparent().updateAll(applicationContext)

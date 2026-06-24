@@ -47,7 +47,7 @@ object NotificationChannels {
             NotificationChannel(
                 TipoNotificacion.CHAT.canal,
                 "Mensajes",
-                NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "Nuevos mensajes de tu pareja"
                 lightColor = colorRomantico
@@ -83,7 +83,7 @@ object NotificationChannels {
             NotificationChannel(
                 TipoNotificacion.ANIVERSARIO.canal,
                 "Fechas especiales",
-                NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "Recordatorios de fechas importantes"
                 lightColor = colorRomantico

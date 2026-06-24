@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -99,7 +100,7 @@ fun HomeScreen(
             if (usuario != null) {
                 perfilViewModel.cargarPerfil(usuario.id, usuario.parejaId)
                 if (usuario.relacionId.isNotBlank()) {
-                    eventoViewModel.iniciarEscucha(usuario.relacionId)
+                    eventoViewModel.iniciarEscucha(context, usuario.relacionId)
                     diarioViewModel.iniciarEscucha(usuario.id, usuario.parejaId, usuario.relacionId)
                     notaViewModel.iniciar(context, usuario.relacionId, usuario.id, usuario.parejaId)
                 }
@@ -117,7 +118,7 @@ fun HomeScreen(
         if (usuario != null && pareja != null) {
             estadoAnimoViewModel.cargarEstados(context, usuario.relacionId, usuario.id, pareja.nombre)
             if (usuario.relacionId.isNotBlank()) {
-                eventoViewModel.iniciarEscucha(usuario.relacionId)
+                eventoViewModel.iniciarEscucha(context, usuario.relacionId)
                 diarioViewModel.iniciarEscucha(usuario.id, usuario.parejaId, usuario.relacionId)
                 notaViewModel.iniciar(context, usuario.relacionId, usuario.id, usuario.parejaId)
             }
@@ -549,7 +550,7 @@ private fun AccesosRapidos(
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 AccesoItem(
-                    icon = Icons.Filled.Assignment,
+                    icon = Icons.AutoMirrored.Filled.Assignment,
                     label = "Tests",
                     color = Color(0xFF81C784),
                     modifier = Modifier.weight(1f).height(90.dp),

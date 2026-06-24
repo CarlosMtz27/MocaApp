@@ -97,6 +97,33 @@ class MainActivity : ComponentActivity() {
         return fine || coarse
     }
 
+    private fun obtenerRutaDesdeDeepLink(link: String): String {
+        return when {
+            link == "main/chat"          -> "${NavRoutes.Main.route}?tab=chat"
+            link == "main/calendario"    -> "${NavRoutes.Main.route}?tab=calendario"
+            link == "main/cuestionarios" -> "${NavRoutes.Main.route}?tab=cuestionarios"
+            link == "main/perfil"        -> "${NavRoutes.Main.route}?tab=perfil"
+            link == "main/home"          -> "${NavRoutes.Main.route}?tab=home"
+            link == "main/notas"         -> NavRoutes.Notas.route
+            link == "main/crear_evento" -> NavRoutes.CrearEvento.route
+            link.startsWith("main/detalle_evento/") -> {
+                val id = link.removePrefix("main/detalle_evento/")
+                NavRoutes.DetalleEvento.crearRuta(id)
+            }
+            link.startsWith("main/")     -> NavRoutes.Main.route
+
+            link.startsWith("resultados_cuestionario/") -> {
+                val id = link.removePrefix("resultados_cuestionario/")
+                NavRoutes.ResultadosCuestionario.crearRuta(id)
+            }
+            link.startsWith("responder_cuestionario/") -> {
+                val id = link.removePrefix("responder_cuestionario/")
+                NavRoutes.ResponderCuestionario.crearRuta(id)
+            }
+            else -> NavRoutes.Main.route
+        }
+    }
+
     /**
      * Esta es la función que construye la aplicación cuando se abre
      */
@@ -286,25 +313,7 @@ class MainActivity : ComponentActivity() {
                     kotlinx.coroutines.delay(400)
 
                     // Se decide a qué pantalla ir dependiendo del texto que traiga la notificación
-                    val ruta = when {
-                        link == "main/chat"          -> "${NavRoutes.Main.route}?tab=chat"
-                        link == "main/calendario"    -> "${NavRoutes.Main.route}?tab=calendario"
-                        link == "main/cuestionarios" -> "${NavRoutes.Main.route}?tab=cuestionarios"
-                        link == "main/perfil"        -> "${NavRoutes.Main.route}?tab=perfil"
-                        link == "main/home"          -> "${NavRoutes.Main.route}?tab=home"
-                        link == "main/notas"         -> NavRoutes.Notas.route
-                        link.startsWith("main/")     -> NavRoutes.Main.route
-
-                        link.startsWith("resultados_cuestionario/") -> {
-                            val id = link.removePrefix("resultados_cuestionario/")
-                            NavRoutes.ResultadosCuestionario.crearRuta(id)
-                        }
-                        link.startsWith("responder_cuestionario/") -> {
-                            val id = link.removePrefix("responder_cuestionario/")
-                            NavRoutes.ResponderCuestionario.crearRuta(id)
-                        }
-                        else -> NavRoutes.Main.route
-                    }
+                    val ruta = obtenerRutaDesdeDeepLink(link)
 
                     // Se realiza el salto a la pantalla correspondiente
                     if (navController.runCatching { graph }.isSuccess) {
@@ -391,7 +400,8 @@ class MainActivity : ComponentActivity() {
         
         navControllerRef?.let { nav ->
             if (nav.runCatching { graph }.isSuccess) {
-                nav.navigate(deepLink) { launchSingleTop = true }
+                val ruta = obtenerRutaDesdeDeepLink(deepLink)
+                nav.navigate(ruta) { launchSingleTop = true }
             }
         }
     }

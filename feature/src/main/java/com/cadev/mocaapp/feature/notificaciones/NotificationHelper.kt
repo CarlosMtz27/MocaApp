@@ -67,12 +67,6 @@ object NotificationHelper {
         val colorRomantico = android.graphics.Color.parseColor("#FF69B4") // Hot Pink
         val patronLatido = longArrayOf(0, 100, 100, 100, 600) // Vibra como un latido
 
-        val prioridad = when (tipo) {
-            TipoNotificacion.CHAT,
-            TipoNotificacion.ANIVERSARIO -> NotificationCompat.PRIORITY_HIGH
-            else -> NotificationCompat.PRIORITY_DEFAULT
-        }
-
         val notificacion = NotificationCompat.Builder(context, tipo.canal)
             .setSmallIcon(com.cadev.mocaapp.feature.R.drawable.ic_notif_corazon)
             .setColor(colorRomantico)
@@ -80,7 +74,7 @@ object NotificationHelper {
             .setContentTitle(titulo)
             .setContentText(cuerpo)
             .setStyle(NotificationCompat.BigTextStyle().bigText(cuerpo))
-            .setPriority(prioridad)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT) // Bajado de HIGH para evitar Heads-up
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setVibrate(patronLatido)

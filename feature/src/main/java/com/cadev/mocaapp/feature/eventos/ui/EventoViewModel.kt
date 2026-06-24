@@ -68,11 +68,12 @@ class EventoViewModel(
      * ESCUCHA EN TIEMPO REAL:
      * Se suscribe a los cambios en la base de datos para reflejar nuevos planes al instante.
      */
-    fun iniciarEscucha(relacionId: String) {
+    fun iniciarEscucha(context: Context, relacionId: String) {
         if (relacionId.isBlank()) return
         viewModelScope.launch {
             repository.obtenerEventosFlow(relacionId).collect { lista ->
                 _uiState.value = _uiState.value.copy(eventos = lista)
+                actualizarWidgets(context)
             }
         }
     }
@@ -202,7 +203,8 @@ class EventoViewModel(
                             titulo   = "Nuevo evento: ${nuevo.titulo}",
                             cuerpo   = "${nuevo.fecha} a las ${nuevo.hora}",
                             deepLink = "detalle_evento/${nuevo.id}",
-                            tipo     = "evento"
+                            tipo     = "evento",
+                            extraData = mapOf("relacionId" to relacionId)
                         )
                     }
                     _uiState.value = _uiState.value.copy(
@@ -337,7 +339,9 @@ class EventoViewModel(
      * Devuelve los eventos que todavía no han pasado comparándolos con la fecha de hoy
      */
     fun eventosProximos(): List<Evento> =
-        _uiState.value.eventos.filter { it.fecha >= hoy }
+        _uiState.value.eventos
+            .filter { it.fecha >= hoy }
+            .sortedWith(compareBy({ it.fecha }, { it.hora }))
 
     /**
      * Devuelve los eventos antiguos ordenados del más reciente al más viejo

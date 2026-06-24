@@ -62,7 +62,7 @@ fun EventosScreen(
      * Se activa la escucha en tiempo real de los eventos al entrar en la pantalla
      */
     LaunchedEffect(relacionId) {
-        viewModel.iniciarEscucha(relacionId)
+        viewModel.iniciarEscucha(context, relacionId)
     }
 
     Scaffold(

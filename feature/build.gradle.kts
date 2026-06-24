@@ -1,9 +1,17 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
 
     id("org.jetbrains.kotlin.plugin.compose")
+}
 
+// Leer local.properties
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
 }
 
 android {
@@ -15,6 +23,12 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
+
+        // OneSignal Keys para que los Workers puedan enviar notificaciones
+        buildConfigField("String", "ONESIGNAL_APP_ID",
+            "\"${localProperties["ONESIGNAL_APP_ID"]}\"")
+        buildConfigField("String", "ONESIGNAL_REST_KEY",
+            "\"${localProperties["ONESIGNAL_REST_KEY"]}\"")
     }
 
     buildTypes {
@@ -36,10 +50,8 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
-
-
-
 }
 
 dependencies {

@@ -134,30 +134,45 @@ class NotificacionRepository(
             val dataJson = JSONObject().apply {
                 put("deepLink", deepLink)
                 if (tipo != null) put("tipo", tipo)
+                put("titulo", titulo)
+                put("cuerpo", cuerpo)
                 extraData.forEach { (key, value) -> put(key, value) }
             }
 
             val json = JSONObject().apply {
                 put("app_id", oneSignalAppId)
                 put("include_player_ids", JSONArray().put(playerId))
-                put("headings", JSONObject().put("en", titulo))
-                put("contents", JSONObject().put("en", cuerpo))
-                put("small_icon", "ic_stat_onesignal_default")
+                /**
+                 * NOTIFICACIONES SILENCIOSAS (DATA-ONLY):
+                 * No incluimos 'headings' ni 'contents' en la raíz. Esto evita que el SDK 
+                 * de OneSignal muestre una notificación automática. 
+                 * En su lugar, el mensaje llega como datos puros a 'MocaFirebaseMessagingService', 
+                 * donde nosotros lo manejamos manualmente con NotificationHelper.
+                 */
                 put("data", dataJson)
+                // Algunos servidores de OneSignal requieren esto para no descartar el mensaje
+                put("content_available", true) 
+                put("android_background_data", true)
             }
-            android.util.Log.d("PUSH", "JSON: $json")
+            android.util.Log.d("PUSH", "Enviando JSON Silencioso: $json")
 
             val connection = URL("https://onesignal.com/api/v1/notifications")
                 .openConnection() as HttpURLConnection
             connection.apply {
                 requestMethod = "POST"
-                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 setRequestProperty("Authorization", "Basic $oneSignalRestKey")
                 doOutput = true
-                outputStream.write(json.toString().toByteArray())
+                outputStream.write(json.toString().toByteArray(Charsets.UTF_8))
+                
                 val code = responseCode
-                val response = inputStream.bufferedReader().readText()
                 android.util.Log.d("PUSH", "Response code: $code")
+                
+                val response = if (code in 200..299) {
+                    inputStream.bufferedReader().readText()
+                } else {
+                    errorStream?.bufferedReader()?.readText() ?: "Sin detalle de error"
+                }
                 android.util.Log.d("PUSH", "Response body: $response")
                 disconnect()
             }

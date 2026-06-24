@@ -154,6 +154,7 @@ class UbicacionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                  * Le avisamos al móvil que redibuje el widget del escritorio ahora mismo.
                  */
                 DistanciaWidget().updateAll(applicationContext)
+                DistanciaWidgetTransparent().updateAll(applicationContext)
                 
                 Result.success()
             } else {
@@ -183,6 +184,7 @@ class UbicacionWorker(context: Context, params: WorkerParameters) : CoroutineWor
             current.actualizadaEn
         )
         DistanciaWidget().updateAll(applicationContext)
+        DistanciaWidgetTransparent().updateAll(applicationContext)
     }
 
     /**

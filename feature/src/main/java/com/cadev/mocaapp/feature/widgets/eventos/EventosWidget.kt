@@ -48,12 +48,6 @@ class EventosWidget : GlanceAppWidget() {
         val context = LocalContext.current
         val lista = state.lista
         val indice = state.indiceActual
-        
-        val intent = Intent().apply {
-            setClassName(context.packageName, "com.cadev.mocaapp.MainActivity")
-            putExtra("deepLink", "main/calendario")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
 
         Box(
             modifier = GlanceModifier
@@ -64,9 +58,15 @@ class EventosWidget : GlanceAppWidget() {
             contentAlignment = Alignment.Center
         ) {
             if (lista.isEmpty()) {
+                val intentCrear = Intent().apply {
+                    setClassName(context.packageName, "com.cadev.mocaapp.MainActivity")
+                    putExtra("deepLink", "main/crear_evento")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = GlanceModifier.clickable(actionStartActivity(intent))
+                    modifier = GlanceModifier.clickable(actionStartActivity(intentCrear))
                 ) {
                     Image(
                         provider = ImageProvider(R.drawable.ic_reaccion_calendario),
@@ -89,6 +89,11 @@ class EventosWidget : GlanceAppWidget() {
                 }
             } else {
                 val evento = lista[indice]
+                val intentDetalle = Intent().apply {
+                    setClassName(context.packageName, "com.cadev.mocaapp.MainActivity")
+                    putExtra("deepLink", "main/detalle_evento/${evento.id}")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
                 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     // Cabecera con paginación
@@ -139,7 +144,7 @@ class EventosWidget : GlanceAppWidget() {
 
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = GlanceModifier.clickable(actionStartActivity(intent))
+                        modifier = GlanceModifier.clickable(actionStartActivity(intentDetalle))
                     ) {
                         Text(
                             text = evento.titulo,

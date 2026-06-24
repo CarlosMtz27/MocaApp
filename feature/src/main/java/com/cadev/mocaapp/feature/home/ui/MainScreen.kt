@@ -167,7 +167,7 @@ fun MainScreen(
      */
     LaunchedEffect(uid, parejaIdActual, relacionIdActual) {
         if (!relacionIdActual.isNullOrBlank()) {
-            eventoViewModel.iniciarEscucha(relacionIdActual)
+            eventoViewModel.iniciarEscucha(context, relacionIdActual)
             diarioViewModel.iniciarEscucha(uid, parejaIdActual, relacionIdActual)
             notaViewModel.iniciar(context, relacionIdActual, uid, parejaIdActual)
         }
