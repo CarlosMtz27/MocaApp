@@ -160,14 +160,15 @@ fun MainScreen(
     }
 
     /**
-     * CONTENIDO COMPARTIDO:
+     * CONTENIDO COMPARTIDO EN TIEMPO REAL:
      * Cargamos nuestras citas próximas, recuerdos del diario y notas 
-     * rápidas que nos hayamos dejado. Solo si estamos vinculados.
+     * rápidas. Activamos la escucha activa para que cualquier cambio se 
+     * refleje al instante en todas las pantallas sin refrescar.
      */
     LaunchedEffect(uid, parejaIdActual, relacionIdActual) {
         if (!relacionIdActual.isNullOrBlank()) {
-            eventoViewModel.cargarEventos(context, relacionIdActual)
-            diarioViewModel.cargarUltimaActividad(uid, parejaIdActual)
+            eventoViewModel.iniciarEscucha(relacionIdActual)
+            diarioViewModel.iniciarEscucha(uid, parejaIdActual, relacionIdActual)
             notaViewModel.iniciar(context, relacionIdActual, uid, parejaIdActual)
         }
     }
@@ -184,13 +185,13 @@ fun MainScreen(
     }
 
     /**
-     * TESTS DE PAREJA:
-     * Cargamos nuestros retos y tests, asegurándonos de que los básicos 
-     * estén siempre listos para jugar.
+     * TESTS DE PAREJA EN TIEMPO REAL:
+     * Activamos la escucha de retos y tests para detectar si la pareja 
+     * ha respondido alguno al instante.
      */
-    LaunchedEffect(relacionIdActual) {
+    LaunchedEffect(relacionIdActual, uid, parejaIdActual) {
         if (!relacionIdActual.isNullOrBlank()) {
-            cuestionarioViewModel.cargarCuestionarios(
+            cuestionarioViewModel.iniciarEscucha(
                 relacionId = relacionIdActual,
                 usuarioId = uid,
                 parejaId = parejaIdActual ?: ""
@@ -400,12 +401,19 @@ fun MainScreen(
                     viewModel = diarioViewModel,
                     usuarioId = uid,
                     parejaId = parejaIdActual,
+                    relacionId = relacionIdActual ?: "",
                     onRegresar = irAlInicio,
                     onDiaSeleccionado = { fecha ->
                         navController.navigate(NavRoutes.DetalleDia.crearRuta(fecha))
                     },
                     onVerEventos = {
                         navController.navigate(NavRoutes.Eventos.route)
+                    },
+                    onVerDetalleEntrada = { id ->
+                        navController.navigate(NavRoutes.DetalleEntrada.crearRuta(id))
+                    },
+                    onVerDetalleEvento = { id ->
+                        navController.navigate(NavRoutes.DetalleEvento.crearRuta(id))
                     }
                 )
             }

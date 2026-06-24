@@ -59,10 +59,10 @@ fun EventosScreen(
     val context = LocalContext.current
 
     /**
-     * Se cargan todos los eventos de la relación al entrar en la pantalla
+     * Se activa la escucha en tiempo real de los eventos al entrar en la pantalla
      */
     LaunchedEffect(relacionId) {
-        viewModel.cargarEventos(context, relacionId)
+        viewModel.iniciarEscucha(relacionId)
     }
 
     Scaffold(

@@ -171,16 +171,24 @@ fun MocaNavGraph(
         composable(NavRoutes.Calendario.route) {
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
             val parejaId = remember(uid) { runBlocking { UsuarioHelper.obtenerParejaId(uid) } }
+            val relacionId = remember(uid) { runBlocking { UsuarioHelper.obtenerRelacionId(uid) } }
             val diarioViewModel: DiarioViewModel = viewModel(factory = factory)
             CalendarioScreen(
                 viewModel = diarioViewModel,
                 usuarioId = uid,
                 parejaId = parejaId,
+                relacionId = relacionId,
                 onRegresar = irAlInicio,
                 onDiaSeleccionado = { fecha ->
                     navController.navigate(NavRoutes.DetalleDia.crearRuta(fecha))
                 },
-                onVerEventos = { navController.navigate(NavRoutes.Eventos.route) }
+                onVerEventos = { navController.navigate(NavRoutes.Eventos.route) },
+                onVerDetalleEntrada = { id ->
+                    navController.navigate(NavRoutes.DetalleEntrada.crearRuta(id))
+                },
+                onVerDetalleEvento = { id ->
+                    navController.navigate(NavRoutes.DetalleEvento.crearRuta(id))
+                }
             )
         }
 
@@ -400,7 +408,10 @@ fun MocaNavGraph(
                 eventoId = eventoId,
                 usuarioId = uid,
                 onRegresar = irAlInicio,
-                onEditar = { id -> navController.navigate(NavRoutes.EditarEvento.crearRuta(id)) }
+                onEditar = { id -> navController.navigate(NavRoutes.EditarEvento.crearRuta(id)) },
+                onConvertirEnRecuerdo = { fecha, titulo ->
+                    navController.navigate(NavRoutes.CrearEntrada.crearRuta(fecha, TipoEntrada.RECUERDO.name))
+                }
             )
         }
 

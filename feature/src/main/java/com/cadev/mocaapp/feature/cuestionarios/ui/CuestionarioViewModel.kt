@@ -61,39 +61,35 @@ class CuestionarioViewModel(
     val uiState: StateFlow<CuestionarioUiState> = _uiState.asStateFlow()
 
     /**
-     * Descarga todos los cuestionarios disponibles y el historial de los ya terminados
+     * ESCUCHA EN TIEMPO REAL:
+     * Se suscribe a los cuestionarios y sus estados para que si la pareja 
+     * responde, aparezca el aviso al instante sin refrescar.
      */
-    fun cargarCuestionarios(relacionId: String, usuarioId: String, parejaId: String) {
-        if (_uiState.value.cuestionarios.isNotEmpty()) return
+    fun iniciarEscucha(relacionId: String, usuarioId: String, parejaId: String) {
+        if (relacionId.isBlank()) return
+        
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(cargando = true)
-            val jobCuestionarios = launch {
-                repository.obtenerCuestionarios(relacionId).fold(
-                    onSuccess = { lista ->
-                        _uiState.value = _uiState.value.copy(cuestionarios = lista)
-                        repository.obtenerEstadosTodos(lista, usuarioId, parejaId).fold(
-                            onSuccess = { estados ->
-                                _uiState.value = _uiState.value.copy(estadosCuestionarios = estados)
-                            },
-                            onFailure = { }
-                        )
-                    },
-                    onFailure = {
-                        _uiState.value = _uiState.value.copy(error = "Error al cargar cuestionarios")
+            repository.obtenerCuestionariosFlow(relacionId).collect { lista ->
+                _uiState.value = _uiState.value.copy(cuestionarios = lista)
+                
+                // Además escuchamos el estado de cada cuestionario de forma reactiva
+                lista.forEach { cuestionario ->
+                    launch {
+                        repository.obtenerEstadoFlow(cuestionario.id, usuarioId, parejaId).collect { estado ->
+                            val nuevosEstados = _uiState.value.estadosCuestionarios.toMutableMap()
+                            nuevosEstados[cuestionario.id] = estado
+                            _uiState.value = _uiState.value.copy(estadosCuestionarios = nuevosEstados)
+                        }
                     }
-                )
+                }
             }
-            val jobHistorial = launch {
-                repository.obtenerHistorial(relacionId, usuarioId).fold(
-                    onSuccess = { historial ->
-                        _uiState.value = _uiState.value.copy(historial = historial)
-                    },
-                    onFailure = { }
-                )
+        }
+
+        // Historial (podría ser flow también, pero por ahora lo dejamos así)
+        viewModelScope.launch {
+            repository.obtenerHistorial(relacionId, usuarioId).onSuccess { historial ->
+                _uiState.value = _uiState.value.copy(historial = historial)
             }
-            jobCuestionarios.join()
-            jobHistorial.join()
-            _uiState.value = _uiState.value.copy(cargando = false)
         }
     }
 

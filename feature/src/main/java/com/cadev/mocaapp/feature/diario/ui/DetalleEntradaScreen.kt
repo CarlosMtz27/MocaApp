@@ -147,6 +147,20 @@ fun DetalleEntradaScreen(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
+        },
+        bottomBar = {
+            /**
+             * Cuadro de texto fijo al final para escribir un comentario nuevo
+             */
+            if (entrada != null) {
+                InputComentario(
+                    texto = uiState.nuevoComentario,
+                    onTextoChange = { viewModel.actualizarNuevoComentario(it) },
+                    onEnviar = {
+                        viewModel.publicarComentario(usuarioId, nombreUsuario)
+                    }
+                )
+            }
         }
     ) { padding ->
 
@@ -167,7 +181,7 @@ fun DetalleEntradaScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(bottom = 100.dp)
+            contentPadding = PaddingValues(bottom = 20.dp)
         ) {
 
             /**
@@ -264,16 +278,17 @@ fun DetalleEntradaScreen(
             }
 
             /**
-             * Cuadro de texto al final para escribir un comentario nuevo
+             * Muestra un mensaje de error si no se pudo publicar el comentario
              */
-            item {
-                InputComentario(
-                    texto = uiState.nuevoComentario,
-                    onTextoChange = { viewModel.actualizarNuevoComentario(it) },
-                    onEnviar = {
-                        viewModel.publicarComentario(usuarioId, nombreUsuario)
-                    }
-                )
+            if (uiState.error != null) {
+                item {
+                    Text(
+                        text = uiState.error!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                    )
+                }
             }
         }
     }
@@ -738,7 +753,7 @@ private fun TarjetaComentario(
                     }
                 }
                 Text(
-                    text = formatoHora.format(comentario.creadoEn),
+                    text = formatoHora.format(comentario.creadoEn.toDate()),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                 )

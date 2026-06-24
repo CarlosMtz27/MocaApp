@@ -25,7 +25,10 @@ data class Evento(
     val relacionId: String = "",             // A qué pareja pertenece el evento
     val recordatorio: Boolean = true,        // Si se debe activar la alarma
     val minutosAntes: Int = 60,              // Cuánto tiempo antes avisar
-    val creadoEn: Timestamp = Timestamp.now()// Cuándo se guardó el plan
+    val creadoEn: Timestamp = Timestamp.now(), // Cuándo se guardó el plan
+    val convertidoEnRecuerdo: Boolean = false, // Si ya se creó un recuerdo de este evento
+    val pospuesto: Boolean = false,            // Si el evento fue movido de su fecha original
+    val fechaOriginal: String? = null          // Almacena la fecha inicial si se pospone
 )
 
 /**

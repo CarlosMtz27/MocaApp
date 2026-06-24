@@ -34,4 +34,22 @@ object UsuarioHelper {
             null
         }
     }
+
+    /**
+     * BUSCAR RELACIÓN:
+     * Obtiene el identificador de la relación compartida desde el perfil del usuario.
+     */
+    suspend fun obtenerRelacionId(uid: String): String {
+        return try {
+            FirebaseFirestore.getInstance()
+                .collection("usuarios")
+                .document(uid)
+                .get()
+                .await()
+                .getString("relacionId") ?: ""
+        } catch (e: Exception) {
+            e.printStackTrace()
+            ""
+        }
+    }
 }

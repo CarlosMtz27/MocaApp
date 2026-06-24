@@ -30,11 +30,20 @@ class EstadoAnimoViewModel(
     private val _uiState = MutableStateFlow(EstadoAnimoUiState())
     val uiState: StateFlow<EstadoAnimoUiState> = _uiState.asStateFlow()
 
+    private var currentRelacionId: String? = null
+    private var currentUidPropio: String? = null
     private var jobEstados: Job? = null
 
     fun cargarEstados(context: Context, relacionId: String, uidPropio: String, nombrePareja: String) {
         if (relacionId.isBlank()) return
         
+        // Evitamos reiniciar la escucha si ya estamos en la misma relación y el job está vivo
+        if (relacionId == currentRelacionId && uidPropio == currentUidPropio && jobEstados?.isActive == true) {
+            return
+        }
+        
+        currentRelacionId = relacionId
+        currentUidPropio = uidPropio
         _uiState.value = _uiState.value.copy(nombrePareja = nombrePareja)
         jobEstados?.cancel()
         
@@ -46,16 +55,18 @@ class EstadoAnimoViewModel(
                 )
                 
                 // Forzamos actualización de widgets locales con los nuevos datos
+                // Usamos el applicationContext para evitar fugas y asegurar consistencia
+                val appContext = context.applicationContext
                 try {
                     EstadoAnimoWidgetDataStore.guardar(
-                        context, 
+                        appContext, 
                         propio, 
                         "Yo", 
                         pareja, 
                         nombrePareja
                     )
-                    EstadoAnimoWidget().updateAll(context)
-                    EstadoAnimoWidgetTransparent().updateAll(context)
+                    EstadoAnimoWidget().updateAll(appContext)
+                    EstadoAnimoWidgetTransparent().updateAll(appContext)
                 } catch (e: Exception) { }
             }
         }
@@ -69,16 +80,19 @@ class EstadoAnimoViewModel(
         parejaId: String,
         emoji: String
     ) {
+        // Actualización optimista para que el usuario vea su cambio al instante
+        _uiState.value = _uiState.value.copy(emojiPropio = emoji, guardando = true)
+        
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(guardando = true)
             try {
                 repository.actualizarEstado(relacionId, uid, emoji)
                 
-                // Actualización local inmediata
+                // Actualización local de widgets inmediata
+                val appContext = context.applicationContext
                 val estados = repository.obtenerEstados(relacionId, uid)
-                EstadoAnimoWidgetDataStore.guardar(context, estados.first, nombreUsuario, estados.second, _uiState.value.nombrePareja)
-                EstadoAnimoWidget().updateAll(context)
-                EstadoAnimoWidgetTransparent().updateAll(context)
+                EstadoAnimoWidgetDataStore.guardar(appContext, estados.first, nombreUsuario, estados.second, _uiState.value.nombrePareja)
+                EstadoAnimoWidget().updateAll(appContext)
+                EstadoAnimoWidgetTransparent().updateAll(appContext)
                 
                 // Enviamos push con el ID de la relación para que el otro móvil sincronice
                 notificacionRepository.incrementarBadge(parejaId, "estadoAnimo")

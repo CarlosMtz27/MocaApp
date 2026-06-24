@@ -2,6 +2,7 @@ package com.cadev.mocaapp.feature.diario.domain.repository
 
 import com.cadev.mocaapp.feature.diario.domain.model.Comentario
 import com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario
+import kotlinx.coroutines.flow.Flow
 
 /**
  * REGLAS DEL DIARIO COMPARTIDO
@@ -10,12 +11,13 @@ import com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario
  * Aquí definimos todas las acciones que podemos hacer con nuestro diario: 
  * guardar momentos, subir fotos y vídeos, ver el calendario o comentar lo 
  * que nuestra pareja ha escrito.
- * 
- * Cómo lo podemos ampliar:
- * Si queremos que los recuerdos se puedan "archivar", debemos añadir aquí:
- * suspend fun archivarEntrada(entradaId: String): Result<Unit>
  */
 interface DiarioRepository {
+
+    /**
+     * Trae todos los recuerdos (nuestros y de nuestra pareja) en tiempo real.
+     */
+    fun obtenerEntradasFlow(usuarioId: String, parejaId: String?): Flow<List<EntradaDiario>>
 
     /**
      * Trae todos los recuerdos guardados por nosotros en un mes específico.
@@ -97,6 +99,7 @@ interface DiarioRepository {
      * Borra un comentario que hayamos escrito.
      */
     suspend fun eliminarComentario(
+        entradaId: String,
         comentarioId: String
     ): Result<Unit>
 }

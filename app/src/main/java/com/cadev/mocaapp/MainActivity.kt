@@ -39,6 +39,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 /**
  * ESTA ES LA ACTIVIDAD PRINCIPAL
@@ -58,12 +59,13 @@ class MainActivity : ComponentActivity() {
     // Variable para guardar el controlador de navegación y poder usarlo al recibir avisos externos
     private var navControllerRef: NavHostController? = null
 
-    // Este bloque gestiona la respuesta del usuario cuando se le piden los permisos de ubicación
-    private val locationPermissionRequest = registerForActivityResult(
+    // Gestiona la respuesta del usuario para múltiples permisos (ubicación, cámara, galería, notificaciones)
+    private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
         val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        
         if (fineGranted || coarseGranted) {
             // Si el usuario acepta se activa la actualización de ubicación de inmediato
             triggerUbicacionWorker()
@@ -132,12 +134,15 @@ class MainActivity : ComponentActivity() {
                 val auth = FirebaseAuth.getInstance()
                 var usuarioActual by remember { mutableStateOf(auth.currentUser) }
                 var estaVinculado by remember { mutableStateOf<Boolean?>(null) }
+                var relacionIdState by remember { mutableStateOf<String?>(null) }
+                var tieneFechaRelacion by remember { mutableStateOf<Boolean?>(null) }
 
                 // VIGILANCIA DE VINCULACIÓN EN TIEMPO REAL
                 DisposableEffect(usuarioActual) {
                     val uid = usuarioActual?.uid
                     if (uid == null) {
                         estaVinculado = null
+                        relacionIdState = null
                         onDispose {}
                     } else {
                         // Escuchamos cambios en nuestro perfil para saber si nuestra pareja nos vinculó
@@ -145,8 +150,15 @@ class MainActivity : ComponentActivity() {
                             .collection("usuarios")
                             .document(uid)
                             .addSnapshotListener { snapshot, _ ->
-                                val pId = snapshot?.getString("parejaId")
-                                estaVinculado = !pId.isNullOrBlank()
+                                if (snapshot != null && snapshot.exists()) {
+                                    val pId = snapshot.getString("parejaId")
+                                    val rId = snapshot.getString("relacionId")
+                                    estaVinculado = !pId.isNullOrBlank()
+                                    relacionIdState = rId
+                                } else {
+                                    estaVinculado = false
+                                    relacionIdState = null
+                                }
                             }
                         
                         // Al cerrar sesión o destruir la actividad, quitamos el vigilante
@@ -154,13 +166,38 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // NAVEGACIÓN AUTOMÁTICA AL VINCULAR
-                LaunchedEffect(estaVinculado) {
-                    if (estaVinculado == true && navController.runCatching { graph }.isSuccess) {
-                        val currentRoute = navController.currentDestination?.route
+                // VIGILANCIA DE LA FECHA DE RELACIÓN
+                DisposableEffect(relacionIdState) {
+                    val rId = relacionIdState
+                    if (rId.isNullOrBlank()) {
+                        tieneFechaRelacion = null
+                        onDispose {}
+                    } else {
+                        val listener = FirebaseFirestore.getInstance()
+                            .collection("relaciones")
+                            .document(rId)
+                            .addSnapshotListener { snapshot, _ ->
+                                tieneFechaRelacion = snapshot?.exists() == true && snapshot.get("fechaInicio") != null
+                            }
+                        onDispose { listener.remove() }
+                    }
+                }
+
+                // NAVEGACIÓN AUTOMÁTICA AL VINCULAR O AL CONFIGURAR FECHA
+                LaunchedEffect(estaVinculado, tieneFechaRelacion, relacionIdState) {
+                    if (navController.runCatching { graph }.isFailure) return@LaunchedEffect
+                    val currentRoute = navController.currentDestination?.route
+
+                    if (estaVinculado == true && tieneFechaRelacion == false && relacionIdState != null) {
                         if (currentRoute == NavRoutes.CodigoPareja.route) {
-                            // Si estábamos esperando el código y de repente nos vinculan (desde el otro móvil), 
-                            // vamos al inicio directamente.
+                            // Cuando se vinculan pero no hay fecha, vamos a la pantalla de fecha
+                            navController.navigate(NavRoutes.FechaRelacion.crearRuta(relacionIdState!!)) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    } else if (estaVinculado == true && tieneFechaRelacion == true) {
+                        if (currentRoute == NavRoutes.CodigoPareja.route || currentRoute?.startsWith("fecha_relacion") == true) {
+                            // Cuando ya hay fecha, vamos al inicio
                             navController.navigate(NavRoutes.Main.route) {
                                 popUpTo(0) { inclusive = true }
                             }
@@ -194,8 +231,14 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // Cuando el usuario entra con su cuenta se sincronizan las notificaciones push
-                LaunchedEffect(usuarioActual) {
+                LaunchedEffect(usuarioActual, estaVinculado) {
                     val uid = usuarioActual?.uid ?: return@LaunchedEffect
+                    
+                    // Solo procedemos si el documento del usuario ya existe en Firestore
+                    // Esto evita el error NOT_FOUND durante el registro
+                    val userDoc = FirebaseFirestore.getInstance().collection("usuarios").document(uid).get().await()
+                    if (!userDoc.exists()) return@LaunchedEffect
+
                     val repo = NotificacionRepository(
                         firestore = FirebaseFirestore.getInstance(),
                         oneSignalAppId = BuildConfig.ONESIGNAL_APP_ID,
@@ -273,14 +316,19 @@ class MainActivity : ComponentActivity() {
                 // Se decide cuál es la primera pantalla que verá el usuario
                 var destinoInicial by remember { mutableStateOf<String?>(null) }
                 
-                LaunchedEffect(usuarioActual, estaVinculado) {
+                LaunchedEffect(usuarioActual, estaVinculado, tieneFechaRelacion) {
                     if (usuarioActual == null) {
                         destinoInicial = NavRoutes.Login.route
                     } else if (estaVinculado != null) {
-                        destinoInicial = if (estaVinculado == false) {
-                            NavRoutes.CodigoPareja.route
-                        } else {
-                            NavRoutes.Main.route
+                        if (estaVinculado == false) {
+                            destinoInicial = NavRoutes.CodigoPareja.route
+                        } else if (tieneFechaRelacion != null) {
+                            // Si está vinculado pero no hay fecha, el destino inicial es configurar fecha
+                            destinoInicial = if (tieneFechaRelacion == false) {
+                                NavRoutes.FechaRelacion.crearRuta(relacionIdState ?: "")
+                            } else {
+                                NavRoutes.Main.route
+                            }
                         }
                     }
                 }
@@ -305,16 +353,27 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Al abrir la aplicación se comprueban los permisos de ubicación
+                // Al abrir la aplicación se comprueban los permisos necesarios (Ubicación, Cámara, Notificaciones, Galería, Micrófono)
                 LaunchedEffect(Unit) {
-                    if (!hasLocationPermission()) {
-                        locationPermissionRequest.launch(
-                            arrayOf(
-                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                Manifest.permission.ACCESS_COARSE_LOCATION
-                            )
-                        )
+                    val permisos = mutableListOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION,
+                        Manifest.permission.CAMERA,
+                        Manifest.permission.RECORD_AUDIO
+                    )
+
+                    // Permisos para notificaciones y medios (Android 13+)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        permisos.add(Manifest.permission.POST_NOTIFICATIONS)
+                        permisos.add(Manifest.permission.READ_MEDIA_IMAGES)
+                        permisos.add(Manifest.permission.READ_MEDIA_VIDEO)
                     } else {
+                        permisos.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+                    }
+
+                    requestPermissionLauncher.launch(permisos.toTypedArray())
+                    
+                    if (hasLocationPermission()) {
                         triggerUbicacionWorker()
                     }
                 }

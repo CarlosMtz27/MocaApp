@@ -9,175 +9,106 @@ import com.cloudinary.android.callback.UploadCallback
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
 import kotlin.coroutines.resume
 
-/**
- * EL MOTOR DE LOS TESTS (FIREBASE Y CLOUDINARY)
- * 
- * Qué hace:
- * Aquí escribimos la lógica real para manejar los cuestionarios. Usamos Firestore 
- * para guardar las preguntas y respuestas, y Cloudinary para las fotos. 
- * También calculamos el porcentaje de compatibilidad comparando las respuestas.
- * 
- * Cómo lo podemos modificar:
- * Si queremos cambiar la forma en que calculamos el match (ej: dar más puntos a 
- * las respuestas que coinciden exactamente), debemos editar la función `calcularResultado`.
- */
 class CuestionarioRepositoryImpl(
     private val firestore: FirebaseFirestore
 ) : CuestionarioRepository {
 
-    /**
-     * BUSCAR TESTS:
-     * Trae de la base de datos tanto los tests oficiales como los que creó la pareja.
-     */
-    override suspend fun obtenerCuestionarios(
-        relacionId: String
-    ): Result<List<Cuestionario>> = try {
-        val predefinidos = firestore
-            .collection("cuestionarios")
-            .whereEqualTo("creadoPor", "sistema")
-            .get().await()
-            .documents.mapNotNull { it.toObject(Cuestionario::class.java) }
+    override fun obtenerCuestionariosFlow(relacionId: String): Flow<List<Cuestionario>> {
+        val predefinidosFlow = callbackFlow {
+            val listener = firestore.collection("cuestionarios")
+                .whereEqualTo("creadoPor", "sistema")
+                .addSnapshotListener { snapshot, _ ->
+                    val list = snapshot?.documents?.mapNotNull { it.toObject(Cuestionario::class.java) } ?: emptyList()
+                    trySend(list)
+                }
+            awaitClose { listener.remove() }
+        }
 
-        val personalizados = firestore
-            .collection("cuestionarios")
-            .whereEqualTo("relacionId", relacionId)
-            .get().await()
-            .documents.mapNotNull { it.toObject(Cuestionario::class.java) }
+        val personalizadosFlow = callbackFlow {
+            val listener = firestore.collection("cuestionarios")
+                .whereEqualTo("relacionId", relacionId)
+                .addSnapshotListener { snapshot, _ ->
+                    val list = snapshot?.documents?.mapNotNull { it.toObject(Cuestionario::class.java) } ?: emptyList()
+                    trySend(list)
+                }
+            awaitClose { listener.remove() }
+        }
 
+        return combine(predefinidosFlow, personalizadosFlow) { pre, per -> (pre + per) }
+    }
+
+    override fun obtenerEstadoFlow(
+        cuestionarioId: String,
+        usuarioId: String,
+        parejaId: String
+    ): Flow<EstadoCuestionario> = callbackFlow {
+        val listener = firestore.collection("respuestas").document(cuestionarioId)
+            .addSnapshotListener { snapshot, _ ->
+                val completados = snapshot?.get("completadoPor") as? List<*> ?: emptyList<Any>()
+                val yo = usuarioId in completados
+                val pareja = parejaId in completados
+                val estado = when {
+                    yo && pareja -> EstadoCuestionario.AMBOS
+                    yo -> EstadoCuestionario.YO_RESPONDÍ
+                    pareja -> EstadoCuestionario.PAREJA_RESPONDIÓ
+                    else -> EstadoCuestionario.NINGUNO
+                }
+                trySend(estado)
+            }
+        awaitClose { listener.remove() }
+    }
+
+    override suspend fun obtenerCuestionarios(relacionId: String): Result<List<Cuestionario>> = try {
+        val predefinidos = firestore.collection("cuestionarios").whereEqualTo("creadoPor", "sistema").get().await().documents.mapNotNull { it.toObject(Cuestionario::class.java) }
+        val personalizados = firestore.collection("cuestionarios").whereEqualTo("relacionId", relacionId).get().await().documents.mapNotNull { it.toObject(Cuestionario::class.java) }
         Result.success(predefinidos + personalizados)
     } catch (e: Exception) { Result.failure(e) }
 
-    /**
-     * TRAER UN TEST:
-     * Obtiene toda la información de un cuestionario específico por su ID.
-     */
-    override suspend fun obtenerCuestionario(
-        id: String
-    ): Result<Cuestionario> {
-        return try {
-            val doc = firestore.collection("cuestionarios").document(id).get().await()
-            val c = doc.toObject(Cuestionario::class.java)
-                ?: return Result.failure(Exception("No encontrado"))
+    override suspend fun obtenerCuestionario(id: String): Result<Cuestionario> = try {
+        val doc = firestore.collection("cuestionarios").document(id).get().await()
+        val c = doc.toObject(Cuestionario::class.java) ?: return Result.failure(Exception("No encontrado"))
+        Result.success(c)
+    } catch (e: Exception) { Result.failure(e) }
 
-            Result.success(c)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * GUARDAR RESPUESTAS:
-     * Registra en la base de datos lo que el usuario contestó y añade su ID a la 
-     * lista de "personas que completaron el test".
-     */
-    override suspend fun guardarRespuestas(
-        cuestionarioId: String,
-        usuarioId: String,
-        respuestas: Map<String, String>,
-        respuestasFoto: Map<String, String>
-    ): Result<Unit> = try {
+    override suspend fun guardarRespuestas(cuestionarioId: String, usuarioId: String, respuestas: Map<String, String>, respuestasFoto: Map<String, String>): Result<Unit> = try {
         val batch = firestore.batch()
-
         respuestas.forEach { (preguntaId, valor) ->
             val fotoUrl = respuestasFoto[preguntaId] ?: ""
-            val respuesta = Respuesta(
-                id = "$usuarioId-$preguntaId",
-                cuestionarioId = cuestionarioId,
-                usuarioId = usuarioId,
-                preguntaId = preguntaId,
-                valor = valor,
-                imagenUrl = fotoUrl
-            )
-            val ref = firestore
-                .collection("respuestas")
-                .document(cuestionarioId)
-                .collection(usuarioId)
-                .document(preguntaId)
+            val respuesta = Respuesta(id = "$usuarioId-$preguntaId", cuestionarioId = cuestionarioId, usuarioId = usuarioId, preguntaId = preguntaId, valor = valor, imagenUrl = fotoUrl)
+            val ref = firestore.collection("respuestas").document(cuestionarioId).collection(usuarioId).document(preguntaId)
             batch.set(ref, respuesta)
         }
-
         val refMeta = firestore.collection("respuestas").document(cuestionarioId)
-        batch.set(
-            refMeta,
-            mapOf("completadoPor" to
-                    com.google.firebase.firestore.FieldValue.arrayUnion(usuarioId)),
-            com.google.firebase.firestore.SetOptions.merge()
-        )
-
+        batch.set(refMeta, mapOf("completadoPor" to com.google.firebase.firestore.FieldValue.arrayUnion(usuarioId)), com.google.firebase.firestore.SetOptions.merge())
         batch.commit().await()
         Result.success(Unit)
     } catch (e: Exception) { Result.failure(e) }
 
-    /**
-     * TRAER RESPUESTAS DE TEXTO:
-     * Descarga lo que el usuario escribió o seleccionó en un test.
-     */
-    override suspend fun obtenerRespuestas(
-        cuestionarioId: String,
-        usuarioId: String
-    ): Result<Map<String, String>> = try {
-        val docs = firestore
-            .collection("respuestas")
-            .document(cuestionarioId)
-            .collection(usuarioId)
-            .get().await()
-
-        val map = docs.documents.associate { doc ->
-            val preguntaId = doc.getString("preguntaId") ?: doc.id
-            val valor = doc.getString("valor") ?: ""
-            preguntaId to valor
-        }
+    override suspend fun obtenerRespuestas(cuestionarioId: String, usuarioId: String): Result<Map<String, String>> = try {
+        val docs = firestore.collection("respuestas").document(cuestionarioId).collection(usuarioId).get().await()
+        val map = docs.documents.associate { doc -> (doc.getString("preguntaId") ?: doc.id) to (doc.getString("valor") ?: "") }
         Result.success(map)
     } catch (e: Exception) { Result.failure(e) }
 
-    /**
-     * TRAER RESPUESTAS DE FOTO:
-     * Descarga los enlaces de las imágenes que el usuario subió como respuesta.
-     */
-    override suspend fun obtenerRespuestasFoto(
-        cuestionarioId: String,
-        usuarioId: String
-    ): Result<Map<String, String>> = try {
-        val docs = firestore
-            .collection("respuestas")
-            .document(cuestionarioId)
-            .collection(usuarioId)
-            .get().await()
-
-        val map = docs.documents
-            .filter { (it.getString("imagenUrl") ?: "").isNotBlank() }
-            .associate { doc ->
-                val preguntaId = doc.getString("preguntaId") ?: doc.id
-                val url = doc.getString("imagenUrl") ?: ""
-                preguntaId to url
-            }
+    override suspend fun obtenerRespuestasFoto(cuestionarioId: String, usuarioId: String): Result<Map<String, String>> = try {
+        val docs = firestore.collection("respuestas").document(cuestionarioId).collection(usuarioId).get().await()
+        val map = docs.documents.filter { (it.getString("imagenUrl") ?: "").isNotBlank() }.associate { doc -> (doc.getString("preguntaId") ?: doc.id) to (doc.getString("imagenUrl") ?: "") }
         Result.success(map)
     } catch (e: Exception) { Result.failure(e) }
 
-    /**
-     * CONSULTAR ESTADO:
-     * Revisa quién de los dos ha terminado el test para saber si podemos mostrar resultados.
-     */
-    override suspend fun obtenerEstado(
-        cuestionarioId: String,
-        usuarioId: String,
-        parejaId: String
-    ): Result<EstadoCuestionario> = try {
-        val doc = firestore
-            .collection("respuestas")
-            .document(cuestionarioId)
-            .get().await()
-
+    override suspend fun obtenerEstado(cuestionarioId: String, usuarioId: String, parejaId: String): Result<EstadoCuestionario> = try {
+        val doc = firestore.collection("respuestas").document(cuestionarioId).get().await()
         val completados = doc.get("completadoPor") as? List<*> ?: emptyList<Any>()
         val yoRespondí = usuarioId in completados
         val parejaRespondió = parejaId in completados
-
         val estado = when {
             yoRespondí && parejaRespondió -> EstadoCuestionario.AMBOS
             yoRespondí -> EstadoCuestionario.YO_RESPONDÍ
@@ -187,20 +118,11 @@ class CuestionarioRepositoryImpl(
         Result.success(estado)
     } catch (e: Exception) { Result.failure(e) }
 
-    /**
-     * ESTADO DE TODOS:
-     * Consulta el estado de una lista de tests al mismo tiempo para ganar velocidad.
-     */
-    override suspend fun obtenerEstadosTodos(
-        cuestionarios: List<Cuestionario>,
-        usuarioId: String,
-        parejaId: String
-    ): Result<Map<String, EstadoCuestionario>> = try {
+    override suspend fun obtenerEstadosTodos(cuestionarios: List<Cuestionario>, usuarioId: String, parejaId: String): Result<Map<String, EstadoCuestionario>> = try {
         coroutineScope {
             val deferreds = cuestionarios.map { c ->
                 async {
-                    val estado = obtenerEstado(c.id, usuarioId, parejaId)
-                        .getOrDefault(EstadoCuestionario.NINGUNO)
+                    val estado = obtenerEstado(c.id, usuarioId, parejaId).getOrDefault(EstadoCuestionario.NINGUNO)
                     c.id to estado
                 }
             }
@@ -208,92 +130,44 @@ class CuestionarioRepositoryImpl(
         }
     } catch (e: Exception) { Result.failure(e) }
 
-    /**
-     * CALCULAR COMPATIBILIDAD:
-     * Compara las respuestas de ambos. Si coinciden o están cerca (en escalas), 
-     * suma puntos y saca un porcentaje final.
-     */
-    override suspend fun calcularResultado(
-        cuestionarioId: String,
-        relacionId: String,
-        usuarioId: String,
-        parejaId: String
-    ): Result<ResultadoCuestionario> = try {
+    override suspend fun calcularResultado(cuestionarioId: String, relacionId: String, usuarioId: String, parejaId: String): Result<ResultadoCuestionario> = try {
         val cuestionario = obtenerCuestionario(cuestionarioId).getOrThrow()
         val respuestasUsuario = obtenerRespuestas(cuestionarioId, usuarioId).getOrThrow()
         val respuestasPareja = obtenerRespuestas(cuestionarioId, parejaId).getOrThrow()
-
         var coincidencias = 0
         var totalComparables = 0
-
         cuestionario.preguntas.forEach { pregunta ->
-            if (pregunta.tipo == TipoPregunta.FOTO.name ||
-                pregunta.tipo == TipoPregunta.TEXTO_LIBRE.name
-            ) return@forEach
-
+            if (pregunta.tipo == TipoPregunta.FOTO.name || pregunta.tipo == TipoPregunta.TEXTO_LIBRE.name) return@forEach
             totalComparables++
             val rU = respuestasUsuario[pregunta.id] ?: ""
             val rP = respuestasPareja[pregunta.id] ?: ""
-
             if (rU.isNotBlank() && rP.isNotBlank()) {
                 when (pregunta.tipo) {
-                    TipoPregunta.OPCION_MULTIPLE.name,
-                    TipoPregunta.SI_NO.name -> {
-                        if (rU == rP) coincidencias++
-                    }
+                    TipoPregunta.OPCION_MULTIPLE.name, TipoPregunta.SI_NO.name -> if (rU == rP) coincidencias++
                     TipoPregunta.ESCALA.name -> {
-                        val diff = kotlin.math.abs(
-                            (rU.toIntOrNull() ?: 0) - (rP.toIntOrNull() ?: 0)
-                        )
+                        val diff = kotlin.math.abs((rU.toIntOrNull() ?: 0) - (rP.toIntOrNull() ?: 0))
                         if (diff <= 2) coincidencias++
                     }
                 }
             }
         }
-
-        val porcentaje = if (totalComparables > 0)
-            (coincidencias * 100) / totalComparables else 0
-
-        val resultado = ResultadoCuestionario(
-            id = cuestionarioId,
-            cuestionarioId = cuestionarioId,
-            relacionId = relacionId,
-            puntajeCompatibilidad = porcentaje,
-            completadoPor = listOf(usuarioId, parejaId)
-        )
-
-        firestore.collection("resultados").document(cuestionarioId)
-            .set(resultado).await()
-
+        val porcentaje = if (totalComparables > 0) (coincidencias * 100) / totalComparables else 0
+        val resultado = ResultadoCuestionario(id = cuestionarioId, cuestionarioId = cuestionarioId, relacionId = relacionId, puntajeCompatibilidad = porcentaje, completadoPor = listOf(usuarioId, parejaId))
+        firestore.collection("resultados").document(cuestionarioId).set(resultado).await()
         Result.success(resultado)
     } catch (e: Exception) { Result.failure(e) }
 
-    /**
-     * TRAER RESULTADO:
-     * Obtiene el porcentaje de match que ya se calculó anteriormente.
-     */
-    override suspend fun obtenerResultado(
-        cuestionarioId: String
-    ): Result<ResultadoCuestionario?> = try {
-        val doc = firestore.collection("resultados")
-            .document(cuestionarioId).get().await()
+    override suspend fun obtenerResultado(cuestionarioId: String): Result<ResultadoCuestionario?> = try {
+        val doc = firestore.collection("resultados").document(cuestionarioId).get().await()
         Result.success(doc.toObject(ResultadoCuestionario::class.java))
     } catch (e: Exception) { Result.failure(e) }
 
-    /**
-     * HISTORIAL:
-     * Busca todos los tests en los que el usuario ha participado.
-     */
-    override suspend fun obtenerHistorial(
-        relacionId: String,
-        usuarioId: String
-    ): Result<List<Cuestionario>> = try {
+    override suspend fun obtenerHistorial(relacionId: String, usuarioId: String): Result<List<Cuestionario>> = try {
         coroutineScope {
             val todos = obtenerCuestionarios(relacionId).getOrThrow()
             val checks = todos.map { cuestionario ->
                 async {
-                    val doc = firestore.collection("respuestas")
-                        .document(cuestionario.id).get().await()
+                    val doc = firestore.collection("respuestas").document(cuestionario.id).get().await()
                     val lista = doc.get("completadoPor") as? List<*> ?: emptyList<Any>()
                     if (usuarioId in lista) cuestionario else null
                 }
@@ -302,73 +176,32 @@ class CuestionarioRepositoryImpl(
         }
     } catch (e: Exception) { Result.failure(e) }
 
-    /**
-     * CREAR TEST PROPIO:
-     * Guarda un nuevo cuestionario personalizado hecho por la pareja.
-     */
-    override suspend fun crearCuestionario(
-        cuestionario: Cuestionario
-    ): Result<Cuestionario> = try {
+    override suspend fun crearCuestionario(cuestionario: Cuestionario): Result<Cuestionario> = try {
         val ref = firestore.collection("cuestionarios").document()
         val nuevo = cuestionario.copy(id = ref.id)
         ref.set(nuevo).await()
         Result.success(nuevo)
     } catch (e: Exception) { Result.failure(e) }
 
-    /**
-     * SEMBRAR TESTS OFICIALES:
-     * Si es la primera vez que se usa la app, crea automáticamente los tests por defecto.
-     */
     override suspend fun poblarPredefinidos(): Result<Unit> = try {
-        val yaExisten = firestore.collection("cuestionarios")
-            .whereEqualTo("creadoPor", "sistema")
-            .limit(1)
-            .get().await()
-            .documents.isNotEmpty()
-
+        val yaExisten = firestore.collection("cuestionarios").whereEqualTo("creadoPor", "sistema").limit(1).get().await().documents.isNotEmpty()
         if (!yaExisten) {
             val predefinidos = cuestionariosPredefinidos()
             val batch = firestore.batch()
-            predefinidos.forEach { c ->
-                batch.set(
-                    firestore.collection("cuestionarios").document(c.id), c
-                )
-            }
+            predefinidos.forEach { c -> batch.set(firestore.collection("cuestionarios").document(c.id), c) }
             batch.commit().await()
         }
         Result.success(Unit)
     } catch (e: Exception) { Result.failure(e) }
 
-    /**
-     * SUBIR FOTO A LA NUBE:
-     * Envía una imagen local a Cloudinary para que podamos verla en cualquier móvil.
-     */
-    override suspend fun subirFoto(rutaLocal: String): Result<String> =
-        suspendCancellableCoroutine { continuation ->
-            val requestId = MediaManager.get()
-                .upload(Uri.parse(rutaLocal))
-                .option("folder", "cuestionarios")
-                .option("public_id", UUID.randomUUID().toString())
-                .option("resource_type", "image")
-                .callback(object : UploadCallback {
-                    override fun onStart(requestId: String) {}
-                    override fun onProgress(requestId: String, bytes: Long, total: Long) {}
-                    override fun onSuccess(
-                        requestId: String, resultData: Map<*, *>
-                    ) {
-                        val url = resultData["secure_url"] as? String ?: ""
-                        continuation.resume(Result.success(url))
-                    }
-                    override fun onError(requestId: String, error: ErrorInfo) {
-                        continuation.resume(
-                            Result.failure(Exception(error.description))
-                        )
-                    }
-                    override fun onReschedule(requestId: String, error: ErrorInfo) {}
-                })
-                .dispatch()
-            continuation.invokeOnCancellation {
-                MediaManager.get().cancelRequest(requestId)
-            }
-        }
+    override suspend fun subirFoto(rutaLocal: String): Result<String> = suspendCancellableCoroutine { continuation ->
+        val requestId = MediaManager.get().upload(Uri.parse(rutaLocal)).option("folder", "cuestionarios").option("public_id", UUID.randomUUID().toString()).option("resource_type", "image").callback(object : UploadCallback {
+            override fun onStart(requestId: String) {}
+            override fun onProgress(requestId: String, bytes: Long, total: Long) {}
+            override fun onSuccess(requestId: String, resultData: Map<*, *>) { continuation.resume(Result.success(resultData["secure_url"] as? String ?: "")) }
+            override fun onError(requestId: String, error: ErrorInfo) { continuation.resume(Result.failure(Exception(error.description))) }
+            override fun onReschedule(requestId: String, error: ErrorInfo) {}
+        }).dispatch()
+        continuation.invokeOnCancellation { MediaManager.get().cancelRequest(requestId) }
+    }
 }

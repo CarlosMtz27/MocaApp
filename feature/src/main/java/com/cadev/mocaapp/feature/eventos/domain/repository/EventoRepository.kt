@@ -2,6 +2,8 @@ package com.cadev.mocaapp.feature.eventos.domain.repository
 
 import com.cadev.mocaapp.feature.eventos.domain.model.Evento
 
+import kotlinx.coroutines.flow.Flow
+
 /**
  * REGLAS DE LOS EVENTOS Y PLANES
  * 
@@ -10,6 +12,10 @@ import com.cadev.mocaapp.feature.eventos.domain.model.Evento
  * compartido: crear planes, verlos todos, editarlos o borrarlos.
  */
 interface EventoRepository {
+    /**
+     * Trae todos los planes que la pareja ha guardado en tiempo real.
+     */
+    fun obtenerEventosFlow(relacionId: String): Flow<List<Evento>>
     /**
      * Guarda un plan nuevo para la pareja.
      */

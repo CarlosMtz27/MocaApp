@@ -3,6 +3,9 @@ package com.cadev.mocaapp.feature.eventos.data.repository
 import com.cadev.mocaapp.feature.eventos.domain.model.Evento
 import com.cadev.mocaapp.feature.eventos.domain.repository.EventoRepository
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 /**
@@ -11,16 +14,31 @@ import kotlinx.coroutines.tasks.await
  * Qué hace:
  * Aquí escribimos la lógica real para que nuestros planes se guarden en internet. 
  * Nos conectamos a Firestore para que ambos podamos ver las citas al instante.
- * 
- * Cómo lo podemos modificar:
- * Si queremos que los eventos se ordenen por fecha de creación en lugar de por 
- * fecha de la cita, debemos cambiar el `sortedBy` en `obtenerEventos`.
  */
 class EventoRepositoryImpl(
     private val firestore: FirebaseFirestore
 ) : EventoRepository {
 
     private val col = firestore.collection("eventos")
+
+    /**
+     * TRAER TODOS (FLUJO EN TIEMPO REAL):
+     * Escucha cualquier cambio en la colección de eventos y emite la lista actualizada.
+     */
+    override fun obtenerEventosFlow(relacionId: String): Flow<List<Evento>> = callbackFlow {
+        val listener = col
+            .whereEqualTo("relacionId", relacionId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                val eventos = snapshot?.documents?.mapNotNull { it.toObject(Evento::class.java) }
+                    ?.sortedBy { it.fecha + it.hora } ?: emptyList()
+                trySend(eventos)
+            }
+        awaitClose { listener.remove() }
+    }
 
     /**
      * CREAR:

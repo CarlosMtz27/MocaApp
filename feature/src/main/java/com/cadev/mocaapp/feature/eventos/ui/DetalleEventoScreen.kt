@@ -1,6 +1,10 @@
 package com.cadev.mocaapp.feature.eventos.ui
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -12,24 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
 import com.cadev.mocaapp.feature.eventos.domain.model.RecordatorioOpcion
 import com.cadev.mocaapp.core.model.TipoEvento
+import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
 import java.text.SimpleDateFormat
 import java.util.*
 
-/**
- * ESTA ES LA PANTALLA DE DETALLE DE UN EVENTO
- * 
- * Qué hace:
- * Muestra toda la información de una cita o plan guardado: su categoría, 
- * fecha exacta, descripción y si tiene activada una alarma. Si somos nosotros 
- * quienes creamos el evento, también nos permite borrarlo o editarlo.
- * 
- * Cómo lo podemos modificar:
- * Si queremos que los eventos pasados se vean distintos (ej: con menos brillo), 
- * debemos comparar la fecha del evento con la fecha actual en esta pantalla.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetalleEventoScreen(
@@ -37,31 +30,24 @@ fun DetalleEventoScreen(
     eventoId: String,
     usuarioId: String,
     onRegresar: () -> Unit,
-    onEditar: (String) -> Unit
+    onEditar: (String) -> Unit,
+    onConvertirEnRecuerdo: (String, String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var mostrarConfirmarEliminar by remember { mutableStateOf(false) }
+    var mostrarPosponerDialog by remember { mutableStateOf(false) }
 
-    /**
-     * Se descarga la información completa del evento al entrar en la pantalla
-     */
     LaunchedEffect(eventoId) {
         viewModel.cargarEvento(eventoId)
     }
 
-    /**
-     * Si el evento se borra correctamente se vuelve de forma automática a la lista principal
-     */
     LaunchedEffect(uiState.eliminado) {
         if (uiState.eliminado) onRegresar()
     }
 
     val evento = uiState.eventoActual
 
-    /**
-     * Cuadro de diálogo para confirmar si el usuario realmente quiere borrar el plan
-     */
     if (mostrarConfirmarEliminar) {
         AlertDialog(
             onDismissRequest = { mostrarConfirmarEliminar = false },
@@ -76,9 +62,7 @@ fun DetalleEventoScreen(
                 ) { Text("Eliminar", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { mostrarConfirmarEliminar = false }) {
-                    Text("Cancelar")
-                }
+                TextButton(onClick = { mostrarConfirmarEliminar = false }) { Text("Cancelar") }
             }
         )
     }
@@ -93,18 +77,12 @@ fun DetalleEventoScreen(
                     }
                 },
                 actions = {
-                    /**
-                     * Opciones de edición y borrado visibles solo para el dueño del evento
-                     */
                     if (evento?.creadoPor == usuarioId) {
                         IconButton(onClick = { onEditar(eventoId) }) {
                             Icon(Icons.Filled.Edit, "Editar")
                         }
                         IconButton(onClick = { mostrarConfirmarEliminar = true }) {
-                            Icon(
-                                Icons.Filled.Delete, "Eliminar",
-                                tint = MaterialTheme.colorScheme.error
-                            )
+                            Icon(Icons.Filled.Delete, "Eliminar", tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -119,14 +97,10 @@ fun DetalleEventoScreen(
         }
 
         val tipo = try { TipoEvento.valueOf(evento.tipo) } catch (e: Exception) { TipoEvento.OTRO }
-
         val formatoEntrada = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val formatoLegible = SimpleDateFormat(
-            "EEEE d 'de' MMMM, yyyy", Locale.forLanguageTag("es-MX")
-        )
+        val formatoLegible = SimpleDateFormat("EEEE d 'de' MMMM, yyyy", Locale.forLanguageTag("es-MX"))
         val fechaLegible = try {
-            formatoLegible.format(formatoEntrada.parse(evento.fecha)!!)
-                .replaceFirstChar { it.uppercase() }
+            formatoLegible.format(formatoEntrada.parse(evento.fecha)!!).replaceFirstChar { it.uppercase() }
         } catch (e: Exception) { evento.fecha }
 
         Column(
@@ -136,95 +110,163 @@ fun DetalleEventoScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            /**
-             * Cabecera visual con el icono representativo y el título del plan
-             */
             Card(shape = RoundedCornerShape(20.dp)) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
+                    modifier = Modifier.fillMaxWidth().padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = tipo.icono,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        evento.titulo,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        tipo.etiqueta,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Icon(imageVector = tipo.icono, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+                    Text(evento.titulo, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text(tipo.etiqueta, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    
+                    if (evento.pospuesto && evento.fechaOriginal != null) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            shape = CircleShape,
+                            modifier = Modifier.padding(top = 8.dp)
+                        ) {
+                            Text(
+                                text = "Pospuesto (era el ${evento.fechaOriginal})",
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
                 }
             }
 
-            /**
-             * Filas con la información detallada del evento
-             */
-            InfoRow(
-                icon = { Icon(Icons.Filled.CalendarMonth, null) },
-                label = "Fecha",
-                valor = fechaLegible
-            )
-            InfoRow(
-                icon = { Icon(Icons.Filled.Schedule, null) },
-                label = "Hora",
-                valor = evento.hora
-            )
+            InfoRow(icon = { Icon(Icons.Filled.CalendarMonth, null) }, label = "Fecha", valor = fechaLegible)
+            InfoRow(icon = { Icon(Icons.Filled.Schedule, null) }, label = "Hora", valor = evento.hora)
 
             if (evento.descripcion.isNotBlank()) {
-                InfoRow(
-                    icon = { Icon(Icons.Filled.Notes, null) },
-                    label = "Descripción",
-                    valor = evento.descripcion
-                )
+                InfoRow(icon = { Icon(Icons.Filled.Notes, null) }, label = "Descripción", valor = evento.descripcion)
             }
 
-            if (evento.recordatorio) {
-                val opcion = RecordatorioOpcion.entries
-                    .find { it.minutos == evento.minutosAntes }
-                InfoRow(
-                    icon = { Icon(Icons.Filled.Notifications, null) },
-                    label = "Recordatorio",
-                    valor = opcion?.etiqueta ?: "${evento.minutosAntes} minutos antes"
-                )
+            val ahora = Calendar.getInstance().time
+            val formatoCompleto = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+            val fechaEvento = try { formatoCompleto.parse("${evento.fecha} ${evento.hora}") } catch (e: Exception) { null }
+            val esPasado = fechaEvento?.before(ahora) ?: false
+
+            if (esPasado) {
+                if (evento.convertidoEnRecuerdo) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Este evento ya pasó y se guardó como recuerdo.",
+                            modifier = Modifier.padding(16.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    Spacer(Modifier.weight(1f))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Button(
+                            onClick = { mostrarPosponerDialog = true },
+                            modifier = Modifier.weight(1f).height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
+                        ) {
+                            Text("Posponer", fontWeight = FontWeight.Bold)
+                        }
+                        Button(
+                            onClick = { 
+                                viewModel.marcarComoRecuerdo(eventoId)
+                                onConvertirEnRecuerdo(evento.fecha, evento.titulo) 
+                            },
+                            modifier = Modifier.weight(1f).height(56.dp),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Text("Recuerdo", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
         }
     }
+
+    if (mostrarPosponerDialog) {
+        PosponerDialog(
+            actualFecha = evento?.fecha ?: "",
+            actualHora = evento?.hora ?: "12:00",
+            onDismiss = { mostrarPosponerDialog = false },
+            onConfirm = { nuevaFecha, nuevaHora ->
+                viewModel.posponerEvento(eventoId, nuevaFecha, nuevaHora)
+                mostrarPosponerDialog = false
+            }
+        )
+    }
 }
 
-/**
- * Función auxiliar para dibujar una fila con icono título y valor de forma elegante
- */
 @Composable
-private fun InfoRow(
-    icon: @Composable () -> Unit,
-    label: String,
-    valor: String
+fun PosponerDialog(
+    actualFecha: String,
+    actualHora: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String) -> Unit
 ) {
-    Card(shape = RoundedCornerShape(12.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    val context = LocalContext.current
+    var fecha by remember { mutableStateOf(actualFecha) }
+    var hora by remember { mutableStateOf(actualHora) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Posponer evento") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Elige la nueva fecha y hora para vuestro plan.")
+                OutlinedButton(
+                    onClick = {
+                        val cal = Calendar.getInstance()
+                        DatePickerDialog(context, { _, y, m, d ->
+                            fecha = "%04d-%02d-%02d".format(y, m + 1, d)
+                        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.CalendarToday, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(fecha)
+                }
+                OutlinedButton(
+                    onClick = {
+                        val split = hora.split(":")
+                        val h = split.getOrNull(0)?.toIntOrNull() ?: 12
+                        val m = split.getOrNull(1)?.toIntOrNull() ?: 0
+                        TimePickerDialog(context, { _, selectedH, selectedM ->
+                            hora = "%02d:%02d".format(selectedH, selectedM)
+                        }, h, m, true).show()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.AccessTime, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(hora)
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(fecha, hora) }) { Text("Confirmar") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        }
+    )
+}
+
+@Composable
+private fun InfoRow(icon: @Composable () -> Unit, label: String, valor: String) {
+    Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) {
+        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             icon()
             Column {
-                Text(
-                    label,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                )
+                Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                 Text(valor, style = MaterialTheme.typography.bodyMedium)
             }
         }

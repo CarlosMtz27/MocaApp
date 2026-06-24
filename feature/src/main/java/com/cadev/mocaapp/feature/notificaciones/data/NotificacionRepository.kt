@@ -49,7 +49,7 @@ class NotificacionRepository(
         try {
             firestore.collection("usuarios")
                 .document(usuarioId)
-                .update("fcmToken", token)
+                .set(mapOf("fcmToken" to token), SetOptions.merge())
                 .await()
         } catch (e: Exception) { e.printStackTrace() }
     }
@@ -58,7 +58,7 @@ class NotificacionRepository(
         try {
             firestore.collection("usuarios")
                 .document(usuarioId)
-                .update("oneSignalPlayerId", playerId)
+                .set(mapOf("oneSignalPlayerId" to playerId), SetOptions.merge())
                 .await()
         } catch (e: Exception) { e.printStackTrace() }
     }

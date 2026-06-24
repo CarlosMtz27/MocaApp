@@ -5,18 +5,30 @@ import com.cadev.mocaapp.feature.cuestionarios.domain.model.EstadoCuestionario
 import com.cadev.mocaapp.feature.cuestionarios.domain.model.Respuesta
 import com.cadev.mocaapp.feature.cuestionarios.domain.model.ResultadoCuestionario
 
+import kotlinx.coroutines.flow.Flow
+
 /**
  * REGLAS DE LOS TESTS DE PAREJA
  * 
  * Qué hace:
  * Aquí definimos todas las acciones relacionadas con los cuestionarios: 
  * ver los disponibles, responderlos, calcular la compatibilidad o subir fotos.
- * 
- * Cómo lo podemos ampliar:
- * Si queremos que los usuarios puedan "darle like" a un test, debemos añadir:
- * suspend fun darLike(cuestionarioId: String): Result<Unit>
  */
 interface CuestionarioRepository {
+
+    /**
+     * Trae todos los tests (los que vienen con la app y los creados por la pareja) en tiempo real.
+     */
+    fun obtenerCuestionariosFlow(relacionId: String): Flow<List<Cuestionario>>
+
+    /**
+     * Mira si un test está pendiente, si lo hizo uno o si lo terminaron los dos en tiempo real.
+     */
+    fun obtenerEstadoFlow(
+        cuestionarioId: String,
+        usuarioId: String,
+        parejaId: String
+    ): Flow<EstadoCuestionario>
 
     /**
      * Trae todos los tests (los que vienen con la app y los creados por la pareja).

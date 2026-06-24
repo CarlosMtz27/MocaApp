@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cadev.mocaapp.core.model.TipoEvento
 import com.cadev.mocaapp.feature.eventos.domain.model.RecordatorioOpcion
+import java.text.SimpleDateFormat
 import java.util.*
 
 /**
@@ -67,10 +68,19 @@ fun EditarEventoScreen(
     var mostrarTipoPicker by remember { mutableStateOf(false) }
     var mostrarRecordatorioPicker by remember { mutableStateOf(false) }
 
+    val fechaPasada = remember(uiState.fecha) {
+        if (uiState.fecha.isBlank()) false
+        else {
+            val hoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            uiState.fecha < hoy
+        }
+    }
+
     /**
      * Se sincroniza la nueva fecha elegida por el usuario
      */
     LaunchedEffect(datePickerState.selectedDateMillis) {
+        if (fechaPasada) return@LaunchedEffect
         val millis = datePickerState.selectedDateMillis ?: return@LaunchedEffect
         val cal = Calendar.getInstance().apply { timeInMillis = millis }
         val fecha = "%04d-%02d-%02d".format(
@@ -275,6 +285,15 @@ fun EditarEventoScreen(
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold
                         )
+                        if (fechaPasada) {
+                            Text(
+                                "Este evento ya ha pasado. Puedes editar los detalles pero la fecha es permanente.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -289,7 +308,7 @@ fun EditarEventoScreen(
                                 },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .clickable { mostrarDatePicker = true },
+                                    .clickable(enabled = !fechaPasada) { mostrarDatePicker = true },
                                 enabled = false,
                                 shape = RoundedCornerShape(12.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
@@ -307,7 +326,7 @@ fun EditarEventoScreen(
                                 trailingIcon = { Icon(Icons.Filled.Schedule, null) },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .clickable { mostrarTimePicker = true },
+                                    .clickable(enabled = !fechaPasada) { mostrarTimePicker = true },
                                 enabled = false,
                                 shape = RoundedCornerShape(12.dp),
                                 colors = OutlinedTextFieldDefaults.colors(

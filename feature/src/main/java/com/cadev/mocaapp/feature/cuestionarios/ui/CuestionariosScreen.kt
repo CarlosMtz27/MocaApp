@@ -62,8 +62,8 @@ fun CuestionariosScreen(
     /**
      * Se cargan los cuestionarios disponibles y se asegura de que existan los predefinidos
      */
-    LaunchedEffect(relacionId) {
-        viewModel.cargarCuestionarios(relacionId, usuarioId, parejaId)
+    LaunchedEffect(relacionId, usuarioId, parejaId) {
+        viewModel.iniciarEscucha(relacionId, usuarioId, parejaId)
         viewModel.poblarPredefinidos()
     }
 

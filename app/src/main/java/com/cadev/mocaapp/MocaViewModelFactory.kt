@@ -88,7 +88,8 @@ class MocaViewModelFactory(private val application: Application) : ViewModelProv
             modelClass.isAssignableFrom(DiarioViewModel::class.java) ->
                 DiarioViewModel(
                     DiarioRepositoryImpl(firestore),
-                    notificacionRepository
+                    notificacionRepository,
+                    EventoRepositoryImpl(firestore)
                 ) as T
 
             // Gestor para crear y responder los tests de pareja

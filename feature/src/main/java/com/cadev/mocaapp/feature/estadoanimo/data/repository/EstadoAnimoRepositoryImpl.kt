@@ -59,12 +59,13 @@ class EstadoAnimoRepositoryImpl(
                     return@addSnapshotListener
                 }
                 
-                val hoy = getFechaHoy()
                 val documentos = snapshot?.documents?.mapNotNull { it.toObject(EstadoAnimoActual::class.java) } ?: emptyList()
                 
-                // Buscamos el estado de hoy, pero si no hay, devolvemos null para mostrar "Sin estado"
-                val propio = documentos.find { it.uid == uidPropio && it.fecha == hoy }
-                val pareja = documentos.find { it.uid != uidPropio && it.fecha == hoy }
+                // Buscamos el estado más reciente de cada uno. 
+                // Eliminamos el filtro estricto de 'fecha == hoy' para evitar fallos por 
+                // desincronización de relojes entre dispositivos (especialmente cerca de medianoche).
+                val propio = documentos.find { it.uid == uidPropio }
+                val pareja = documentos.find { it.uid != uidPropio }
                 
                 trySend(Pair(propio, pareja))
             }
@@ -78,11 +79,11 @@ class EstadoAnimoRepositoryImpl(
             .get()
             .await()
             
-        val hoy = getFechaHoy()
         val documentos = snapshot.documents.mapNotNull { it.toObject(EstadoAnimoActual::class.java) }
             
-        val propio = documentos.find { it.uid == uidPropio && it.fecha == hoy }
-        val pareja = documentos.find { it.uid != uidPropio && it.fecha == hoy }
+        // Obtenemos los estados sin filtrar rígidamente por la fecha del dispositivo
+        val propio = documentos.find { it.uid == uidPropio }
+        val pareja = documentos.find { it.uid != uidPropio }
             
         return Pair(propio, pareja)
     }

@@ -64,6 +64,19 @@ class EventoViewModel(
     private val _uiState = MutableStateFlow(EventoUiState())
     val uiState: StateFlow<EventoUiState> = _uiState.asStateFlow()
 
+    /**
+     * ESCUCHA EN TIEMPO REAL:
+     * Se suscribe a los cambios en la base de datos para reflejar nuevos planes al instante.
+     */
+    fun iniciarEscucha(relacionId: String) {
+        if (relacionId.isBlank()) return
+        viewModelScope.launch {
+            repository.obtenerEventosFlow(relacionId).collect { lista ->
+                _uiState.value = _uiState.value.copy(eventos = lista)
+            }
+        }
+    }
+
     private val hoy: String
         get() = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
@@ -276,6 +289,36 @@ class EventoViewModel(
                     _uiState.value = _uiState.value.copy(error = "Error al eliminar")
                 }
             )
+        }
+    }
+
+    /**
+     * Marca un evento como convertido en recuerdo
+     */
+    fun marcarComoRecuerdo(eventoId: String) {
+        viewModelScope.launch {
+            repository.obtenerEvento(eventoId).onSuccess { evento ->
+                repository.actualizarEvento(evento.copy(convertidoEnRecuerdo = true))
+            }
+        }
+    }
+
+    /**
+     * Pospone un evento a una nueva fecha
+     */
+    fun posponerEvento(eventoId: String, nuevaFecha: String, nuevaHora: String) {
+        viewModelScope.launch {
+            repository.obtenerEvento(eventoId).onSuccess { evento ->
+                val actualizado = evento.copy(
+                    pospuesto = true,
+                    fechaOriginal = evento.fechaOriginal ?: evento.fecha,
+                    fecha = nuevaFecha,
+                    hora = nuevaHora
+                )
+                repository.actualizarEvento(actualizado).onSuccess {
+                    cargarEvento(eventoId) // Recargar para actualizar UI
+                }
+            }
         }
     }
 
