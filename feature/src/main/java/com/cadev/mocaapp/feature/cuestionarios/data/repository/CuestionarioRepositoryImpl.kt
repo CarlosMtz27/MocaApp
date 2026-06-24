@@ -66,6 +66,36 @@ class CuestionarioRepositoryImpl(
         awaitClose { listener.remove() }
     }
 
+    override fun obtenerResultadoFlow(cuestionarioId: String): Flow<ResultadoCuestionario?> = callbackFlow {
+        val listener = firestore.collection("resultados").document(cuestionarioId)
+            .addSnapshotListener { snapshot, _ ->
+                trySend(snapshot?.toObject(ResultadoCuestionario::class.java))
+            }
+        awaitClose { listener.remove() }
+    }
+
+    override fun obtenerRespuestasFlow(cuestionarioId: String, usuarioId: String): Flow<Map<String, String>> = callbackFlow {
+        val listener = firestore.collection("respuestas").document(cuestionarioId).collection(usuarioId)
+            .addSnapshotListener { snapshot, _ ->
+                val map = snapshot?.documents?.associate { doc ->
+                    (doc.getString("preguntaId") ?: doc.id) to (doc.getString("valor") ?: "")
+                } ?: emptyMap()
+                trySend(map)
+            }
+        awaitClose { listener.remove() }
+    }
+
+    override fun obtenerRespuestasFotoFlow(cuestionarioId: String, usuarioId: String): Flow<Map<String, String>> = callbackFlow {
+        val listener = firestore.collection("respuestas").document(cuestionarioId).collection(usuarioId)
+            .addSnapshotListener { snapshot, _ ->
+                val map = snapshot?.documents?.filter { (it.getString("imagenUrl") ?: "").isNotBlank() }?.associate { doc ->
+                    (doc.getString("preguntaId") ?: doc.id) to (doc.getString("imagenUrl") ?: "")
+                } ?: emptyMap()
+                trySend(map)
+            }
+        awaitClose { listener.remove() }
+    }
+
     override suspend fun obtenerCuestionarios(relacionId: String): Result<List<Cuestionario>> = try {
         val predefinidos = firestore.collection("cuestionarios").whereEqualTo("creadoPor", "sistema").get().await().documents.mapNotNull { it.toObject(Cuestionario::class.java) }
         val personalizados = firestore.collection("cuestionarios").whereEqualTo("relacionId", relacionId).get().await().documents.mapNotNull { it.toObject(Cuestionario::class.java) }

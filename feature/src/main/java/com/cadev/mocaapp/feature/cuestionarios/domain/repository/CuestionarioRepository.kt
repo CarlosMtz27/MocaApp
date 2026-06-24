@@ -17,6 +17,27 @@ import kotlinx.coroutines.flow.Flow
 interface CuestionarioRepository {
 
     /**
+     * Busca el porcentaje de match que ya fue calculado anteriormente en tiempo real.
+     */
+    fun obtenerResultadoFlow(cuestionarioId: String): Flow<ResultadoCuestionario?>
+
+    /**
+     * Trae las respuestas en texto que dio un usuario específico en tiempo real.
+     */
+    fun obtenerRespuestasFlow(
+        cuestionarioId: String,
+        usuarioId: String
+    ): Flow<Map<String, String>>
+
+    /**
+     * Trae los enlaces a las fotos que subió un usuario como respuesta en tiempo real.
+     */
+    fun obtenerRespuestasFotoFlow(
+        cuestionarioId: String,
+        usuarioId: String
+    ): Flow<Map<String, String>>
+
+    /**
      * Trae todos los tests (los que vienen con la app y los creados por la pareja) en tiempo real.
      */
     fun obtenerCuestionariosFlow(relacionId: String): Flow<List<Cuestionario>>

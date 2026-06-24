@@ -10,6 +10,7 @@ import com.cadev.mocaapp.feature.notificaciones.data.NotificacionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
@@ -70,25 +71,27 @@ class CuestionarioViewModel(
         
         viewModelScope.launch {
             repository.obtenerCuestionariosFlow(relacionId).collect { lista ->
-                _uiState.value = _uiState.value.copy(cuestionarios = lista)
+                _uiState.update { it.copy(cuestionarios = lista) }
                 
                 // Además escuchamos el estado de cada cuestionario de forma reactiva
                 lista.forEach { cuestionario ->
                     launch {
                         repository.obtenerEstadoFlow(cuestionario.id, usuarioId, parejaId).collect { estado ->
-                            val nuevosEstados = _uiState.value.estadosCuestionarios.toMutableMap()
-                            nuevosEstados[cuestionario.id] = estado
-                            _uiState.value = _uiState.value.copy(estadosCuestionarios = nuevosEstados)
+                            _uiState.update { current ->
+                                val nuevosEstados = current.estadosCuestionarios.toMutableMap()
+                                nuevosEstados[cuestionario.id] = estado
+                                current.copy(estadosCuestionarios = nuevosEstados)
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Historial (podría ser flow también, pero por ahora lo dejamos así)
+        // Historial
         viewModelScope.launch {
             repository.obtenerHistorial(relacionId, usuarioId).onSuccess { historial ->
-                _uiState.value = _uiState.value.copy(historial = historial)
+                _uiState.update { it.copy(historial = historial) }
             }
         }
     }
@@ -141,9 +144,11 @@ class CuestionarioViewModel(
      * Guarda la respuesta del usuario para una pregunta concreta en la memoria temporal
      */
     fun responderPregunta(preguntaId: String, valor: String) {
-        val map = _uiState.value.respuestas.toMutableMap()
-        map[preguntaId] = valor
-        _uiState.value = _uiState.value.copy(respuestas = map)
+        _uiState.update { current ->
+            val map = current.respuestas.toMutableMap()
+            map[preguntaId] = valor
+            current.copy(respuestas = map)
+        }
     }
 
     /**
@@ -197,7 +202,7 @@ class CuestionarioViewModel(
     fun enviarRespuestas(usuarioId: String, parejaId: String, relacionId: String) {
         val cuestionario = _uiState.value.cuestionarioActual ?: return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(enviando = true)
+            _uiState.update { it.copy(enviando = true) }
             repository.guardarRespuestas(
                 cuestionarioId = cuestionario.id,
                 usuarioId = usuarioId,
@@ -209,9 +214,11 @@ class CuestionarioViewModel(
                         cuestionario.id, usuarioId, parejaId
                     ).getOrDefault(EstadoCuestionario.YO_RESPONDÍ)
 
-                    val estadosActualizados = _uiState.value.estadosCuestionarios.toMutableMap()
-                    estadosActualizados[cuestionario.id] = estado
-                    _uiState.value = _uiState.value.copy(estadosCuestionarios = estadosActualizados)
+                    _uiState.update { current ->
+                        val estadosActualizados = current.estadosCuestionarios.toMutableMap()
+                        estadosActualizados[cuestionario.id] = estado
+                        current.copy(estadosCuestionarios = estadosActualizados)
+                    }
 
                     /**
                      * Si ambos han terminado se calculan los resultados y se notifica a los dos
@@ -221,7 +228,7 @@ class CuestionarioViewModel(
                             cuestionario.id, relacionId, usuarioId, parejaId
                         ).fold(
                             onSuccess = { resultado ->
-                                _uiState.value = _uiState.value.copy(resultado = resultado)
+                                _uiState.update { it.copy(resultado = resultado) }
                             },
                             onFailure = { }
                         )
@@ -255,64 +262,70 @@ class CuestionarioViewModel(
                         }
                     }
 
-                    _uiState.value = _uiState.value.copy(completado = true, enviando = false)
+                    _uiState.update { it.copy(completado = true, enviando = false) }
                 },
                 onFailure = {
-                    _uiState.value = _uiState.value.copy(
-                        error = "Error al guardar respuestas",
-                        enviando = false
-                    )
+                    _uiState.update {
+                        it.copy(
+                            error = "Error al guardar respuestas",
+                            enviando = false
+                        )
+                    }
                 }
             )
         }
     }
 
     /**
-     * Carga las respuestas de ambos y la comparación final para mostrarla en pantalla
+     * Carga las respuestas de ambos y la comparación final para mostrarla en pantalla de forma reactiva
      */
     fun cargarResultado(cuestionarioId: String, usuarioId: String, parejaId: String) {
+        // Primero nos aseguramos de tener la información del cuestionario (preguntas, etc)
+        // sin resetear las respuestas que ya tengamos.
         viewModelScope.launch {
-            launch {
-                repository.obtenerResultado(cuestionarioId).fold(
-                    onSuccess = { resultado ->
-                        _uiState.value = _uiState.value.copy(resultado = resultado)
-                    },
-                    onFailure = { }
-                )
+            if (_uiState.value.cuestionarioActual?.id != cuestionarioId) {
+                repository.obtenerCuestionario(cuestionarioId).onSuccess { cuestionario ->
+                    _uiState.update { it.copy(cuestionarioActual = cuestionario) }
+                }
             }
-            launch {
-                repository.obtenerRespuestas(cuestionarioId, usuarioId).fold(
-                    onSuccess = { resp ->
-                        _uiState.value = _uiState.value.copy(respuestas = resp)
-                    },
-                    onFailure = { }
-                )
+        }
+
+        // Escuchamos el resultado final (porcentaje, aciertos)
+        viewModelScope.launch {
+            repository.obtenerResultadoFlow(cuestionarioId).collect { resultado ->
+                _uiState.update { it.copy(resultado = resultado) }
             }
-            launch {
-                repository.obtenerRespuestas(cuestionarioId, parejaId).fold(
-                    onSuccess = { resp ->
-                        _uiState.value = _uiState.value.copy(respuestasPareja = resp)
-                    },
-                    onFailure = { }
-                )
+        }
+
+        // Escuchamos las respuestas del usuario
+        viewModelScope.launch {
+            repository.obtenerRespuestasFlow(cuestionarioId, usuarioId).collect { resp ->
+                _uiState.update { it.copy(respuestas = resp) }
             }
-            launch {
-                repository.obtenerRespuestasFoto(cuestionarioId, usuarioId).fold(
-                    onSuccess = { fotos ->
-                        val map = _uiState.value.respuestasFoto.toMutableMap()
-                        map.putAll(fotos)
-                        _uiState.value = _uiState.value.copy(respuestasFoto = map)
-                    },
-                    onFailure = { }
-                )
+        }
+
+        // Escuchamos las respuestas de la pareja
+        viewModelScope.launch {
+            repository.obtenerRespuestasFlow(cuestionarioId, parejaId).collect { resp ->
+                _uiState.update { it.copy(respuestasPareja = resp) }
             }
-            launch {
-                repository.obtenerRespuestasFoto(cuestionarioId, parejaId).fold(
-                    onSuccess = { fotos ->
-                        _uiState.value = _uiState.value.copy(respuestasFotoPareja = fotos)
-                    },
-                    onFailure = { }
-                )
+        }
+
+        // Escuchamos las fotos del usuario
+        viewModelScope.launch {
+            repository.obtenerRespuestasFotoFlow(cuestionarioId, usuarioId).collect { fotos ->
+                _uiState.update { current ->
+                    val map = current.respuestasFoto.toMutableMap()
+                    map.putAll(fotos)
+                    current.copy(respuestasFoto = map)
+                }
+            }
+        }
+
+        // Escuchamos las fotos de la pareja
+        viewModelScope.launch {
+            repository.obtenerRespuestasFotoFlow(cuestionarioId, parejaId).collect { fotos ->
+                _uiState.update { it.copy(respuestasFotoPareja = fotos) }
             }
         }
     }

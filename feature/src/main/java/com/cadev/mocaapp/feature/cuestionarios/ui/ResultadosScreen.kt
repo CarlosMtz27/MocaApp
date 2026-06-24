@@ -51,10 +51,6 @@ fun ResultadosScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(cuestionarioId) {
-        // Cargar cuestionario si viene directo de ResponderScreen
-        if (uiState.cuestionarioActual?.id != cuestionarioId) {
-            viewModel.iniciarCuestionario(cuestionarioId)
-        }
         viewModel.cargarResultado(cuestionarioId, usuarioId, parejaId)
     }
 
