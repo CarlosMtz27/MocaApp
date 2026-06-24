@@ -142,6 +142,7 @@ class NotificacionRepository(
                 put("include_player_ids", JSONArray().put(playerId))
                 put("headings", JSONObject().put("en", titulo))
                 put("contents", JSONObject().put("en", cuerpo))
+                put("small_icon", "ic_stat_onesignal_default")
                 put("data", dataJson)
             }
             android.util.Log.d("PUSH", "JSON: $json")

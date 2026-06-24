@@ -1,7 +1,6 @@
-package com.cadev.mocaapp.feature.notification
+package com.cadev.mocaapp.feature.notificaciones
 
 import android.Manifest
-import android.R
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -43,7 +42,7 @@ object NotificationHelper {
             ) return
         }
 
-        //Sin referencia a MainActivity, usa el launcher del paquete
+        // Sin referencia a MainActivity, usa el launcher del paquete
         val intent = context.packageManager
             .getLaunchIntentForPackage(context.packageName)
             ?.apply {
@@ -61,8 +60,8 @@ object NotificationHelper {
 
         /**
          * ESTILO ROMÁNTICO Y MINIMALISTA:
-         * 1. Usamos un color Hot Pink suave para acentuar el aviso.
-         * 2. El icono de la barra es nuestro corazón profesional.
+         * 1. Usamos el icono del corazón para todas las notificaciones.
+         * 2. Un color Hot Pink suave para acentuar el aviso.
          * 3. La vibración imita un latido (bum-bum... pausa).
          */
         val colorRomantico = android.graphics.Color.parseColor("#FF69B4") // Hot Pink
@@ -75,7 +74,7 @@ object NotificationHelper {
         }
 
         val notificacion = NotificationCompat.Builder(context, tipo.canal)
-            .setSmallIcon(com.cadev.mocaapp.feature.R.drawable.ic_corazon)
+            .setSmallIcon(com.cadev.mocaapp.feature.R.drawable.ic_notif_corazon)
             .setColor(colorRomantico)
             .setColorized(true)
             .setContentTitle(titulo)

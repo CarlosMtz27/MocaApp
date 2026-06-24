@@ -67,12 +67,20 @@
 
         <!-- Servicio FCM -->
         <service
-            android:name="com.cadev.mocaapp.feature.notification.MocaFirebaseMessagingService"
+            android:name="com.cadev.mocaapp.feature.notificaciones.MocaFirebaseMessagingService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+
+        <!-- Icono y color por defecto para notificaciones FCM -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notif_corazon" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@android:color/holo_red_light" />
 
         <!-- WIDGETS DE NOTAS -->
         <receiver

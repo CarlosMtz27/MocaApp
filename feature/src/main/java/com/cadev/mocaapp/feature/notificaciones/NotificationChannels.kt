@@ -1,4 +1,4 @@
-package com.cadev.mocaapp.feature.notification
+package com.cadev.mocaapp.feature.notificaciones
 
 import android.app.NotificationChannel
 import android.app.NotificationManager

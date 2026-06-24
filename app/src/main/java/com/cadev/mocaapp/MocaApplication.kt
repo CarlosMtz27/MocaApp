@@ -2,7 +2,7 @@ package com.cadev.mocaapp
 
 import android.app.Application
 import androidx.work.*
-import com.cadev.mocaapp.feature.notification.NotificationChannels
+import com.cadev.mocaapp.feature.notificaciones.NotificationChannels
 import com.cadev.mocaapp.feature.widgets.diasjuntos.DiasJuntosWorker
 import com.cadev.mocaapp.feature.widgets.distancia.UbicacionWorker
 import com.cadev.mocaapp.feature.estadoanimo.data.worker.ResetEstadoAnimoWorker

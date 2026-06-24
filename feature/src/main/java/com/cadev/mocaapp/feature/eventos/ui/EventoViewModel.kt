@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.cadev.mocaapp.feature.eventos.domain.model.Evento
 import com.cadev.mocaapp.core.model.TipoEvento
 import com.cadev.mocaapp.feature.eventos.domain.repository.EventoRepository
-import com.cadev.mocaapp.feature.notification.EventoWorker
+import com.cadev.mocaapp.feature.notificaciones.EventoWorker
 import com.cadev.mocaapp.feature.notificaciones.data.NotificacionRepository
 import com.cadev.mocaapp.feature.widgets.eventos.EventoWidgetInfo
 import com.cadev.mocaapp.feature.widgets.eventos.EventosWidget
