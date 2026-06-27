@@ -47,7 +47,7 @@ object NotificationChannels {
             NotificationChannel(
                 TipoNotificacion.CHAT.canal,
                 "Mensajes",
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Nuevos mensajes de tu pareja"
                 lightColor = colorRomantico
@@ -83,13 +83,37 @@ object NotificationChannels {
             NotificationChannel(
                 TipoNotificacion.ANIVERSARIO.canal,
                 "Fechas especiales",
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Recordatorios de fechas importantes"
                 lightColor = colorRomantico
                 enableLights(true)
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 200, 100, 200, 100, 200)
+            },
+
+            NotificationChannel(
+                TipoNotificacion.NOTA.canal,
+                "Notas rápidas",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Avisos sobre notas compartidas"
+                lightColor = colorRomantico
+                enableLights(true)
+                enableVibration(true)
+                vibrationPattern = patronLatido
+            },
+
+            NotificationChannel(
+                TipoNotificacion.EVENTO.canal,
+                "Eventos y Citas",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Nuevos planes y citas creadas"
+                lightColor = colorRomantico
+                enableLights(true)
+                enableVibration(true)
+                vibrationPattern = patronLatido
             },
 
             NotificationChannel(

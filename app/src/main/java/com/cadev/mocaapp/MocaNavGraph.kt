@@ -17,8 +17,8 @@ import androidx.navigation.navArgument
 import com.cadev.mocaapp.core.ui.NavRoutes
 import com.cadev.mocaapp.core.ui.PlaceholderScreen
 import com.cadev.mocaapp.feature.auth.ui.AuthViewModel
-import com.cadev.mocaapp.feature.auth.ui.LoginScreen
-import com.cadev.mocaapp.feature.auth.ui.RegistroScreen
+import com.cadev.mocaapp.feature.auth.ui.PantallaLogin
+import com.cadev.mocaapp.feature.auth.ui.PantallaRegistro
 import com.cadev.mocaapp.feature.cuestionarios.ui.CrearCuestionarioScreen
 import com.cadev.mocaapp.feature.cuestionarios.ui.CuestionarioViewModel
 import com.cadev.mocaapp.feature.cuestionarios.ui.ResponderScreen
@@ -44,12 +44,14 @@ import com.cadev.mocaapp.feature.home.ui.MainScreen
 import com.cadev.mocaapp.feature.notas.ui.NotaViewModel
 import com.cadev.mocaapp.feature.notas.ui.NotasScreen
 import com.cadev.mocaapp.feature.pareja.data.UsuarioHelper
-import com.cadev.mocaapp.feature.pareja.ui.CodigoParejaScreen
-import com.cadev.mocaapp.feature.pareja.ui.FechaRelacionScreen
+import com.cadev.mocaapp.feature.pareja.ui.PantallaVincularPareja
+import com.cadev.mocaapp.feature.pareja.ui.PantallaAniversario
 import com.cadev.mocaapp.feature.pareja.ui.ParejaViewModel
 import com.cadev.mocaapp.feature.perfil.ui.AjustesScreen
 import com.cadev.mocaapp.feature.perfil.ui.PerfilParejaScreen
 import com.cadev.mocaapp.feature.perfil.ui.PerfilViewModel
+import com.cadev.mocaapp.feature.ui.screens.LoadingTransition
+import com.cadev.mocaapp.feature.ui.screens.PantallaPruebaComponentes
 import com.cadev.mocaapp.feature.widgets.ui.WidgetsPreviewScreen
 import com.cadev.mocaapp.feature.widgets.ui.WidgetsViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -92,14 +94,14 @@ fun MocaNavGraph(
         // PANTALLAS PARA ENTRAR O REGISTRARSE
         composable(NavRoutes.Login.route) {
             val viewModel: AuthViewModel = viewModel(factory = factory)
-            LoginScreen(
+            PantallaLogin(
                 viewModel = viewModel,
-                onLoginExitoso = {
+                alHacerLoginExitoso = {
                     navController.navigate(NavRoutes.Main.route) {
                         popUpTo(NavRoutes.Login.route) { inclusive = true }
                     }
                 },
-                onIrARegistro = {
+                alIrARegistro = {
                     navController.navigate(NavRoutes.Registro.route)
                 }
             )
@@ -107,14 +109,14 @@ fun MocaNavGraph(
 
         composable(NavRoutes.Registro.route) {
             val viewModel: AuthViewModel = viewModel(factory = factory)
-            RegistroScreen(
+            PantallaRegistro(
                 viewModel = viewModel,
-                onRegistroExitoso = {
+                alHacerRegistroExitoso = {
                     navController.navigate(NavRoutes.CodigoPareja.route) {
                         popUpTo(NavRoutes.Login.route) { inclusive = true }
                     }
                 },
-                onIrALogin = { navController.popBackStack() }
+                alIrALogin = { navController.popBackStack() }
             )
         }
 
@@ -122,12 +124,13 @@ fun MocaNavGraph(
         composable(NavRoutes.CodigoPareja.route) {
             val viewModel: ParejaViewModel = viewModel(factory = factory)
             val usuarioId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-            CodigoParejaScreen(
+            PantallaVincularPareja(
                 viewModel = viewModel,
                 usuarioId = usuarioId,
-                onVinculado = { relacionId ->
+                alVincular = { relacionId ->
                     navController.navigate(NavRoutes.FechaRelacion.crearRuta(relacionId))
-                }
+                },
+                alVolver = { navController.popBackStack() }
             )
         }
 
@@ -137,14 +140,15 @@ fun MocaNavGraph(
         ) { backStackEntry ->
             val relacionId = backStackEntry.arguments?.getString("relacionId") ?: ""
             val viewModel: ParejaViewModel = viewModel(factory = factory)
-            FechaRelacionScreen(
+            PantallaAniversario(
                 viewModel = viewModel,
                 relacionId = relacionId,
-                onFechaGuardada = {
+                alGuardarFecha = {
                     navController.navigate(NavRoutes.Main.route) {
                         popUpTo(NavRoutes.Login.route) { inclusive = true }
                     }
-                }
+                },
+                alVolver = { navController.popBackStack() }
             )
         }
 
@@ -471,6 +475,21 @@ fun MocaNavGraph(
                 viewModel = viewModel,
                 onBack = { navController.popBackStack() }
             )
+        }
+
+        composable(NavRoutes.PruebaComponentes.route) {
+            val diarioViewModel: DiarioViewModel = viewModel(factory = factory)
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: "test_user"
+            
+            PantallaPruebaComponentes(
+                viewModel = diarioViewModel,
+                usuarioId = uid,
+                alVolver = { navController.popBackStack() }
+            )
+        }
+
+        composable(NavRoutes.CargaTransicion.route) {
+            LoadingTransition()
         }
     }
 }

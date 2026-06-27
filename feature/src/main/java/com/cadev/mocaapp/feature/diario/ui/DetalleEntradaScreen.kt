@@ -756,7 +756,7 @@ private fun TarjetaComentario(
                     }
                 }
                 Text(
-                    text = formatoHora.format(comentario.creadoEn.toDate()),
+                    text = try { formatoHora.format(comentario.creadoEn.toDate()) } catch (e: Exception) { "" },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                 )

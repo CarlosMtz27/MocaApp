@@ -74,6 +74,14 @@
             </intent-filter>
         </service>
 
+        <receiver
+            android:name="com.cadev.mocaapp.feature.notificaciones.NotificationReplyReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.cadev.mocaapp.ACTION_REPLY" />
+            </intent-filter>
+        </receiver>
+
         <!-- Icono y color por defecto para notificaciones FCM -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"

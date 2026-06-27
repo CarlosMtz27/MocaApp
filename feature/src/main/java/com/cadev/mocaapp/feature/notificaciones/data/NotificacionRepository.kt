@@ -113,6 +113,8 @@ class NotificacionRepository(
         cuerpo: String,
         deepLink: String,
         tipo: String? = null,
+        fotoUrl: String? = null,
+        remitenteId: String? = null,
         extraData: Map<String, String> = emptyMap()
     ) = withContext(Dispatchers.IO) {
         android.util.Log.d("PUSH", "enviarPush llamado: parejaId=$parejaId appId=$oneSignalAppId")
@@ -136,6 +138,8 @@ class NotificacionRepository(
                 if (tipo != null) put("tipo", tipo)
                 put("titulo", titulo)
                 put("cuerpo", cuerpo)
+                if (fotoUrl != null) put("fotoUrl", fotoUrl)
+                if (remitenteId != null) put("remitenteId", remitenteId)
                 extraData.forEach { (key, value) -> put(key, value) }
             }
 
@@ -143,18 +147,16 @@ class NotificacionRepository(
                 put("app_id", oneSignalAppId)
                 put("include_player_ids", JSONArray().put(playerId))
                 /**
-                 * NOTIFICACIONES SILENCIOSAS (DATA-ONLY):
-                 * No incluimos 'headings' ni 'contents' en la raíz. Esto evita que el SDK 
-                 * de OneSignal muestre una notificación automática. 
-                 * En su lugar, el mensaje llega como datos puros a 'MocaFirebaseMessagingService', 
-                 * donde nosotros lo manejamos manualmente con NotificationHelper.
+                 * NOTIFICACIONES "DATA-ONLY" DE ALTA PRIORIDAD:
+                 * Al no enviar 'headings' ni 'contents', el SDK de OneSignal no muestra nada automáticamente.
+                 * Enviamos 'priority': 10 para que FCM le dé importancia alta y despierte la app incluso en reposo.
                  */
                 put("data", dataJson)
-                // Algunos servidores de OneSignal requieren esto para no descartar el mensaje
-                put("content_available", true) 
+                put("priority", 10) 
                 put("android_background_data", true)
+                put("content_available", true)
             }
-            android.util.Log.d("PUSH", "Enviando JSON Silencioso: $json")
+            android.util.Log.d("PUSH", "Enviando Push Data-Only: $json")
 
             val connection = URL("https://onesignal.com/api/v1/notifications")
                 .openConnection() as HttpURLConnection

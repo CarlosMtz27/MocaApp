@@ -74,6 +74,8 @@ import java.util.*
 fun ChatScreen(
     viewModel: ChatViewModel,
     usuarioId: String,
+    usuarioNombre: String,
+    usuarioFoto: String?,
     parejaId: String,
     nombrePareja: String,
     fotoPareja: String?,
@@ -88,7 +90,7 @@ fun ChatScreen(
      * Activamos la conexión al chat compartido en cuanto abrimos la pantalla.
      */
     LaunchedEffect(usuarioId, parejaId) {
-        viewModel.inicializar(usuarioId, parejaId)
+        viewModel.inicializar(usuarioId, usuarioNombre, usuarioFoto, parejaId)
     }
 
     /**

@@ -599,12 +599,14 @@ private fun CuadriculaMes(
                             val fechaStr = formatoFecha.format(fechaCelda.time)
                             val info = diasConEntrada[fechaStr] ?: DiaCalendarioInfo()
                             val esHoy = fechaStr == hoy
+                            val esFuturo = fechaStr > hoy
 
                             CeldaDiaMejorada(
                                 dia = dia,
                                 esHoy = esHoy,
+                                esFuturo = esFuturo,
                                 info = info,
-                                onClick = { onDiaClick(fechaStr) }
+                                onClick = { if (!esFuturo) onDiaClick(fechaStr) }
                             )
                         }
                     }
@@ -623,6 +625,7 @@ private fun CuadriculaMes(
 private fun CeldaDiaMejorada(
     dia: Int,
     esHoy: Boolean,
+    esFuturo: Boolean = false,
     info: DiaCalendarioInfo,
     onClick: () -> Unit
 ) {
@@ -645,7 +648,7 @@ private fun CeldaDiaMejorada(
         modifier = Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
+            .clickable(enabled = !esFuturo, onClick = onClick)
             .then(
                 if (esCompartido) Modifier.border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
                 else Modifier
@@ -653,6 +656,7 @@ private fun CeldaDiaMejorada(
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
             containerColor = when {
+                esFuturo -> MaterialTheme.colorScheme.surface.copy(alpha = 0.1f)
                 tieneFoto -> Color.Transparent
                 tieneEntrada -> {
                     val primerTipo = try { 
@@ -702,6 +706,7 @@ private fun CeldaDiaMejorada(
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = if (esHoy || tieneEntrada || tieneEvento) FontWeight.ExtraBold else FontWeight.Medium,
                         color = when {
+                            esFuturo -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
                             tieneFoto -> Color.White
                             esHoy -> MaterialTheme.colorScheme.primary
                             tieneEntrada || tieneEvento -> MaterialTheme.colorScheme.onSurface

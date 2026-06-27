@@ -28,7 +28,8 @@ data class Evento(
     val creadoEn: Timestamp = Timestamp.now(), // Cuándo se guardó el plan
     val convertidoEnRecuerdo: Boolean = false, // Si ya se creó un recuerdo de este evento
     val pospuesto: Boolean = false,            // Si el evento fue movido de su fecha original
-    val fechaOriginal: String? = null          // Almacena la fecha inicial si se pospone
+    val fechaOriginal: String? = null,         // Almacena la fecha inicial si se pospone
+    val fotoUrl: String = ""                   // Imagen destacada del evento
 )
 
 /**

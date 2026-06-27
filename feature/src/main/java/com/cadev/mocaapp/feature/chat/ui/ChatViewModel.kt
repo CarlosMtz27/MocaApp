@@ -56,6 +56,8 @@ class ChatViewModel(
 
     private var conversacionId: String = ""
     private var usuarioId: String = ""
+    private var usuarioNombre: String = ""
+    private var usuarioFoto: String? = null
     private var parejaId: String = ""
     private var jobEscribiendo: Job? = null
     private var inicializado = false
@@ -64,11 +66,20 @@ class ChatViewModel(
      * CONEXIÓN INICIAL:
      * Preparamos la conexión con la base de datos para recibir mensajes en tiempo real.
      */
-    fun inicializar(uid: String, pId: String) {
-        if (inicializado || uid.isBlank() || pId.isBlank()) return
+    fun inicializar(uid: String, nombre: String, foto: String?, pId: String) {
+        if (inicializado || uid.isBlank() || pId.isBlank()) {
+            // Si ya estamos inicializados, actualizamos el nombre/foto por si cambiaron
+            if (uid == usuarioId) {
+                usuarioNombre = nombre
+                usuarioFoto = foto
+            }
+            return
+        }
         inicializado = true
 
         usuarioId = uid
+        usuarioNombre = nombre
+        usuarioFoto = foto
         parejaId = pId
         conversacionId = repository.obtenerConversacionId(uid, pId)
 
@@ -151,10 +162,12 @@ class ChatViewModel(
                         notificacionRepository.incrementarBadge(parejaId, "chat")
                         notificacionRepository.enviarPush(
                             parejaId = parejaId,
-                            titulo   = "Nuevo mensaje",
+                            titulo   = usuarioNombre,
                             cuerpo   = texto.take(60),
                             deepLink = "main/chat",
-                            tipo     = "chat"
+                            tipo     = "chat",
+                            fotoUrl  = usuarioFoto,
+                            remitenteId = usuarioId
                         )
                     }
                 },
@@ -205,10 +218,12 @@ class ChatViewModel(
                         notificacionRepository.incrementarBadge(parejaId, "chat")
                         notificacionRepository.enviarPush(
                             parejaId = parejaId,
-                            titulo   = "Nuevo mensaje de voz",
+                            titulo   = usuarioNombre,
                             cuerpo   = "Te envió un audio",
                             deepLink = "main/chat",
-                            tipo     = "chat"
+                            tipo     = "chat",
+                            fotoUrl  = usuarioFoto,
+                            remitenteId = usuarioId
                         )
                     }
                 },
@@ -311,10 +326,12 @@ class ChatViewModel(
                         notificacionRepository.incrementarBadge(parejaId, "chat")
                         notificacionRepository.enviarPush(
                             parejaId = parejaId,
-                            titulo   = "Nuevo mensaje",
+                            titulo   = usuarioNombre,
                             cuerpo   = textoPreview,
                             deepLink = "main/chat",
-                            tipo     = "chat"
+                            tipo     = "chat",
+                            fotoUrl  = usuarioFoto,
+                            remitenteId = usuarioId
                         )
                     }
                 },

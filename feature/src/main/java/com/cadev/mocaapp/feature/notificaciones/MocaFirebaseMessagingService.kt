@@ -83,7 +83,26 @@ class MocaFirebaseMessagingService : FirebaseMessagingService() {
         }
 
         val tipoStr = dataFinal["tipo"] ?: ""
-        Log.d("MOCA_FCM", "Tipo extraído: $tipoStr. Datos procesados: $dataFinal")
+        var titulo = dataFinal["titulo"]
+        val cuerpo = dataFinal["cuerpo"]
+        val deepLink = dataFinal["deepLink"] ?: ""
+        val fotoUrl = dataFinal["fotoUrl"]
+        val remitenteId = dataFinal["remitenteId"]
+
+        // Fallback para el título si viene vacío (especialmente en Chat)
+        if (titulo.isNullOrBlank()) {
+            titulo = when (tipoStr) {
+                "chat" -> "Nuevo mensaje"
+                "nota" -> "Nota actualizada"
+                "evento" -> "Nuevo evento"
+                else -> "MocaApp"
+            }
+        }
+        
+        // Aseguramos que cuerpo no sea nulo para evitar que se descarte
+        val cuerpoFinal = if (cuerpo.isNullOrBlank()) "Tienes una novedad" else cuerpo
+
+        Log.d("MOCA_FCM", "Tipo extraído: $tipoStr. Titulo: $titulo. Remitente: $remitenteId")
 
         val tipo = when (tipoStr) {
             "chat"         -> TipoNotificacion.CHAT
@@ -99,18 +118,16 @@ class MocaFirebaseMessagingService : FirebaseMessagingService() {
             }
         }
 
-        val titulo = dataFinal["titulo"]
-        val cuerpo = dataFinal["cuerpo"]
-        val deepLink = dataFinal["deepLink"] ?: ""
-
-        // Solo mostramos nuestra notificación personalizada si hay contenido visual y un tipo reconocido
-        if (tipo != null && !titulo.isNullOrBlank() && !cuerpo.isNullOrBlank()) {
+        // Solo mostramos nuestra notificación personalizada si el tipo es reconocido
+        if (tipo != null) {
             NotificationHelper.mostrar(
-                context  = applicationContext,
-                tipo     = tipo,
-                titulo   = titulo,
-                cuerpo   = cuerpo,
-                deepLink = deepLink
+                context     = applicationContext,
+                tipo        = tipo,
+                titulo      = titulo!!,
+                cuerpo      = cuerpoFinal,
+                deepLink    = deepLink,
+                fotoUrl     = fotoUrl,
+                remitenteId = remitenteId
             )
         }
 

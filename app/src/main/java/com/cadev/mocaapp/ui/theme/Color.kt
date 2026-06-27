@@ -9,7 +9,7 @@ val RosaOscuro      = Color(0xFF880E4F)   // rosa oscuro — títulos, énfasis
 val RosaClaro       = Color(0xFFFCE4EC)   // rosa muy claro — fondos de tarjetas
 val RosaMedio       = Color(0xFFF8BBD0)   // rosa suave — separadores, chips
 
-//Neutros
+// Neutros
 val Negro           = Color(0xFF212121)   // textos principales
 val Gris            = Color(0xFF757575)   // textos secundarios
 val GrisClaro       = Color(0xFFF5F5F5)   // fondos

@@ -180,7 +180,7 @@ fun MainScreen(
      */
     LaunchedEffect(uid, parejaIdActual) {
         if (uid.isNotBlank() && !parejaIdActual.isNullOrBlank()) {
-            chatViewModel.inicializar(uid, parejaIdActual)
+            chatViewModel.inicializar(uid, usuario.nombre, usuario.fotoPerfil, parejaIdActual)
         }
     }
 
@@ -263,9 +263,9 @@ fun MainScreen(
                 tonalElevation = 8.dp,
                 shadowElevation = 16.dp,
                 modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .padding(horizontal = 24.dp, vertical = 20.dp) // Más margen lateral para efecto cápsula
                     .clip(RoundedCornerShape(32.dp)),
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f) // Glassmorphism más sutil
             ) {
                 NavigationBar(
                     containerColor = Color.Transparent,
@@ -314,15 +314,10 @@ fun MainScreen(
                             icon = {
                                 BadgedBox(
                                     badge = {
-                                        /**
-                                         * AVISO ROJO:
-                                         * Si tenemos novedades, mostramos un círculo rojo 
-                                         * con el número para no olvidarnos de nada.
-                                         */
                                         if (badgeCount > 0) {
                                             Badge(
-                                                containerColor = MaterialTheme.colorScheme.error,
-                                                contentColor = MaterialTheme.colorScheme.onError,
+                                                containerColor = MaterialTheme.colorScheme.primary, // Usamos color primario en lugar de error para paz
+                                                contentColor = MaterialTheme.colorScheme.onPrimary,
                                                 modifier = Modifier.offset(x = (-4).dp, y = 4.dp)
                                             ) {
                                                 Text(if (badgeCount > 9) "9+" else badgeCount.toString(), fontSize = 10.sp)
@@ -334,7 +329,7 @@ fun MainScreen(
                                         imageVector = if (seleccionado) tab.iconoSeleccionado else tab.iconoNoSeleccionado,
                                         contentDescription = tab.etiqueta,
                                         modifier = Modifier.size(iconSize),
-                                        tint = if (seleccionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        tint = if (seleccionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                     )
                                 }
                             },
@@ -423,6 +418,8 @@ fun MainScreen(
                     ChatScreen(
                         viewModel = chatViewModel,
                         usuarioId = uid,
+                        usuarioNombre = usuario.nombre,
+                        usuarioFoto = usuario.fotoPerfil,
                         parejaId = parejaIdActual,
                         nombrePareja = perfilState.pareja?.nombre ?: "Mi pareja",
                         fotoPareja = perfilState.pareja?.fotoPerfil,

@@ -163,6 +163,11 @@ class EventoViewModel(
             return
         }
 
+        if (estado.fecha < hoy) {
+            _uiState.value = estado.copy(error = "No puedes crear un evento para una fecha que ya pasó")
+            return
+        }
+
         viewModelScope.launch {
             _uiState.value = estado.copy(cargando = true)
 
@@ -198,12 +203,17 @@ class EventoViewModel(
                      * Se avisa a la pareja de que hay un nuevo plan compartido
                      */
                     launch {
+                        val usuarioActual = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                        val miFoto = usuarioActual?.photoUrl?.toString()
+
                         notificacionRepository.enviarPush(
                             parejaId = parejaId,
                             titulo   = "Nuevo evento: ${nuevo.titulo}",
                             cuerpo   = "${nuevo.fecha} a las ${nuevo.hora}",
-                            deepLink = "detalle_evento/${nuevo.id}",
+                            deepLink = "main/detalle_evento/${nuevo.id}",
                             tipo     = "evento",
+                            fotoUrl  = miFoto,
+                            remitenteId = usuarioId,
                             extraData = mapOf("relacionId" to relacionId)
                         )
                     }
@@ -230,6 +240,11 @@ class EventoViewModel(
     fun actualizarEvento(context: Context) {
         val estado = _uiState.value
         val original = estado.eventoActual ?: return
+
+        if (estado.fecha < hoy && estado.fecha != original.fecha) {
+            _uiState.value = estado.copy(error = "No puedes cambiar el evento a una fecha que ya pasó")
+            return
+        }
 
         viewModelScope.launch {
             _uiState.value = estado.copy(cargando = true)

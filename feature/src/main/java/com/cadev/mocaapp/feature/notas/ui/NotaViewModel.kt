@@ -159,13 +159,18 @@ class NotaViewModel(
                      */
                     if (parejaId != null) {
                         launch {
+                            val usuarioActual = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                            val miFoto = usuarioActual?.photoUrl?.toString()
+
                             notificacionRepository.incrementarBadge(parejaId, "nota")
                             notificacionRepository.enviarPush(
                                 parejaId = parejaId,
-                                titulo = "Nota actualizada por $nombreUsuario",
+                                titulo = nombreUsuario,
                                 cuerpo = texto.take(60),
                                 deepLink = "main/notas",
                                 tipo = "nota",
+                                fotoUrl = miFoto,
+                                remitenteId = usuarioId,
                                 extraData = mapOf(
                                     "relacionId" to relacionId,
                                     "autorId" to usuarioId

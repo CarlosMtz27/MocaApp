@@ -196,7 +196,7 @@ class MainActivity : ComponentActivity() {
                 // VIGILANCIA DE LA FECHA DE RELACIÓN
                 DisposableEffect(relacionIdState) {
                     val rId = relacionIdState
-                    if (rId.isNullOrBlank()) {
+                    if (rId.isNullOrBlank() || rId.length < 5) {
                         tieneFechaRelacion = null
                         onDispose {}
                     } else {

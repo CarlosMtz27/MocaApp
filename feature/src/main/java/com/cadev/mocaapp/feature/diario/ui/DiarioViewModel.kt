@@ -266,7 +266,14 @@ class DiarioViewModel(
         tipo: String = TipoEntrada.MI_DIA.name
     ) {
         val estado = _uiState.value
-        
+
+        // VALIDACIÓN: No se puede publicar en el futuro
+        val hoy = fechaHoy()
+        if (fecha > hoy) {
+            _uiState.value = estado.copy(error = "No puedes publicar momentos en el futuro")
+            return
+        }
+
         // VALIDACIÓN DE CAMPOS OBLIGATORIOS
         if (estado.titulo.isBlank()) {
             _uiState.value = estado.copy(error = "El título es obligatorio")
