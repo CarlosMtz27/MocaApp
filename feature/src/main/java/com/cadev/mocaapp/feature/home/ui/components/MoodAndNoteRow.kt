@@ -67,7 +67,7 @@ fun MoodAndNoteRow(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Our Mood",
+                    text = "Estado de ánimo",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colorOnSurfaceVariant,
@@ -131,7 +131,7 @@ fun MoodAndNoteRow(
                 modifier = Modifier.padding(top = 12.dp)
             ) {
                 Text(
-                    text = "Note from $nombrePareja",
+                    text = "$nombrePareja dice:",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     fontStyle = FontStyle.Italic,

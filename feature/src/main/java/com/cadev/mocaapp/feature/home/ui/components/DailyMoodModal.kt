@@ -35,12 +35,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.cadev.mocaapp.feature.ui.theme.MocaPrimary
+import com.cadev.mocaapp.feature.ui.theme.MocaPrimaryContainer
 
 data class MoodOption(val emoji: String, val label: String)
 
 val MOOD_OPTIONS = listOf(
-    MoodOption("😔", "Low"), MoodOption("😐", "Okay"), MoodOption("😊", "Good"),
-    MoodOption("🤩", "Great"), MoodOption("😄", "Feliz"), MoodOption("😠", "Enojado"),
+    MoodOption("😔", "Bajo"), MoodOption("😐", "Bien"), MoodOption("😊", "Muy bien"),
+    MoodOption("🤩", "Genial"), MoodOption("😄", "Feliz"), MoodOption("😠", "Enojado"),
     MoodOption("😴", "Con sueño"), MoodOption("😢", "Triste"), MoodOption("😡", "Furioso"),
     MoodOption("😂", "Riendo"), MoodOption("😲", "Asombrado"), MoodOption("😎", "Genial"),
     MoodOption("😌", "Tranquilo"), MoodOption("⏳", "Esperando")
@@ -79,14 +81,12 @@ fun Modifier.neumorphicShadow(
 fun DailyMoodModal(
     onDismiss: () -> Unit,
     onMoodSelected: (MoodOption) -> Unit,
-    currentMood: String = "😊",
-    nombrePareja: String = "Leo",
-    estadoPareja: String = "Great",
-    haceCuantoPareja: String = "2 hours ago"
+    currentMood: String = "?",
+    nombrePareja: String = "Pareja",
+    estadoPareja: String = "",
+    haceCuantoPareja: String = ""
 ) {
     val colorBackground = Color(0xFFFFF8EF)
-    val colorPrimary = Color(0xFF78555E)
-    val colorPrimaryContainer = Color(0xFFFFD1DC)
     val colorOnSurface = Color(0xFF1E1B14)
     val colorOnSurfaceVariant = Color(0xFF4F4446)
 
@@ -133,27 +133,12 @@ fun DailyMoodModal(
                     }
 
                     Column(modifier = Modifier.padding(top = 8.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                "Daily Mood",
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = colorOnSurface
-                            )
-                            Text(
-                                "History",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = colorPrimary,
-                                modifier = Modifier
-                                    .padding(end = 40.dp)
-                                    .clickable { }
-                            )
-                        }
+                        Text(
+                            "Estado de ánimo",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = colorOnSurface
+                        )
 
                         Spacer(modifier = Modifier.height(16.dp))
 
@@ -166,7 +151,7 @@ fun DailyMoodModal(
                         ) {
                             Column(modifier = Modifier.padding(20.dp)) {
                                 Text(
-                                    "How are you feeling today?",
+                                    "¿Cómo te sientes hoy?",
                                     fontSize = 16.sp,
                                     color = colorOnSurfaceVariant
                                 )
@@ -195,8 +180,15 @@ fun DailyMoodModal(
                                 
                                 Spacer(modifier = Modifier.height(12.dp))
 
+                                val textoEstadoPareja = if (estadoPareja.isBlank() || estadoPareja == "?" || estadoPareja == "Desconocido") {
+                                    "$nombrePareja no ha establecido un estado de ánimo"
+                                } else {
+                                    val labelMood = MOOD_OPTIONS.find { it.emoji == estadoPareja }?.label ?: estadoPareja
+                                    "$nombrePareja se siente \"$labelMood\" ${haceCuantoPareja.ifBlank { "" }}"
+                                }
+
                                 Text(
-                                    text = "$nombrePareja felt \"$estadoPareja\" $haceCuantoPareja",
+                                    text = textoEstadoPareja,
                                     fontSize = 12.sp,
                                     fontStyle = FontStyle.Italic,
                                     color = colorOnSurfaceVariant,
@@ -218,8 +210,8 @@ fun MoodBubbleItem(
     onClick: () -> Unit
 ) {
     val colorBackground = Color(0xFFFFF8EF)
-    val colorPrimary = Color(0xFF78555E)
-    val colorPrimaryContainer = Color(0xFFFFD1DC)
+    val colorPrimary = MocaPrimary
+    val colorPrimaryContainer = MocaPrimaryContainer
     val colorOnSurfaceVariant = Color(0xFF4F4446)
 
     val interactionSource = remember { MutableInteractionSource() }

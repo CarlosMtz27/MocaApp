@@ -35,6 +35,8 @@ import com.cadev.mocaapp.feature.eventos.ui.DetalleEventoScreen
 import com.cadev.mocaapp.feature.eventos.ui.EditarEventoScreen
 import com.cadev.mocaapp.feature.eventos.ui.EventoViewModel
 import com.cadev.mocaapp.feature.eventos.ui.EventosScreen
+import com.cadev.mocaapp.feature.ui.screens.*
+import com.cadev.mocaapp.feature.ui.screens.*
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -177,7 +179,8 @@ fun MocaNavGraph(
             val parejaId = remember(uid) { runBlocking { UsuarioHelper.obtenerParejaId(uid) } }
             val relacionId = remember(uid) { runBlocking { UsuarioHelper.obtenerRelacionId(uid) } }
             val diarioViewModel: DiarioViewModel = viewModel(factory = factory)
-            CalendarioScreen(
+            
+            CalendarView(
                 viewModel = diarioViewModel,
                 usuarioId = uid,
                 parejaId = parejaId,
@@ -186,13 +189,30 @@ fun MocaNavGraph(
                 onDiaSeleccionado = { fecha ->
                     navController.navigate(NavRoutes.DetalleDia.crearRuta(fecha))
                 },
-                onVerEventos = { navController.navigate(NavRoutes.Eventos.route) },
+                onVerListado = { navController.navigate(NavRoutes.Historial.route) },
+                onVerEventos = { navController.navigate(NavRoutes.Eventos.route) }
+            )
+        }
+
+        composable(NavRoutes.Historial.route) {
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            val parejaId = remember(uid) { runBlocking { UsuarioHelper.obtenerParejaId(uid) } }
+            val relacionId = remember(uid) { runBlocking { UsuarioHelper.obtenerRelacionId(uid) } }
+            val diarioViewModel: DiarioViewModel = viewModel(factory = factory)
+            
+            TimelineScreen(
+                viewModel = diarioViewModel,
+                usuarioId = uid,
+                parejaId = parejaId,
+                relacionId = relacionId,
                 onVerDetalleEntrada = { id ->
                     navController.navigate(NavRoutes.DetalleEntrada.crearRuta(id))
                 },
                 onVerDetalleEvento = { id ->
                     navController.navigate(NavRoutes.DetalleEvento.crearRuta(id))
-                }
+                },
+                onIrAAjustes = { navController.navigate(NavRoutes.Ajustes.route) },
+                onRegresar = { navController.popBackStack() }
             )
         }
 
@@ -204,15 +224,24 @@ fun MocaNavGraph(
             val viewModel: DiarioViewModel = viewModel(factory = factory)
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
             val parejaId = remember(uid) { runBlocking { UsuarioHelper.obtenerParejaId(uid) } }
-            DetalleDiaScreen(
+            
+            DayDetailList(
                 viewModel = viewModel,
                 usuarioId = uid,
                 parejaId = parejaId,
                 fecha = fecha,
-                onRegresar = irAlInicio,
-                onEditarEntrada = { id -> navController.navigate(NavRoutes.EditarEntrada.crearRuta(id)) },
-                onCrearEntrada = { f, t -> navController.navigate(NavRoutes.CrearEntrada.crearRuta(f, t)) },
-                onVerDetalle = { id -> navController.navigate(NavRoutes.DetalleEntrada.crearRuta(id)) }
+                onRegresar = { navController.popBackStack() },
+                onIrAlCalendario = {
+                    navController.navigate(NavRoutes.Calendario.route) {
+                        popUpTo(NavRoutes.Calendario.route) { inclusive = true }
+                    }
+                },
+                onCrearEntrada = { f, t -> 
+                    navController.navigate(NavRoutes.CrearEntrada.crearRuta(f, t)) 
+                },
+                onVerDetalleEntrada = { id -> 
+                    navController.navigate(NavRoutes.DetalleEntrada.crearRuta(id)) 
+                }
             )
         }
 
@@ -228,14 +257,15 @@ fun MocaNavGraph(
             val viewModel: DiarioViewModel = viewModel(factory = factory)
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
             val parejaId = remember(uid) { runBlocking { UsuarioHelper.obtenerParejaId(uid) } }
-            CrearEntradaScreen(
+            
+            CreateEntryScreen(
                 viewModel = viewModel,
                 usuarioId = uid,
                 parejaId = parejaId,
                 fecha = fecha,
                 tipo = tipo,
-                onEntradaGuardada = irAlInicio,
-                onRegresar = irAlInicio
+                onEntradaGuardada = { navController.popBackStack() },
+                onRegresar = { navController.popBackStack() }
             )
         }
 
@@ -262,12 +292,12 @@ fun MocaNavGraph(
             val entradaId = backStackEntry.arguments?.getString("entradaId") ?: ""
             val viewModel: DiarioViewModel = viewModel(factory = factory)
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-            DetalleEntradaScreen(
+            
+            EntryDetailView(
                 viewModel = viewModel,
                 entradaId = entradaId,
                 usuarioId = uid,
-                onRegresar = irAlInicio,
-                onEditar = { id -> navController.navigate(NavRoutes.EditarEntrada.crearRuta(id)) }
+                onRegresar = { navController.popBackStack() }
             )
         }
 

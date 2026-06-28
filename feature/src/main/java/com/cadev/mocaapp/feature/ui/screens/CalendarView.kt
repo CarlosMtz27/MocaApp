@@ -2,6 +2,7 @@ package com.cadev.mocaapp.feature.ui.screens
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -42,7 +43,7 @@ import java.util.*
 
 /**
  * PANTALLA DE CALENDARIO DE RECUERDOS (SECCIÓN 4.1)
- * Fiel al diseño Organic Minimalist HTML.
+
  */
 @Composable
 fun CalendarView(
@@ -246,8 +247,6 @@ fun DiaCelda(
 ) {
     val tieneFoto = !info?.primeraFoto.isNullOrBlank()
     val tieneEntrada = info != null && info.tipos.isNotEmpty()
-    val esRecuerdo = info?.tipos?.contains(TipoEntrada.RECUERDO.name) == true
-    val esEvento = info?.tipos?.any { it.startsWith("EVENTO_") } == true
 
     Box(
         modifier = Modifier
@@ -279,20 +278,30 @@ fun DiaCelda(
             color = if (tieneFoto) Color.White else MocaOnSurface
         )
 
-        // Indicador de tipo (puntito)
-        if (tieneEntrada && !tieneFoto) {
-            val colorPunto = when {
-                esRecuerdo -> Color(0xFF60A5FA)
-                esEvento -> Color(0xFFFACC15)
-                else -> MocaPrimaryContainer
-            }
-            Box(
+        // Indicadores de tipo (puntitos) siempre visibles
+        if (tieneEntrada) {
+            Row(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 4.dp)
-                    .size(4.dp)
-                    .background(colorPunto, CircleShape)
-            )
+                    .padding(bottom = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                info?.tipos?.distinct()?.take(3)?.forEach { tipoNombre ->
+                    val colorPunto = when {
+                        tipoNombre.startsWith("EVENTO_") -> Color(0xFFFACC15) // Amarillo Evento
+                        tipoNombre == TipoEntrada.RECUERDO.name -> Color(0xFF60A5FA) // Azul Recuerdo
+                        tipoNombre == TipoEntrada.MI_DIA.name -> Color(0xFF4ADE80) // Verde Mi Día
+                        else -> MocaPrimaryContainer
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .background(colorPunto, CircleShape)
+                            .border(0.5.dp, Color.White.copy(alpha = 0.8f), CircleShape) // Borde para visibilidad sobre fotos
+                    )
+                }
+            }
         }
     }
 }

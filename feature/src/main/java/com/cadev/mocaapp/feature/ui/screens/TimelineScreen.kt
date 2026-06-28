@@ -1,17 +1,17 @@
 package com.cadev.mocaapp.feature.ui.screens
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.layout.ContentScale
@@ -29,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.cadev.mocaapp.feature.diario.domain.model.Emocion
 import com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario
+import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
 import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
 import com.cadev.mocaapp.feature.diario.ui.FiltroListado
 import com.cadev.mocaapp.feature.diario.ui.OrdenListado
@@ -38,11 +42,14 @@ import com.cadev.mocaapp.feature.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 
+import androidx.compose.ui.res.painterResource
+import com.cadev.mocaapp.feature.R
+
 /**
  * VISTA DE HISTORIAL COMBINADO (SECCIÓN 4.5)
- * Fiel al diseño "Timeline - Our Sanctuary" del HTML.
+ * Ahora integrada en el MainScaffold.
  */
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TimelineScreen(
     viewModel: DiarioViewModel,
@@ -51,83 +58,96 @@ fun TimelineScreen(
     relacionId: String,
     onVerDetalleEntrada: (String) -> Unit,
     onVerDetalleEvento: (String) -> Unit,
-    onIrAAjustes: () -> Unit
+    onIrAAjustes: () -> Unit,
+    onRegresar: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val listState = rememberLazyListState()
     
     LaunchedEffect(usuarioId, parejaId, relacionId) {
         viewModel.iniciarEscucha(usuarioId, parejaId, relacionId)
     }
 
-    // Agrupar items por mes
-    val itemsAgrupados = remember(uiState.entradas, uiState.eventos, uiState.filtro, uiState.orden) {
+    val itemsAplanados = remember(uiState.entradas, uiState.eventos, uiState.filtro, uiState.orden) {
         val listaCompleta = mutableListOf<Any>()
         
-        if (uiState.filtro == FiltroListado.TODOS || uiState.filtro == FiltroListado.RECUERDOS) {
-            listaCompleta.addAll(uiState.entradas)
-        }
-        if (uiState.filtro == FiltroListado.TODOS || uiState.filtro == FiltroListado.EVENTOS) {
-            listaCompleta.addAll(uiState.eventos)
+        when (uiState.filtro) {
+            FiltroListado.TODOS -> {
+                listaCompleta.addAll(uiState.entradas)
+                listaCompleta.addAll(uiState.eventos)
+            }
+            FiltroListado.RECUERDOS -> {
+                listaCompleta.addAll(uiState.entradas.filter { it.tipo == TipoEntrada.RECUERDO.name })
+            }
+            FiltroListado.EVENTOS -> {
+                listaCompleta.addAll(uiState.eventos)
+            }
+            FiltroListado.DIAS -> {
+                listaCompleta.addAll(uiState.entradas.filter { it.tipo == TipoEntrada.MI_DIA.name })
+            }
         }
 
-        val sdfMes = SimpleDateFormat("MMMM yyyy", Locale("es", "MX"))
-        val sdfFecha = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-
-        val sortedList = if (uiState.orden == OrdenListado.RECIENTE) {
+        if (uiState.orden == OrdenListado.RECIENTE) {
             listaCompleta.sortedByDescending { if (it is EntradaDiario) it.fecha else (it as Evento).fecha }
         } else {
             listaCompleta.sortedBy { if (it is EntradaDiario) it.fecha else (it as Evento).fecha }
         }
+    }
 
-        sortedList.groupBy { item ->
+    val itemsAgrupados = remember(itemsAplanados) {
+        val sdfMes = SimpleDateFormat("MMMM yyyy", Locale.forLanguageTag("es-MX"))
+        val sdfFecha = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+        itemsAplanados.groupBy { item ->
             val fechaStr = if (item is EntradaDiario) item.fecha else (item as Evento).fecha
             val date = sdfFecha.parse(fechaStr) ?: Date()
             sdfMes.format(date).replaceFirstChar { it.uppercase() }
         }
     }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Our Sanctuary",
-                        style = OrganicTypography.headlineMedium.copy(fontSize = 24.sp, fontWeight = FontWeight.Bold),
-                        color = MocaPrimary
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = {}) {
-                        Icon(Icons.Default.Favorite, contentDescription = null, tint = MocaPrimary)
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onIrAAjustes) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = MocaPrimary)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MocaBackground)
-            )
-        },
-        containerColor = MocaBackground
-    ) { padding ->
-        Column(modifier = Modifier.padding(padding)) {
-            // Filtros
-            FilterTabsRow(
-                filtroActual = uiState.filtro,
-                onCambiarFiltro = { viewModel.cambiarFiltro(it) },
-                onToggleOrden = {
-                    viewModel.cambiarOrden(
-                        if (uiState.orden == OrdenListado.RECIENTE) OrdenListado.ANTIGUO else OrdenListado.RECIENTE
-                    )
+    val mesVisibleActual = remember(itemsAgrupados) {
+        derivedStateOf {
+            val firstVisibleIndex = listState.firstVisibleItemIndex
+            var currentIndex = 0
+            var foundMonth = "Nuestra Historia" 
+            for ((mes, items) in itemsAgrupados) {
+                if (firstVisibleIndex <= currentIndex + items.size) {
+                    foundMonth = mes
+                    break
                 }
-            )
+                currentIndex += items.size + 1
+            }
+            foundMonth
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column {
+            // Barra de acciones superior (dentro del contenido para dar espacio al Header de MainScreen)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onRegresar) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver", tint = MocaPrimary)
+                }
+                Spacer(Modifier.width(8.dp))
+                FilterTabsRow(
+                    filtroActual = uiState.filtro,
+                    onCambiarFiltro = { viewModel.cambiarFiltro(it) },
+                    onToggleOrden = {
+                        viewModel.cambiarOrden(
+                            if (uiState.orden == OrdenListado.RECIENTE) OrdenListado.ANTIGUO else OrdenListado.RECIENTE
+                        )
+                    }
+                )
+            }
 
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxSize()
                     .drawBehind {
-                        // Línea discontinua vertical (Timeline Line)
                         val strokeWidth = 1.dp.toPx()
                         val dashPathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
                         drawLine(
@@ -159,6 +179,30 @@ fun TimelineScreen(
                 }
             }
         }
+
+        // BURBUJA FLOTANTE ESTILO LAUNCHER
+        AnimatedVisibility(
+            visible = listState.isScrollInProgress,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 12.dp)
+        ) {
+            Surface(
+                color = MocaAccentPink,
+                shape = RoundedCornerShape(16.dp),
+                shadowElevation = 8.dp,
+                modifier = Modifier.padding(8.dp)
+            ) {
+                Text(
+                    text = mesVisibleActual.value,
+                    style = OrganicTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+        }
     }
 }
 
@@ -170,8 +214,7 @@ fun FilterTabsRow(
 ) {
     Row(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
@@ -184,6 +227,11 @@ fun FilterTabsRow(
                 text = "Todo",
                 selected = filtroActual == FiltroListado.TODOS,
                 onClick = { onCambiarFiltro(FiltroListado.TODOS) }
+            )
+            FilterTabButton(
+                text = "Días",
+                selected = filtroActual == FiltroListado.DIAS,
+                onClick = { onCambiarFiltro(FiltroListado.DIAS) }
             )
             FilterTabButton(
                 text = "Recuerdos",
@@ -214,12 +262,12 @@ fun FilterTabButton(text: String, selected: Boolean, onClick: () -> Unit) {
         onClick = onClick,
         shape = CircleShape,
         color = if (selected) MocaPrimaryContainer else MocaSurfaceContainer,
-        modifier = Modifier.height(40.dp)
+        modifier = Modifier.height(36.dp)
     ) {
-        Box(modifier = Modifier.padding(horizontal = 24.dp), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
             Text(
                 text = text,
-                style = OrganicTypography.labelMedium,
+                style = OrganicTypography.labelMedium.copy(fontSize = 12.sp),
                 color = if (selected) MocaOnPrimaryContainer else MocaOnSurfaceVariant
             )
         }
@@ -232,14 +280,13 @@ fun MonthHeader(mes: String) {
         modifier = Modifier
             .fillMaxWidth()
             .background(MocaBackground.copy(alpha = 0.9f))
-            .padding(vertical = 16.dp, horizontal = 16.dp),
+            .padding(vertical = 12.dp, horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Dot on the line
         Box(
             modifier = Modifier
                 .size(12.dp)
-                .offset(x = 2.dp) // Alineado con la línea dashed
+                .offset(x = 2.dp)
                 .background(MocaPrimaryFixedDim, CircleShape)
                 .border(4.dp, MocaBackground, CircleShape)
         )
@@ -248,7 +295,7 @@ fun MonthHeader(mes: String) {
             text = mes,
             modifier = Modifier.padding(start = 24.dp),
             style = OrganicTypography.headlineMedium.copy(
-                fontSize = 24.sp,
+                fontSize = 22.sp,
                 fontStyle = FontStyle.Italic,
                 fontFamily = SerifFontFamily
             ),
@@ -277,7 +324,7 @@ fun TimelineItemEntry(item: Any, onClick: () -> Unit) {
     val diaNum = remember(fechaStr) {
         try {
             val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(fechaStr) ?: Date()
-            SimpleDateFormat("dd MMM", Locale("es", "MX")).format(date)
+            SimpleDateFormat("dd MMM", Locale.forLanguageTag("es-MX")).format(date)
         } catch (e: Exception) { "" }
     }
 
@@ -287,10 +334,9 @@ fun TimelineItemEntry(item: Any, onClick: () -> Unit) {
             .padding(start = 16.dp, end = 24.dp, bottom = 32.dp)
             .clickable(onClick = onClick)
     ) {
-        // Icono en la línea dashed
         Box(
             modifier = Modifier
-                .size(20.dp)
+                .size(32.dp) // Aumentado para mejor visibilidad
                 .background(
                     if (esEntrada) MocaSurfaceContainerHighest else MocaTertiaryContainer,
                     CircleShape
@@ -298,28 +344,55 @@ fun TimelineItemEntry(item: Any, onClick: () -> Unit) {
                 .border(4.dp, MocaBackground, CircleShape),
             contentAlignment = Alignment.Center
         ) {
+            val iconoTira = when {
+                !esEntrada -> Icons.Default.Event
+                (item as EntradaDiario).tipo == TipoEntrada.RECUERDO.name -> Icons.Default.AutoAwesome
+                else -> Icons.Default.EditNote
+            }
             Icon(
-                imageVector = if (esEntrada) Icons.Default.AttachFile else Icons.Default.CalendarToday,
+                imageVector = iconoTira,
                 contentDescription = null,
-                modifier = Modifier.size(10.dp),
+                modifier = Modifier.size(16.dp), // Icono más grande
                 tint = if (esEntrada) MocaOnSurfaceVariant else MocaOnTertiaryContainer
             )
         }
 
         Spacer(modifier = Modifier.width(24.dp))
 
-        // Card de contenido
-        Surface(
-            modifier = Modifier.weight(1f),
-            shape = RoundedCornerShape(32.dp),
-            color = if (esEntrada) MocaSurfaceContainerLowest else MocaTertiaryFixed.copy(alpha = 0.3f),
-            shadowElevation = 2.dp
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .then(
+                    if (esEntrada) Modifier.shadow(2.dp, RoundedCornerShape(32.dp))
+                    else Modifier
+                )
+                .clip(RoundedCornerShape(32.dp))
+                .background(
+                    if (esEntrada) MocaSurfaceContainerLowest else MocaTertiaryFixed.copy(alpha = 0.5f)
+                )
         ) {
+            // FONDO DECORATIVO - SOLO PARA EVENTOS
+            if (!esEntrada) {
+                Image(
+                    painter = painterResource(id = R.drawable.eventos),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .alpha(0.5f) // Más visible
+                        .blur(8.dp),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
             Column(modifier = Modifier.padding(20.dp)) {
+                val etiquetaTipo = when {
+                    esEntrada -> if ((item as EntradaDiario).tipo == TipoEntrada.RECUERDO.name) "Recuerdo" else "Día"
+                    else -> "Evento"
+                }
                 Text(
-                    text = "$diaNum • ${if (esEntrada) "Recuerdo" else "Evento"}",
+                    text = "$diaNum • $etiquetaTipo",
                     style = OrganicTypography.labelSmall.copy(letterSpacing = 1.sp),
-                    color = if (esEntrada) MocaOnSurfaceVariant.copy(alpha = 0.7f) else MocaTertiary,
+                    color = if (esEntrada) MocaOnSurfaceVariant.copy(alpha = 0.6f) else MocaOnSurface.copy(alpha = 0.6f),
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
@@ -328,7 +401,6 @@ fun TimelineItemEntry(item: Any, onClick: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.Top
                 ) {
-                    // SI HAY IMAGEN, LA MOSTRAMOS AQUÍ
                     if (imagenUrl != null) {
                         AsyncImage(
                             model = imagenUrl,
@@ -354,13 +426,12 @@ fun TimelineItemEntry(item: Any, onClick: () -> Unit) {
                         Text(
                             text = subtitulo,
                             style = OrganicTypography.bodyMedium,
-                            color = if (esEntrada) MocaOnSurfaceVariant else MocaTertiary.copy(alpha = 0.8f),
+                            color = if (esEntrada) MocaOnSurfaceVariant else MocaOnSurface.copy(alpha = 0.8f),
                             maxLines = 3
                         )
                     }
                 }
                 
-                // Emociones (solo para recuerdos/días)
                 if (esEntrada && (item as EntradaDiario).emociones.isNotEmpty()) {
                     Row(
                         modifier = Modifier.padding(top = 16.dp),
@@ -387,10 +458,3 @@ fun TimelineItemEntry(item: Any, onClick: () -> Unit) {
         }
     }
 }
-
-// Extensiones de color faltantes
-val MocaPrimaryFixedDim = Color(0xFFE7BBC6)
-val MocaOnPrimaryFixedVariant = Color(0xFF5E3E47)
-val MocaTertiaryFixed = Color(0xFFD1E9CD)
-val MocaOnTertiaryFixedVariant = Color(0xFF374C37)
-val MocaSurfaceContainerHighest = Color(0xFFE9E2D6)

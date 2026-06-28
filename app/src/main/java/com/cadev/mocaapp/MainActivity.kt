@@ -29,6 +29,7 @@ import com.cadev.mocaapp.feature.widgets.diasjuntos.DiasJuntosWorker
 import com.cadev.mocaapp.feature.widgets.distancia.UbicacionWorker
 import com.cadev.mocaapp.core.utils.ThemeManager
 import com.cadev.mocaapp.ui.theme.MocaAppTheme
+import com.cadev.mocaapp.feature.ui.screens.LoadingTransition
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
@@ -350,16 +351,8 @@ class MainActivity : ComponentActivity() {
                         destinoInicial = destinoInicial!!
                     )
                 } else {
-                    // Pantalla de carga mientras se decide el destino inicial
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 3.dp
-                        )
-                    }
+                    // Pantalla de carga Zen mientras se decide el destino inicial
+                    LoadingTransition()
                 }
 
                 // Al abrir la aplicación se comprueban los permisos necesarios (Ubicación, Cámara, Notificaciones, Galería, Micrófono)

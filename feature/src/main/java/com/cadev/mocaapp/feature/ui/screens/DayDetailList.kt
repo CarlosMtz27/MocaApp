@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
@@ -17,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -53,6 +55,8 @@ fun DayDetailList(
     onVerDetalleEntrada: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var mostrarMenuCrear by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
     
     // Cargar entradas del día al iniciar
     LaunchedEffect(fecha) {
@@ -63,7 +67,8 @@ fun DayDetailList(
         try {
             val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val date = sdf.parse(fecha) ?: Date()
-            SimpleDateFormat("MMMM d'th'", Locale.forLanguageTag("en-US")).format(date)
+            SimpleDateFormat("d 'de' MMMM", Locale.forLanguageTag("es-MX")).format(date)
+                .replaceFirstChar { it.uppercase() }
         } catch (e: Exception) {
             fecha
         }
@@ -74,8 +79,8 @@ fun DayDetailList(
             TopAppBar(
                 title = { 
                     Text(
-                        "Our Journey", 
-                        style = OrganicTypography.headlineMedium.copy(fontSize = 24.sp),
+                        "Nuestro Camino", 
+                        style = OrganicTypography.headlineMedium.copy(fontSize = 22.sp, fontWeight = FontWeight.Bold),
                         color = MocaPrimary
                     ) 
                 },
@@ -96,20 +101,64 @@ fun DayDetailList(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { onCrearEntrada(fecha, TipoEntrada.MI_DIA.name) },
+                onClick = { mostrarMenuCrear = true },
                 containerColor = MocaPrimary,
                 contentColor = Color.White,
                 shape = CircleShape
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Entry")
+                Icon(Icons.Default.Add, contentDescription = "Añadir")
             }
         },
         containerColor = Color.Transparent
     ) { padding ->
+        // Bottom Sheet para elegir tipo de entrada
+        if (mostrarMenuCrear) {
+            ModalBottomSheet(
+                onDismissRequest = { mostrarMenuCrear = false },
+                sheetState = sheetState,
+                containerColor = MocaSurface
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 40.dp, start = 24.dp, end = 24.dp)
+                ) {
+                    Text(
+                        "¿Qué quieres añadir?",
+                        style = OrganicTypography.headlineMedium.copy(fontSize = 20.sp),
+                        color = MocaOnSurface,
+                        modifier = Modifier.padding(bottom = 24.dp)
+                    )
+                    
+                    MenuOptionItem(
+                        icon = Icons.AutoMirrored.Filled.Notes,
+                        title = "Mi Día",
+                        subtitle = "Escribe una nota rápida sobre hoy",
+                        onClick = {
+                            mostrarMenuCrear = false
+                            onCrearEntrada(fecha, TipoEntrada.MI_DIA.name)
+                        }
+                    )
+                    
+                    Spacer(Modifier.height(16.dp))
+                    
+                    MenuOptionItem(
+                        icon = Icons.Default.CameraAlt,
+                        title = "Recuerdo",
+                        subtitle = "Guarda un momento especial con fotos",
+                        onClick = {
+                            mostrarMenuCrear = false
+                            onCrearEntrada(fecha, TipoEntrada.RECUERDO.name)
+                        }
+                    )
+                }
+            }
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MocaBackground) // Simulación simple del mesh gradient
+                .background(MocaBackground)
                 .padding(padding)
         ) {
             LazyColumn(
@@ -128,13 +177,15 @@ fun DayDetailList(
                                 color = MocaPrimary
                             )
                             Text(
-                                text = "A day of reflection and connection.",
+                                text = "Un día de reflexión y conexión.",
                                 style = OrganicTypography.bodyLarge,
                                 color = MocaOnSurfaceVariant
                             )
                         }
                     }
                 }
+                // ... resto del lazy column igual ...
+
 
                 // CONTENEDOR DE LA LÍNEA DE TIEMPO
                 item {
@@ -175,7 +226,7 @@ fun TimelineItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(IntrinsicSize.Min) // IMPORTANTE: Permite que la línea sepa su altura
+            .height(IntrinsicSize.Min)
             .padding(bottom = 32.dp)
     ) {
         // COLUMNA DE LA LÍNEA (Izquierda)
@@ -220,6 +271,7 @@ fun TimelineItem(
                 .weight(1f)
                 .padding(start = 8.dp),
             bordeRedondeado = 16.dp,
+            colorBorde = Color.Gray.copy(alpha = 0.1f),
             alHacerClick = onClick
         ) {
             Row(
@@ -274,6 +326,40 @@ fun TimelineItem(
                         contentScale = ContentScale.Crop
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun MenuOptionItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = MocaSurfaceContainerLow,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(MocaPrimaryContainer, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = MocaPrimary, modifier = Modifier.size(24.dp))
+            }
+            Column {
+                Text(title, style = OrganicTypography.labelMedium.copy(fontSize = 16.sp), color = MocaOnSurface)
+                Text(subtitle, style = OrganicTypography.bodySmall, color = MocaOnSurfaceVariant)
             }
         }
     }

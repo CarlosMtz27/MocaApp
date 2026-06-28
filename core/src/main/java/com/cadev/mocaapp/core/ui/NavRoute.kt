@@ -28,6 +28,7 @@ sealed class NavRoutes(val route: String) {
     object Main          : NavRoutes("main")
     object Home          : NavRoutes("home")
     object Calendario    : NavRoutes("calendario")
+    object Historial     : NavRoutes("historial")
     object Cuestionarios : NavRoutes("cuestionarios")
     
     /**

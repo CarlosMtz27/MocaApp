@@ -17,13 +17,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,13 +34,17 @@ import com.cadev.mocaapp.core.model.TipoEvento
 import com.cadev.mocaapp.feature.diario.domain.model.Emocion
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
 import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
+import com.cadev.mocaapp.feature.ui.components.HeartToggle
 import com.cadev.mocaapp.feature.ui.theme.*
 import java.io.File
 import java.util.*
 
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+
 /**
  * PANTALLA DE CREACIÓN DE ENTRADA (SECCIÓN 4.3)
- * Fiel al diseño "New Entry" del HTML.
+ * Adaptada para "Día" o "Recuerdo" con textos en español y toggle de corazón.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,10 +59,9 @@ fun CreateEntryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    
     val scrollState = rememberScrollState()
     
-    // Logic for media selection (kept from original)
+    // Media selection logic
     var uriCameraTemp by remember { mutableStateOf<Uri?>(null) }
     var uriVideoTemp by remember { mutableStateOf<Uri?>(null) }
     var mostrarDialogoMedia by remember { mutableStateOf(false) }
@@ -110,35 +114,52 @@ fun CreateEntryScreen(
         modifier = Modifier.fillMaxSize(),
         color = Color(0xFFFCF8F9)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // TOP BAR
-            Row(
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+            // BARRA SUPERIOR
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                IconButton(onClick = onRegresar, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color(0xFF1D0C10))
-                }
-                Text(
-                    text = "New Entry",
-                    style = OrganicTypography.headlineMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
-                    color = Color(0xFF1D0C10)
-                )
-                TextButton(
-                    onClick = { viewModel.guardarEntrada(usuarioId, parejaId, fecha, tipo) },
-                    enabled = !uiState.cargando
-                ) {
-                    if (uiState.cargando) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(
-                            "Save",
-                            style = OrganicTypography.labelMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
-                            color = Color(0xFFA1455A)
+                    .drawBehind {
+                        // Sombra sutil solo en la parte inferior
+                        val shadowHeight = 3.dp.toPx()
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(Color.Black.copy(alpha = 0.08f), Color.Transparent),
+                                startY = size.height,
+                                endY = size.height + shadowHeight
+                            )
                         )
+                    },
+                color = Color(0xFFFCF8F9)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    IconButton(onClick = onRegresar, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color(0xFF1D0C10))
+                    }
+                    Text(
+                        text = if (tipo == TipoEntrada.RECUERDO.name) "Nuevo Recuerdo" else "Mi Día",
+                        style = OrganicTypography.headlineMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
+                        color = Color(0xFF1D0C10)
+                    )
+                    TextButton(
+                        onClick = { viewModel.guardarEntrada(usuarioId, parejaId, fecha, tipo) },
+                        enabled = !uiState.cargando
+                    ) {
+                        if (uiState.cargando) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text(
+                                "Guardar",
+                                style = OrganicTypography.labelMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
+                                color = Color(0xFFA1455A)
+                            )
+                        }
                     }
                 }
             }
@@ -148,35 +169,35 @@ fun CreateEntryScreen(
                     .weight(1f)
                     .verticalScroll(scrollState)
             ) {
-                // WHAT IT IS ABOUT
-                Text(
-                    text = "What it is about",
-                    style = OrganicTypography.headlineMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
-                    color = Color(0xFF1D0C10),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-                
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    TipoEvento.entries.forEach { evento ->
-                        val selected = uiState.etiqueta == evento.name
-                        CategoryChip(
-                            label = evento.etiqueta,
-                            icon = evento.icono,
-                            selected = selected,
-                            onClick = { viewModel.actualizarEtiqueta(evento.name) }
-                        )
+                // CATEGORÍA (Solo para Recuerdos)
+                if (tipo == TipoEntrada.RECUERDO.name) {
+                    Text(
+                        text = "¿De qué se trata?",
+                        style = OrganicTypography.headlineMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
+                        color = Color(0xFF1D0C10),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                    
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(TipoEvento.entries) { evento ->
+                            val selected = uiState.etiqueta == evento.name
+                            CategoryChip(
+                                label = evento.etiqueta,
+                                icon = evento.icono,
+                                selected = selected,
+                                onClick = { viewModel.actualizarEtiqueta(evento.name) }
+                            )
+                        }
                     }
                 }
 
-                // WHAT DO YOU WANT TO REMEMBER
+                // TÍTULO DINÁMICO
                 Text(
-                    text = "What do you want to remember",
+                    text = if (tipo == TipoEntrada.RECUERDO.name) "¿Qué quieres recordar?" else "¿Cómo fue tu día?",
                     style = OrganicTypography.headlineMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
                     color = Color(0xFF1D0C10),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
@@ -185,11 +206,12 @@ fun CreateEntryScreen(
                 TextField(
                     value = uiState.titulo,
                     onValueChange = { viewModel.actualizarTitulo(it) },
-                    placeholder = { Text("Main highlight...", color = Color(0xFFA1455A).copy(alpha = 0.7f)) },
+                    placeholder = { Text(if (tipo == TipoEntrada.RECUERDO.name) "Momento especial..." else "Resumen del día...", color = Color(0xFFA1455A).copy(alpha = 0.5f)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                         .height(56.dp)
+                        .shadow(3.dp, RoundedCornerShape(12.dp)) // Sombra un poco más marcada
                         .clip(RoundedCornerShape(12.dp))
                         .border(1.dp, Color(0xFFEACDD4), RoundedCornerShape(12.dp)),
                     colors = TextFieldDefaults.colors(
@@ -204,22 +226,20 @@ fun CreateEntryScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // HOW DID YOU FEEL
+                // EMOCIONES
                 Text(
-                    text = "How did you feel",
+                    text = "¿Cómo te sentiste?",
                     style = OrganicTypography.headlineMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
                     color = Color(0xFF1D0C10),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
                 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Emocion.entries.forEach { emocion ->
+                    items(Emocion.entries) { emocion ->
                         val selected = uiState.emocionesSeleccionadas.contains(emocion)
                         EmojiItem(
                             emoji = getEmojiForEmocion(emocion),
@@ -230,9 +250,9 @@ fun CreateEntryScreen(
                     }
                 }
 
-                // TELL ME MORE
+                // CUÉNTAME MÁS
                 Text(
-                    text = "Tell me more",
+                    text = "Cuéntame más...",
                     style = OrganicTypography.headlineMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
                     color = Color(0xFF1D0C10),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
@@ -241,11 +261,12 @@ fun CreateEntryScreen(
                 TextField(
                     value = uiState.detalles,
                     onValueChange = { viewModel.actualizarDetalles(it) },
-                    placeholder = { Text("Write your thoughts here...", color = MocaOutline.copy(alpha = 0.7f)) },
+                    placeholder = { Text("Escribe tus pensamientos aquí...", color = MocaOutline.copy(alpha = 0.7f)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                         .heightIn(min = 160.dp)
+                        .shadow(3.dp, RoundedCornerShape(12.dp)) // Sombra un poco más marcada
                         .clip(RoundedCornerShape(12.dp))
                         .border(1.dp, MocaOutlineVariant, RoundedCornerShape(12.dp)),
                     colors = TextFieldDefaults.colors(
@@ -256,42 +277,42 @@ fun CreateEntryScreen(
                     )
                 )
 
-                // PHOTOS & VIDEOS
+                // FOTOS Y VIDEOS
                 Text(
-                    text = "Photos & Videos",
+                    text = "Fotos y Videos",
                     style = OrganicTypography.headlineMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
                     color = Color(0xFF1D0C10),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
                 )
                 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    AddMediaButton(onClick = { mostrarDialogoMedia = true })
+                    item { AddMediaButton(onClick = { mostrarDialogoMedia = true }) }
                     
-                    uiState.fotosSeleccionadas.forEach { uri ->
+                    items(uiState.fotosSeleccionadas) { uri ->
                         MediaItem(uri = uri, onRemove = { viewModel.eliminarFoto(uri) })
                     }
-                    uiState.videosSeleccionados.forEach { uri ->
+                    items(uiState.videosSeleccionados) { uri ->
                         MediaItem(uri = uri, esVideo = true, onRemove = { viewModel.eliminarVideo(uri) })
                     }
                 }
 
-                Spacer(modifier = Modifier.height(40.dp))
+                Spacer(modifier = Modifier.height(24.dp)) // Espacio reducido para subir la sección
 
-                // SHARE WITH MY PARTNER
+                // COMPARTIR CON MI PAREJA
                 if (parejaId != null) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                            .background(Color.White)
-                            .border(1.dp, MocaSurfaceVariant, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                            .padding(horizontal = 16.dp)
+                            .shadow(4.dp, RoundedCornerShape(24.dp)) // Sombra suave
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(Color(0xFFFFEEF3)) // Rosa muy suave y sólido
+                            .border(1.dp, Color(0xFFF5DCE6), RoundedCornerShape(24.dp))
                             .padding(24.dp)
                     ) {
                         Row(
@@ -301,27 +322,29 @@ fun CreateEntryScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Share with my partner",
-                                    style = OrganicTypography.headlineMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
-                                    color = MocaOnSurface
+                                    text = "¿Quieres compartirlo con tu pareja?",
+                                    style = OrganicTypography.headlineMedium.copy(
+                                        fontSize = 16.sp, 
+                                        fontWeight = FontWeight.Bold,
+                                        lineHeight = 22.sp
+                                    ),
+                                    color = Color(0xFF1D0C10)
                                 )
                                 Text(
-                                    text = "They will be notified of this entry.",
+                                    text = if (uiState.compartir) "Tu pareja podrá ver este momento" else "Solo tú podrás ver este momento",
                                     style = OrganicTypography.bodyMedium,
                                     color = MocaOnSurfaceVariant
                                 )
                             }
-                            Switch(
+                            
+                            HeartToggle(
                                 checked = uiState.compartir,
-                                onCheckedChange = { viewModel.toggleCompartir() },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = MocaPrimary
-                                )
+                                onCheckedChange = { viewModel.toggleCompartir() }
                             )
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }
@@ -337,7 +360,7 @@ fun CategoryChip(
     Surface(
         onClick = onClick,
         shape = CircleShape,
-        color = if (selected) Color(0xFFF4E6E9) else Color(0xFFF4E6E9).copy(alpha = 0.3f),
+        color = if (selected) MocaPrimaryContainer else Color(0xFFF4E6E9).copy(alpha = 0.4f),
         modifier = Modifier.height(32.dp)
     ) {
         Row(
@@ -345,11 +368,16 @@ fun CategoryChip(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color(0xFF1D0C10))
+            Icon(
+                imageVector = icon, 
+                contentDescription = null, 
+                modifier = Modifier.size(18.dp), 
+                tint = if (selected) MocaOnPrimaryContainer else Color(0xFF1D0C10)
+            )
             Text(
                 text = label,
-                style = OrganicTypography.labelMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
-                color = Color(0xFF1D0C10)
+                style = OrganicTypography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                color = if (selected) MocaOnPrimaryContainer else Color(0xFF1D0C10)
             )
         }
     }
@@ -367,22 +395,28 @@ fun EmojiItem(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             .clickable(onClick = onClick)
-            .alpha(if (selected) 1f else 0.7f)
     ) {
         Box(
             modifier = Modifier
                 .size(56.dp)
                 .clip(CircleShape)
-                .background(if (selected) MocaPrimaryContainer else MocaSurfaceContainer)
-                .border(2.dp, if (selected) MocaPrimary else Color.Transparent, CircleShape),
+                .background(if (selected) Color(0xFFE1F5FE) else Color.Transparent) 
+                .border(
+                    width = 2.dp,
+                    color = if (selected) Color(0xFF03A9F4) else MocaOutline.copy(alpha = 0.2f),
+                    shape = CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
             Text(text = emoji, fontSize = 24.sp)
         }
         Text(
             text = label,
-            style = OrganicTypography.labelMedium,
-            color = if (selected) MocaOnSurface else MocaOnSurfaceVariant
+            style = OrganicTypography.labelMedium.copy(
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+            ),
+            color = if (selected) MocaOnSurface else MocaOnSurfaceVariant,
+            modifier = Modifier.alpha(if (selected) 1f else 0.7f)
         )
     }
 }
@@ -393,17 +427,19 @@ fun AddMediaButton(onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(96.dp)
+            .shadow(3.dp, RoundedCornerShape(12.dp)) // Sombra añadida
             .clip(RoundedCornerShape(12.dp))
-            .drawBehind {
-                drawRoundRect(color = MocaOutlineVariant, style = stroke)
-            }
             .background(Color.White)
+            .border(1.dp, Color.LightGray.copy(alpha = 0.3f), RoundedCornerShape(12.dp)) // Borde tenue gris
+            .drawBehind {
+                drawRoundRect(color = Color(0xFFA1455A).copy(alpha = 0.4f), style = stroke)
+            }
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.Add, contentDescription = null, tint = MocaOnSurfaceVariant)
-            Text("Add Media", style = OrganicTypography.labelSmall, color = MocaOnSurfaceVariant)
+            Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFFA1455A))
+            Text("Añadir", style = OrganicTypography.labelSmall, color = Color(0xFFA1455A))
         }
     }
 }
@@ -438,7 +474,7 @@ fun MediaItem(uri: String, esVideo: Boolean = false, onRemove: () -> Unit) {
                 .size(24.dp)
                 .background(Color.Black.copy(alpha = 0.5f), CircleShape)
         ) {
-            Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color.White, modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.Close, contentDescription = "Eliminar", tint = Color.White, modifier = Modifier.size(16.dp))
         }
     }
 }
@@ -452,21 +488,21 @@ fun MediaSourceDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Media") },
+        title = { Text("Añadir multimedia") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ListItem(
-                    headlineContent = { Text("Gallery") },
+                    headlineContent = { Text("Galería") },
                     leadingContent = { Icon(Icons.Outlined.PhotoLibrary, null) },
                     modifier = Modifier.clickable { onDismiss(); onGallery() }
                 )
                 ListItem(
-                    headlineContent = { Text("Take Photo") },
+                    headlineContent = { Text("Tomar Foto") },
                     leadingContent = { Icon(Icons.Outlined.PhotoCamera, null) },
                     modifier = Modifier.clickable { onDismiss(); onCamera() }
                 )
                 ListItem(
-                    headlineContent = { Text("Record Video") },
+                    headlineContent = { Text("Grabar Video") },
                     leadingContent = { Icon(Icons.Outlined.Videocam, null) },
                     modifier = Modifier.clickable { onDismiss(); onVideo() }
                 )
@@ -474,7 +510,7 @@ fun MediaSourceDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
         }
     )
 }

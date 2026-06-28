@@ -19,7 +19,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -57,9 +59,39 @@ import com.cadev.mocaapp.core.model.TipoEvento
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import com.cadev.mocaapp.feature.home.ui.components.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+
+/**
+ * Modificador para el fondo Mesh Gradient del diseño de Stitch
+ */
+fun Modifier.meshGradientBackground() = this.drawBehind {
+    val canvasWidth = size.width
+    val canvasHeight = size.height
+    drawRect(color = Color(0xFFFFF8EF))
+    val gradients = listOf(
+        Triple(Offset(canvasWidth * 0.4f, canvasHeight * 0.2f), Color(0xFFFFD9E2), 0.5f),
+        Triple(Offset(canvasWidth * 0.8f, canvasHeight * 0.0f), Color(0xFFFAF3E7), 0.5f),
+        Triple(Offset(canvasWidth * 0.0f, canvasHeight * 0.5f), Color(0xFFF4EDE1), 0.5f),
+        Triple(Offset(canvasWidth * 0.8f, canvasHeight * 0.5f), Color(0xFFE7BBC6), 0.5f),
+        Triple(Offset(canvasWidth * 0.0f, canvasHeight * 1.0f), Color(0xFFFFD1DC), 0.5f),
+        Triple(Offset(canvasWidth * 0.8f, canvasHeight * 1.0f), Color(0xFFE9E2D6), 0.5f),
+        Triple(Offset(canvasWidth * 0.0f, canvasHeight * 0.0f), Color(0xFFFFF8EF), 0.5f)
+    )
+    gradients.forEach { (offset, color, radiusScale) ->
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(color, Color.Transparent),
+                center = offset,
+                radius = canvasWidth * radiusScale
+            ),
+            center = offset,
+            radius = canvasWidth * radiusScale
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,29 +164,31 @@ fun HomeScreen(
     }
 
     if (showMoodSelector) {
-        Dialog(
-            onDismissRequest = { showMoodSelector = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            EstadoAnimoScreen(
-                viewModel = estadoAnimoViewModel,
-                perfilViewModel = perfilViewModel,
-                onDismiss = { showMoodSelector = false }
-            )
-        }
+        DailyMoodModal(
+            onDismiss = { showMoodSelector = false },
+            onMoodSelected = { mood ->
+                if (usuario != null) {
+                    estadoAnimoViewModel.seleccionarEmoji(
+                        context = context,
+                        relacionId = usuario.relacionId,
+                        uid = usuario.id,
+                        nombreUsuario = usuario.nombre,
+                        parejaId = usuario.parejaId,
+                        emoji = mood.emoji
+                    )
+                }
+                showMoodSelector = false
+            },
+            currentMood = estadoAnimoState.emojiPropio.ifBlank { "?" },
+            nombrePareja = pareja?.nombre ?: "Pareja",
+            estadoPareja = estadoAnimoState.emojiPareja.ifBlank { "Desconocido" }
+        )
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.surface,
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.05f)
-                    )
-                )
-            )
+            .meshGradientBackground()
     ) {
         PullToRefreshBox(
             state = refreshState,
@@ -166,612 +200,110 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp)
-                    .padding(top = 24.dp, bottom = 100.dp),
+                    .padding(bottom = 100.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = fadeIn() + expandVertically()
-                ) {
-                    HomeHeader(usuario = usuario, pareja = pareja)
-                }
-
                 if (usuario != null && pareja != null) {
                     AnimatedVisibility(
                         visible = visible,
                         enter = fadeIn(animationSpec = tween(600, 200)) + slideInVertically(initialOffsetY = { 40 })
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            CardDiasJuntos(diasJuntos = perfilState.diasJuntos)
+                            // Saludo y Frase Inspiradora
+                            val hora = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+                            val saludo = when (hora) {
+                                in 6..12 -> "Buenos días"
+                                in 13..19 -> "Buenas tardes"
+                                else -> "Buenas noches"
+                            }
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp)
+                                    .padding(top = 8.dp),
+                                horizontalAlignment = Alignment.Start
                             ) {
-                                SeccionEstadoAnimo(
-                                    modifier = Modifier.weight(1.2f),
-                                    miEmoji = estadoAnimoState.emojiPropio,
-                                    parejaEmoji = estadoAnimoState.emojiPareja,
-                                    nombrePareja = pareja.nombre,
-                                    onClick = { showMoodSelector = true }
+                                Text(
+                                    text = "$saludo, ${usuario.nombre}",
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1E1B14)
                                 )
-                                
-                                SeccionNotaPareja(
-                                    modifier = Modifier.weight(1f),
-                                    nota = notaState.notaPareja,
-                                    nombrePareja = pareja.nombre,
-                                    onClick = { onNavigateToScreen(NavRoutes.Notas.route) }
+                                Text(
+                                    text = "“Tu lo eres todo, todo en mi vida”",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF78555E).copy(alpha = 0.8f),
+                                    lineHeight = 18.sp,
+                                    modifier = Modifier.padding(top = 4.dp)
                                 )
                             }
 
-                            AccesosRapidos(
-                                onNuevaEntrada = {
-                                    val hoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                                    onNavigateToScreen(NavRoutes.CrearEntrada.crearRuta(hoy, TipoEntrada.MI_DIA.name))
-                                },
-                                onNuevoEvento = { onNavigateToScreen(NavRoutes.CrearEvento.route) },
-                                onChat = { onNavigateToTab(NavRoutes.Chat.route) },
-                                onCuestionarios = { onNavigateToTab(NavRoutes.Cuestionarios.route) }
+                            Box(modifier = Modifier.padding(horizontal = 24.dp)) {
+                                DaysCounterCard(diasJuntos = perfilState.diasJuntos.toInt())
+                            }
+
+                            MoodAndNoteRow(
+                                miEmoji = estadoAnimoState.emojiPropio.ifBlank { "?" },
+                                parejaEmoji = estadoAnimoState.emojiPareja.ifBlank { "?" },
+                                notaPareja = notaState.notaPareja?.texto ?: "No hay notas nuevas por ahora...",
+                                nombrePareja = pareja.nombre,
+                                onMoodClick = { showMoodSelector = true },
+                                onNoteClick = { onNavigateToScreen(NavRoutes.Notas.route) },
+                                modifier = Modifier.padding(horizontal = 24.dp)
                             )
 
-                            // SECCIÓN DE EVENTOS FILTRADA
+                            // MAPEO DE DATOS REALES PARA EL ACTIVITY HUB
                             val todosLosEventos = eventoViewModel.uiState.collectAsState().value.eventos
                             val ahora = Calendar.getInstance().time
                             val formatoCompleto = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
                             
-                            val eventosProximos = todosLosEventos.filter { 
+                            val proximosFiltrados = todosLosEventos.filter { 
                                 val fecha = try { formatoCompleto.parse("${it.fecha} ${it.hora}") } catch (e: Exception) { null }
                                 fecha?.after(ahora) == true
                             }.sortedBy { it.fecha }
 
-                            val eventosPasadosPendientes = todosLosEventos.filter {
+                            val pendientesFiltrados = todosLosEventos.filter {
                                 val fecha = try { formatoCompleto.parse("${it.fecha} ${it.hora}") } catch (e: Exception) { null }
                                 (fecha?.before(ahora) == true) && !it.convertidoEnRecuerdo
                             }.sortedByDescending { it.fecha }
 
-                            SeccionEventosHome(
-                                proximos = eventosProximos,
-                                pendientes = eventosPasadosPendientes,
-                                onVerTodos = { onNavigateToScreen(NavRoutes.Eventos.route) },
-                                onCrear = { onNavigateToScreen(NavRoutes.CrearEvento.route) },
-                                onVerDetalle = { id -> onNavigateToScreen(NavRoutes.DetalleEvento.crearRuta(id)) }
-                            )
+                            val proximosMapeados = proximosFiltrados.map { 
+                                EventoPlan(it.id, it.titulo, "${it.fecha} · ${it.hora}", "")
+                            }
 
+                            val pendientesMapeados = pendientesFiltrados.map { 
+                                EventoPlan(it.id, it.titulo, "${it.fecha} · ${it.hora}", "")
+                            }
+                            
                             val ultimasEntradas = diarioState.ultimasEntradas
-                            SeccionUltimaActividad(
-                                entradas = ultimasEntradas,
-                                onVerDiario = { onNavigateToTab(NavRoutes.Calendario.route) },
-                                onVerDetalle = { id -> onNavigateToScreen(NavRoutes.DetalleEntrada.crearRuta(id)) }
+                            val recuerdosMapeados = ultimasEntradas.map {
+                                RecuerdoMemoria(
+                                    id = it.id,
+                                    titulo = it.titulo,
+                                    detalles = it.fecha, // Quitamos el campo inexistente
+                                    urlImagen = it.fotos.firstOrNull() ?: "",
+                                    cantidadFotos = it.fotos.size
+                                )
+                            }
+
+                            HomeActivitySections(
+                                proximosEventos = proximosMapeados,
+                                pendientesEventos = pendientesMapeados,
+                                recuerdosRecientes = recuerdosMapeados,
+                                onVerEvento = { id -> onNavigateToScreen(NavRoutes.DetalleEvento.crearRuta(id)) },
+                                onVerRecuerdo = { id -> onNavigateToScreen(NavRoutes.DetalleEntrada.crearRuta(id)) }
                             )
 
-                            SeccionCuestionarios(
-                                cuestionarios = cuestionarioState.historial,
-                                estados = cuestionarioState.estadosCuestionarios,
-                                onVerCuestionarios = { onNavigateToTab(NavRoutes.Cuestionarios.route) },
-                                onResponder = { id -> onNavigateToScreen(NavRoutes.ResponderCuestionario.crearRuta(id)) }
+                            // SECCIÓN CUESTIONARIOS (ESTADÍSTICAS)
+                            QuizStatsCard(
+                                completados = cuestionarioState.historial.size,
+                                coincidencias = 18, // Podrías calcular esto real si tienes el dato
+                                onVerDetalles = { onNavigateToTab(NavRoutes.Cuestionarios.route) }
                             )
                         }
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HomeHeader(usuario: Usuario?, pareja: Usuario?) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "Hola, ${usuario?.nombre ?: "Usuario"}",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(Modifier.width(8.dp))
-                Icon(
-                    painter = painterResource(id = com.cadev.mocaapp.feature.R.drawable.ic_reaccion_hola),
-                    contentDescription = null,
-                    tint = Color.Unspecified,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            Text(
-                text = if (pareja != null) "Tú y ${pareja.nombre} están conectados" else "¡Qué alegría verte de nuevo!",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
-        }
-        
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { ThemeManager.isDarkTheme = !ThemeManager.isDarkTheme }) {
-                Icon(
-                    imageVector = if (ThemeManager.isDarkTheme) Icons.Filled.LightMode else Icons.Filled.DarkMode,
-                    contentDescription = "Tema",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-            
-            Box(contentAlignment = Alignment.Center) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    AsyncImage(
-                        model = usuario?.fotoPerfil,
-                        contentDescription = "Mi perfil",
-                        modifier = Modifier
-                            .size(46.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .shadow(1.dp, CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                    if (pareja != null) {
-                        Spacer(Modifier.width((-12).dp))
-                        AsyncImage(
-                            model = pareja.fotoPerfil,
-                            contentDescription = "Pareja",
-                            modifier = Modifier
-                                .size(46.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .shadow(4.dp, CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CardDiasJuntos(diasJuntos: Long) {
-    val brush = Brush.horizontalGradient(
-        colors = listOf(
-            MaterialTheme.colorScheme.primaryContainer,
-            MaterialTheme.colorScheme.secondaryContainer
-        )
-    )
-
-    Card(
-        shape = RoundedCornerShape(28.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(4.dp, RoundedCornerShape(28.dp)),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-    ) {
-        Box(
-            modifier = Modifier
-                .background(brush)
-                .fillMaxWidth()
-                .padding(24.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "Llevan juntos",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = if (diasJuntos >= 0) "$diasJuntos" else "--",
-                        style = MaterialTheme.typography.displayLarge,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = "días",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "creando una historia increíble",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Icon(
-                        painter = painterResource(id = com.cadev.mocaapp.feature.R.drawable.ic_reaccion_chispa),
-                        contentDescription = null,
-                        tint = Color.Unspecified,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SeccionEstadoAnimo(
-    modifier: Modifier = Modifier,
-    miEmoji: String,
-    parejaEmoji: String,
-    nombrePareja: String,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = modifier
-            .height(160.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f))
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                "¿Cómo están hoy?",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.tertiary,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                MoodBubble(emoji = miEmoji.ifBlank { "unknown" }, label = "Tú")
-                Icon(
-                    painter = painterResource(id = com.cadev.mocaapp.feature.R.drawable.ic_reaccion_corazon), 
-                    null, 
-                    tint = Color.Unspecified, 
-                    modifier = Modifier.size(16.dp)
-                )
-                MoodBubble(emoji = parejaEmoji.ifBlank { "unknown" }, label = nombrePareja)
-            }
-        }
-    }
-}
-
-@Composable
-private fun MoodBubble(emoji: String, label: String) {
-    val mood = MAPA_MOODS[emoji] ?: MAPA_MOODS["unknown"]!!
-    
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                painter = painterResource(id = mood.iconRes),
-                contentDescription = mood.label,
-                tint = Color.Unspecified,
-                modifier = Modifier.size(28.dp)
-            )
-        }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = mood.label, 
-            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.primary,
-            maxLines = 1
-        )
-        Text(
-            text = label, 
-            style = MaterialTheme.typography.labelSmall, 
-            maxLines = 1, 
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@Composable
-private fun SeccionNotaPareja(
-    modifier: Modifier = Modifier,
-    nota: com.cadev.mocaapp.feature.notas.domain.model.NotaActual?,
-    nombrePareja: String,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = modifier
-            .height(160.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF9C4))
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    painter = painterResource(id = com.cadev.mocaapp.feature.R.drawable.ic_reaccion_pin), 
-                    null, 
-                    tint = Color.Unspecified, 
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    "Nota de $nombrePareja",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFFF57F17),
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = nota?.texto ?: "No hay notas nuevas por ahora...",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.DarkGray,
-                maxLines = 4,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 16.sp
-            )
-        }
-    }
-}
-
-@Composable
-private fun AccesosRapidos(
-    onNuevaEntrada: () -> Unit,
-    onNuevoEvento: () -> Unit,
-    onChat: () -> Unit,
-    onCuestionarios: () -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(
-            "Rincón compartido", 
-            style = MaterialTheme.typography.titleMedium, 
-            fontWeight = FontWeight.ExtraBold,
-            modifier = Modifier.padding(start = 4.dp)
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                AccesoItem(
-                    icon = Icons.Filled.ChatBubble,
-                    label = "Chat",
-                    color = Color(0xFF64B5F6),
-                    modifier = Modifier.weight(1f).height(90.dp),
-                    onClick = onChat
-                )
-                AccesoItem(
-                    icon = Icons.Filled.EditNote,
-                    label = "Diario",
-                    color = Color(0xFFF06292),
-                    modifier = Modifier.weight(1f).height(90.dp),
-                    onClick = onNuevaEntrada
-                )
-            }
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                AccesoItem(
-                    icon = Icons.AutoMirrored.Filled.Assignment,
-                    label = "Tests",
-                    color = Color(0xFF81C784),
-                    modifier = Modifier.weight(1f).height(90.dp),
-                    onClick = onCuestionarios
-                )
-                AccesoItem(
-                    icon = Icons.Filled.Event,
-                    label = "Evento",
-                    color = Color(0xFFFFB74D),
-                    modifier = Modifier.weight(1f).height(90.dp),
-                    onClick = onNuevoEvento
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun AccesoItem(
-    icon: ImageVector,
-    label: String,
-    color: Color,
-    modifier: Modifier,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick),
-        color = color.copy(alpha = 0.15f)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(icon, null, tint = color, modifier = Modifier.size(28.dp))
-            Spacer(Modifier.height(8.dp))
-            Text(label, style = MaterialTheme.typography.labelMedium, color = color, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-@Composable
-private fun SeccionEventosHome(
-    proximos: List<com.cadev.mocaapp.feature.eventos.domain.model.Evento>,
-    pendientes: List<com.cadev.mocaapp.feature.eventos.domain.model.Evento>,
-    onVerTodos: () -> Unit,
-    onCrear: () -> Unit,
-    onVerDetalle: (String) -> Unit
-) {
-    var selectedTab by remember { mutableStateOf(0) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Planes de pareja", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            TextButton(onClick = onVerTodos) { Text("Ver todos") }
-        }
-
-        TabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = Color.Transparent,
-            contentColor = MaterialTheme.colorScheme.primary,
-            indicator = { tabPositions ->
-                TabRowDefaults.SecondaryIndicator(
-                    Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                    color = MaterialTheme.colorScheme.primary
-                )
-            },
-            divider = {}
-        ) {
-            Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }) {
-                Text("Próximos", modifier = Modifier.padding(vertical = 12.dp), style = MaterialTheme.typography.labelLarge)
-            }
-            Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 12.dp)) {
-                    Text("Pendientes", style = MaterialTheme.typography.labelLarge)
-                    if (pendientes.isNotEmpty()) {
-                        Badge(containerColor = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 4.dp)) {
-                            Text(pendientes.size.toString(), color = Color.White)
-                        }
-                    }
-                }
-            }
-        }
-
-        val listaAMostrar = if (selectedTab == 0) proximos else pendientes
-
-        if (listaAMostrar.isEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth().clickable(onClick = if(selectedTab == 0) onCrear else ({})),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-            ) {
-                Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
-                        Icon(if (selectedTab == 0) Icons.Filled.Add else Icons.Filled.CheckCircle, null, tint = MaterialTheme.colorScheme.primary)
-                    }
-                    Text(
-                        if (selectedTab == 0) "Planeen su próxima aventura juntos" else "¡Todo al día! No hay eventos pendientes.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                listaAMostrar.take(3).forEach { evento ->
-                    val tipo = try { TipoEvento.valueOf(evento.tipo) } catch (_: Exception) { TipoEvento.OTRO }
-                    Card(
-                        modifier = Modifier.fillMaxWidth().clickable { onVerDetalle(evento.id) },
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Icon(imageVector = tipo.icono, contentDescription = null, modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(evento.titulo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Filled.AccessTime, null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("${evento.fecha} · ${evento.hora}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                                }
-                            }
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f), modifier = Modifier.size(20.dp))
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SeccionUltimaActividad(
-    entradas: List<com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario>,
-    onVerDiario: () -> Unit,
-    onVerDetalle: (String) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Recuerdos recientes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            TextButton(onClick = onVerDiario) { Text("Ver diario") }
-        }
-
-        if (entradas.isEmpty()) {
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) {
-                Text("Aún no han escrito nada en su diario. ¡Empiecen hoy!", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), modifier = Modifier.padding(20.dp), textAlign = TextAlign.Center)
-            }
-        } else {
-            Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                entradas.forEach { entrada ->
-                    val tipo = try { com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada.valueOf(entrada.tipo) } catch (_: Exception) { com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada.MI_DIA }
-                    Card(modifier = Modifier.width(280.dp).clickable { onVerDetalle(entrada.id) }, shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(Color(android.graphics.Color.parseColor("#${tipo.colorHex}")).copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
-                                    Icon(imageVector = tipo.icono, contentDescription = null, modifier = Modifier.size(24.dp), tint = Color(android.graphics.Color.parseColor("#${tipo.colorHex}")))
-                                }
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(text = entrada.titulo, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text(text = entrada.fecha, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                                }
-                            }
-                            if (entrada.detalles.isNotBlank()) {
-                                Spacer(Modifier.height(12.dp))
-                                Text(text = entrada.detalles, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-                            }
-                            if (entrada.fotos.isNotEmpty()) {
-                                Spacer(Modifier.height(12.dp))
-                                AsyncImage(model = entrada.fotos.first(), contentDescription = null, modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SeccionCuestionarios(
-    cuestionarios: List<com.cadev.mocaapp.feature.cuestionarios.domain.model.Cuestionario>,
-    estados: Map<String, EstadoCuestionario>,
-    onVerCuestionarios: () -> Unit,
-    onResponder: (String) -> Unit
-) {
-    val pendientes = estados.filter { it.value == EstadoCuestionario.PAREJA_RESPONDIÓ }.keys
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("¿Cuánto se conocen?", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
-            Text("Fortalezcan su vínculo respondiendo tests juntos", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), textAlign = TextAlign.Center)
-        }
-        if (pendientes.isNotEmpty()) {
-            Card(modifier = Modifier.fillMaxWidth().clickable { onResponder(pendientes.first()) }, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer), shape = RoundedCornerShape(24.dp), elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)) {
-                Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Icon(Icons.Filled.Bolt, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(36.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("¡Pareja respondió!", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("Es tu turno de completar el test", style = MaterialTheme.typography.bodySmall)
-                    }
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = MaterialTheme.colorScheme.secondary)
-                }
-            }
-        }
-        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))) {
-            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("${cuestionarios.size}", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
-                        Text("Completados", style = MaterialTheme.typography.labelMedium)
-                    }
-                    Box(modifier = Modifier.height(50.dp).width(1.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)))
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Tests", style = MaterialTheme.typography.labelMedium)
-                        Text("Juntos", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-                Button(onClick = onVerCuestionarios, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-                    Text("Explorar tests")
                 }
             }
         }

@@ -2,23 +2,19 @@ package com.cadev.mocaapp.feature.home.ui
 
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.core.Spring
-import androidx.annotation.DrawableRes
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -27,9 +23,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.cadev.mocaapp.core.ui.BottomNavItem
 import com.cadev.mocaapp.core.ui.NavRoutes
 import com.cadev.mocaapp.core.ui.PlaceholderScreen
+import com.cadev.mocaapp.core.utils.ThemeManager
 import com.cadev.mocaapp.feature.chat.ui.ChatScreen
 import com.cadev.mocaapp.feature.chat.ui.ChatViewModel
 import com.cadev.mocaapp.feature.cuestionarios.ui.CuestionarioViewModel
@@ -46,20 +42,15 @@ import com.cadev.mocaapp.feature.perfil.ui.AjustesScreen
 import com.cadev.mocaapp.feature.perfil.ui.PerfilParejaScreen
 import com.cadev.mocaapp.feature.perfil.ui.PerfilScreen
 import com.cadev.mocaapp.feature.perfil.ui.PerfilViewModel
+import com.cadev.mocaapp.feature.ui.screens.*
+import com.cadev.mocaapp.feature.ui.components.*
+import com.cadev.mocaapp.feature.ui.screens.LoadingTransition
+import com.cadev.mocaapp.feature.ui.utils.FondoMeshMoca
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.runBlocking
 
 /**
- * ESTA ES LA PANTALLA CONTENEDORA PRINCIPAL
- * 
- * Qué hace:
- * Se encarga de mostrar nuestro menú de navegación inferior y de intercambiar 
- * las pantallas principales de la aplicación: Inicio, Diario, Chat, Tests y Perfil. 
- * También gestionamos aquí la carga inicial de toda nuestra información.
- * 
- * Cómo lo podemos modificar:
- * Si queremos añadir una nueva pestaña al menú inferior, debemos añadir un 
- * nuevo `BottomNavItem` en la lista `tabs`.
+ * ESTA ES LA PANTALLA CONTENEDORA PRINCIPAL (ESTILO ZEN)
  */
 @RequiresApi(Build.VERSION_CODES.S)
 @Composable
@@ -68,31 +59,16 @@ fun MainScreen(
     navController: NavHostController,
     initialTab: String = ""
 ) {
-    /**
-     * NAVEGACIÓN INTERNA:
-     * Creamos un controlador de navegación interno para manejar las pestañas 
-     * de nuestro menú inferior de forma independiente.
-     */
     val tabNavController = rememberNavController()
     val navBackStackEntry by tabNavController.currentBackStackEntryAsState()
     val destinoActual = navBackStackEntry?.destination
     val rutaActual = destinoActual?.route
     val context = LocalContext.current
 
-    /**
-     * IDENTIFICACIÓN:
-     * Identificamos al usuario conectado y buscamos quién es su pareja 
-     * para cargar toda nuestra información compartida.
-     */
     val uid = remember {
         FirebaseAuth.getInstance().currentUser?.uid ?: ""
     }
 
-    /**
-     * GESTORES DE DATOS:
-     * Inicializamos todos los ViewModel que nos ayudarán a gestionar 
-     * la información en cada una de nuestras pestañas.
-     */
     val perfilViewModel: PerfilViewModel = viewModel(factory = factory)
     val cuestionarioViewModel: CuestionarioViewModel = viewModel(factory = factory)
     val chatViewModel: ChatViewModel = viewModel(factory = factory)
@@ -106,9 +82,6 @@ fun MainScreen(
     val perfilState by perfilViewModel.uiState.collectAsState()
     val contadores by notificacionViewModel.contadores.collectAsState()
 
-    /**
-     * Función rápida para volver siempre a la pestaña de inicio
-     */
     val irAlInicio = {
         tabNavController.navigate(NavRoutes.Home.route) {
             popUpTo(tabNavController.graph.findStartDestination().id) {
@@ -119,24 +92,9 @@ fun MainScreen(
         }
     }
 
-    /**
-     * NOTIFICACIONES:
-     * Activamos nuestro sistema de avisos en cuanto la aplicación está lista 
-     * para recibir mensajes y alertas push.
-     */
     LaunchedEffect(uid) {
         if (uid.isNotBlank()) {
             notificacionViewModel.iniciar(uid)
-        }
-    }
-
-    /**
-     * PERFIL EN TIEMPO REAL:
-     * Activamos el vigilante de nuestro perfil. Esto nos permite detectar al 
-     * instante si nuestra pareja nos vincula o si cambia algo en su perfil.
-     */
-    LaunchedEffect(uid) {
-        if (uid.isNotBlank()) {
             perfilViewModel.iniciarEscucha(uid)
         }
     }
@@ -145,26 +103,12 @@ fun MainScreen(
     val parejaIdActual = usuario?.parejaId
     val relacionIdActual = usuario?.relacionId
 
-    // Pantalla de carga mientras se recupera el perfil del usuario
+    // Pantalla de carga Zen
     if (usuario == null) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = androidx.compose.ui.Alignment.Center
-        ) {
-            CircularProgressIndicator(
-                color = MaterialTheme.colorScheme.primary,
-                strokeWidth = 3.dp
-            )
-        }
+        LoadingTransition()
         return
     }
 
-    /**
-     * CONTENIDO COMPARTIDO EN TIEMPO REAL:
-     * Cargamos nuestras citas próximas, recuerdos del diario y notas 
-     * rápidas. Activamos la escucha activa para que cualquier cambio se 
-     * refleje al instante en todas las pantallas sin refrescar.
-     */
     LaunchedEffect(uid, parejaIdActual, relacionIdActual) {
         if (!relacionIdActual.isNullOrBlank()) {
             eventoViewModel.iniciarEscucha(context, relacionIdActual)
@@ -173,38 +117,19 @@ fun MainScreen(
         }
     }
 
-    /**
-     * CHAT EN VIVO:
-     * Preparamos nuestro chat privado para que podamos enviarnos mensajes, 
-     * fotos y audios al instante.
-     */
     LaunchedEffect(uid, parejaIdActual) {
         if (uid.isNotBlank() && !parejaIdActual.isNullOrBlank()) {
             chatViewModel.inicializar(uid, usuario.nombre, usuario.fotoPerfil, parejaIdActual)
         }
     }
 
-    /**
-     * TESTS DE PAREJA EN TIEMPO REAL:
-     * Activamos la escucha de retos y tests para detectar si la pareja 
-     * ha respondido alguno al instante.
-     */
     LaunchedEffect(relacionIdActual, uid, parejaIdActual) {
         if (!relacionIdActual.isNullOrBlank()) {
-            cuestionarioViewModel.iniciarEscucha(
-                relacionId = relacionIdActual,
-                usuarioId = uid,
-                parejaId = parejaIdActual ?: ""
-            )
+            cuestionarioViewModel.iniciarEscucha(relacionIdActual, uid, parejaIdActual ?: "")
             cuestionarioViewModel.poblarPredefinidos()
         }
     }
 
-    /**
-     * LIMPIEZA DE AVISOS:
-     * Cada vez que entramos en una sección, limpiamos los avisos de mensajes 
-     * nuevos de esa parte específica.
-     */
     LaunchedEffect(rutaActual) {
         if (uid.isBlank()) return@LaunchedEffect
         when (rutaActual) {
@@ -214,11 +139,6 @@ fun MainScreen(
         }
     }
 
-    /**
-     * ATAJOS DE INICIO:
-     * Si abrimos la app desde una notificación o un widget, nos encargamos 
-     * de llevarnos directamente a la sección correcta.
-     */
     LaunchedEffect(initialTab) {
         if (initialTab.isBlank()) return@LaunchedEffect
         val ruta = when (initialTab) {
@@ -239,139 +159,60 @@ fun MainScreen(
         }
     }
 
-    /**
-     * MENÚ INFERIOR:
-     * Estas son las cinco pestañas principales que tenemos disponibles 
-     * en nuestra barra de navegación.
-     */
-    val tabs = listOf(
-        BottomNavItem.Home,
-        BottomNavItem.Calendario,
-        BottomNavItem.Chat,
-        BottomNavItem.Cuestionarios,
-        BottomNavItem.Perfil
+    // Definición de items para la barra flotante
+    val itemsNavegacion = listOf(
+        ItemNavegacionData("Inicio", Icons.Default.Home),
+        ItemNavegacionData("Diario", Icons.Default.CalendarToday, mostrarNotificacion = contadores.diario > 0),
+        ItemNavegacionData("Chat", Icons.Default.ChatBubble, mostrarNotificacion = contadores.chat > 0),
+        ItemNavegacionData("Tests", Icons.Default.Quiz, mostrarNotificacion = contadores.cuestionarios > 0),
+        ItemNavegacionData("Perfil", Icons.Default.Person)
     )
 
-    Scaffold(
-        bottomBar = {
-            /**
-             * BARRA DE NAVEGACIÓN:
-             * Diseñamos una barra inferior flotante y moderna que nos permite 
-             * movernos cómodamente por toda la app.
-             */
-            Surface(
-                tonalElevation = 8.dp,
-                shadowElevation = 16.dp,
-                modifier = Modifier
-                    .padding(horizontal = 24.dp, vertical = 20.dp) // Más margen lateral para efecto cápsula
-                    .clip(RoundedCornerShape(32.dp)),
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f) // Glassmorphism más sutil
-            ) {
-                NavigationBar(
-                    containerColor = Color.Transparent,
-                    modifier = Modifier.height(72.dp),
-                    windowInsets = WindowInsets(0, 0, 0, 0)
-                ) {
-                    tabs.forEach { tab ->
-                        val seleccionado = destinoActual
-                            ?.hierarchy
-                            ?.any { it.route == tab.route } == true
+    val indiceSeleccionado = when (rutaActual) {
+        NavRoutes.Home.route -> 0
+        NavRoutes.Calendario.route -> 1
+        NavRoutes.Chat.route -> 2
+        NavRoutes.Cuestionarios.route -> 3
+        NavRoutes.Perfil.route -> 4
+        else -> 0
+    }
 
-                        /**
-                         * ANIMACIÓN:
-                         * Añadimos una pequeña animación para que el icono crezca 
-                         * suavemente cuando lo seleccionamos.
-                         */
-                        val iconSize by animateDpAsState(
-                            targetValue = if (seleccionado) 28.dp else 24.dp,
-                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                            label = "iconSize"
-                        )
-
-                        /**
-                         * CONTADOR DE NOVEDADES:
-                         * Calculamos si tenemos mensajes nuevos o retos de pareja 
-                         * pendientes por responder.
-                         */
-                        val badgeCount = when (tab.route) {
-                            NavRoutes.Chat.route -> contadores.chat
-                            NavRoutes.Calendario.route -> contadores.diario
-                            NavRoutes.Cuestionarios.route -> contadores.cuestionarios
-                            else -> 0
-                        }
-
-                        NavigationBarItem(
-                            selected = seleccionado,
-                            onClick = {
-                                tabNavController.navigate(tab.route) {
-                                    popUpTo(tabNavController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = {
-                                BadgedBox(
-                                    badge = {
-                                        if (badgeCount > 0) {
-                                            Badge(
-                                                containerColor = MaterialTheme.colorScheme.primary, // Usamos color primario en lugar de error para paz
-                                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                                                modifier = Modifier.offset(x = (-4).dp, y = 4.dp)
-                                            ) {
-                                                Text(if (badgeCount > 9) "9+" else badgeCount.toString(), fontSize = 10.sp)
-                                            }
-                                        }
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = if (seleccionado) tab.iconoSeleccionado else tab.iconoNoSeleccionado,
-                                        contentDescription = tab.etiqueta,
-                                        modifier = Modifier.size(iconSize),
-                                        tint = if (seleccionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                    )
-                                }
-                            },
-                            label = {
-                                Text(
-                                    text = tab.etiqueta,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = if (seleccionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-                            )
-                        )
-                    }
+    FondoMeshMoca {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                    val titulo = when (rutaActual) {
+                    NavRoutes.Home.route -> "Inicio"
+                    NavRoutes.Calendario.route -> "Nuestro Diario"
+                    NavRoutes.Historial.route -> "Nuestra Historia"
+                    NavRoutes.Chat.route -> "Chat Privado"
+                    NavRoutes.Cuestionarios.route -> "Retos y Tests"
+                    NavRoutes.Perfil.route -> "Mi Perfil"
+                    else -> "Moca"
                 }
-            }
-        }
-    ) { paddingValues ->
-
-        /**
-         * CONTENEDOR DE PANTALLAS:
-         * Este es el lugar donde van cambiando nuestras pantallas (Inicio, 
-         * Diario, Chat, etc.) según lo que toquemos en el menú.
-         */
-        NavHost(
-            navController = tabNavController,
-            startDestination = NavRoutes.Home.route,
-            modifier = Modifier.padding(paddingValues)
-        ) {
-
-            composable(NavRoutes.Home.route) {
-                HomeScreen(
-                    perfilViewModel = perfilViewModel,
-                    eventoViewModel = eventoViewModel,
-                    diarioViewModel = diarioViewModel,
-                    cuestionarioViewModel = cuestionarioViewModel,
-                    notaViewModel = notaViewModel,
-                    estadoAnimoViewModel = estadoAnimoViewModel,
-                    parejaViewModel = parejaViewModel,
-                    onNavigateToTab = { route ->
-                        tabNavController.navigate(route) {
+                MocaHeader(
+                    titulo = titulo,
+                    nombreUsuario = usuario.nombre,
+                    nombrePareja = perfilState.pareja?.nombre ?: "",
+                    urlAvatarUsuario = usuario.fotoPerfil,
+                    urlAvatarPareja = perfilState.pareja?.fotoPerfil ?: "",
+                    esModoOscuro = ThemeManager.isDarkTheme,
+                    alHacerClickEnTema = { ThemeManager.isDarkTheme = !ThemeManager.isDarkTheme }
+                )
+            },
+            bottomBar = {
+                BarraNavegacionFlotante(
+                    indiceSeleccionado = indiceSeleccionado,
+                    alSeleccionarItem = { i ->
+                        val ruta = when (i) {
+                            0 -> NavRoutes.Home.route
+                            1 -> NavRoutes.Calendario.route
+                            2 -> NavRoutes.Chat.route
+                            3 -> NavRoutes.Cuestionarios.route
+                            4 -> NavRoutes.Perfil.route
+                            else -> NavRoutes.Home.route
+                        }
+                        tabNavController.navigate(ruta) {
                             popUpTo(tabNavController.graph.findStartDestination().id) {
                                 saveState = true
                             }
@@ -379,116 +220,167 @@ fun MainScreen(
                             restoreState = true
                         }
                     },
-                    onNavigateToScreen = { route ->
-                        navController.navigate(route)
-                    },
-                    onIrAVincular = {
-                        navController.navigate(NavRoutes.CodigoPareja.route)
-                    },
-                    onVinculado = { relacionId ->
-                        navController.navigate(NavRoutes.FechaRelacion.crearRuta(relacionId))
-                    }
+                    items = itemsNavegacion
                 )
             }
-
-            composable(NavRoutes.Calendario.route) {
-                CalendarioScreen(
-                    viewModel = diarioViewModel,
-                    usuarioId = uid,
-                    parejaId = parejaIdActual,
-                    relacionId = relacionIdActual ?: "",
-                    onRegresar = irAlInicio,
-                    onDiaSeleccionado = { fecha ->
-                        navController.navigate(NavRoutes.DetalleDia.crearRuta(fecha))
-                    },
-                    onVerEventos = {
-                        navController.navigate(NavRoutes.Eventos.route)
-                    },
-                    onVerDetalleEntrada = { id ->
-                        navController.navigate(NavRoutes.DetalleEntrada.crearRuta(id))
-                    },
-                    onVerDetalleEvento = { id ->
-                        navController.navigate(NavRoutes.DetalleEvento.crearRuta(id))
-                    }
-                )
-            }
-
-            composable(NavRoutes.Chat.route) {
-                if (!parejaIdActual.isNullOrBlank()) {
-                    ChatScreen(
-                        viewModel = chatViewModel,
-                        usuarioId = uid,
-                        usuarioNombre = usuario.nombre,
-                        usuarioFoto = usuario.fotoPerfil,
-                        parejaId = parejaIdActual,
-                        nombrePareja = perfilState.pareja?.nombre ?: "Mi pareja",
-                        fotoPareja = perfilState.pareja?.fotoPerfil,
-                        onRegresar = irAlInicio
-                    )
-                } else {
-                    PlaceholderScreen("Vincula tu pareja primero")
-                }
-            }
-
-            composable(NavRoutes.Cuestionarios.route) {
-                CuestionariosScreen(
-                    viewModel = cuestionarioViewModel,
-                    usuarioId = uid,
-                    parejaId = parejaIdActual ?: "",
-                    relacionId = relacionIdActual ?: "",
-                    onRegresar = irAlInicio,
-                    onIniciarCuestionario = { id ->
-                        navController.navigate(NavRoutes.ResponderCuestionario.crearRuta(id))
-                    },
-                    onVerResultados = { id ->
-                        navController.navigate(NavRoutes.ResultadosCuestionario.crearRuta(id))
-                    },
-                    onCrearCuestionario = {
-                        navController.navigate(NavRoutes.CrearCuestionario.route)
-                    }
-                )
-            }
-
-            composable(NavRoutes.Perfil.route) {
-                PerfilScreen(
-                    viewModel = perfilViewModel,
-                    usuarioId = uid,
-                    parejaId = parejaIdActual,
-                    onRegresar = irAlInicio,
-                    onIrAjustes = { navController.navigate(NavRoutes.Ajustes.route) },
-                    onVerPerfilPareja = { id ->
-                        navController.navigate(NavRoutes.PerfilPareja.crearRuta(id))
-                    },
-                    onLogout = {
-                        navController.navigate(NavRoutes.Login.route) {
-                            popUpTo(0) { inclusive = true }
+        ) { paddingValues ->
+            AnimatedContent(
+                targetState = rutaActual,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(400)) togetherWith fadeOut(animationSpec = tween(400))
+                },
+                label = "transicionPestana"
+            ) { targetRuta ->
+                Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+                    NavHost(
+                        navController = tabNavController,
+                        startDestination = NavRoutes.Home.route
+                    ) {
+                        composable(NavRoutes.Home.route) {
+                            HomeScreen(
+                                perfilViewModel = perfilViewModel,
+                                eventoViewModel = eventoViewModel,
+                                diarioViewModel = diarioViewModel,
+                                cuestionarioViewModel = cuestionarioViewModel,
+                                notaViewModel = notaViewModel,
+                                estadoAnimoViewModel = estadoAnimoViewModel,
+                                parejaViewModel = parejaViewModel,
+                                onNavigateToTab = { route ->
+                                    tabNavController.navigate(route) {
+                                        popUpTo(tabNavController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
+                                onNavigateToScreen = { route ->
+                                    navController.navigate(route)
+                                },
+                                onIrAVincular = {
+                                    navController.navigate(NavRoutes.CodigoPareja.route)
+                                },
+                                onVinculado = { relacionId ->
+                                    navController.navigate(NavRoutes.FechaRelacion.crearRuta(relacionId))
+                                }
+                            )
                         }
-                        FirebaseAuth.getInstance().signOut()
+
+                        composable(NavRoutes.Calendario.route) {
+                            CalendarView(
+                                viewModel = diarioViewModel,
+                                usuarioId = uid,
+                                parejaId = parejaIdActual,
+                                relacionId = relacionIdActual ?: "",
+                                onRegresar = irAlInicio,
+                                onDiaSeleccionado = { fecha ->
+                                    navController.navigate(NavRoutes.DetalleDia.crearRuta(fecha))
+                                },
+                                onVerListado = {
+                                    tabNavController.navigate(NavRoutes.Historial.route)
+                                },
+                                onVerEventos = {
+                                    navController.navigate(NavRoutes.Eventos.route)
+                                }
+                            )
+                        }
+
+                        composable(NavRoutes.Historial.route) {
+                            TimelineScreen(
+                                viewModel = diarioViewModel,
+                                usuarioId = uid,
+                                parejaId = parejaIdActual,
+                                relacionId = relacionIdActual ?: "",
+                                onVerDetalleEntrada = { id ->
+                                    navController.navigate(NavRoutes.DetalleEntrada.crearRuta(id))
+                                },
+                                onVerDetalleEvento = { id ->
+                                    navController.navigate(NavRoutes.DetalleEvento.crearRuta(id))
+                                },
+                                onIrAAjustes = { navController.navigate(NavRoutes.Ajustes.route) },
+                                onRegresar = { tabNavController.popBackStack() }
+                            )
+                        }
+
+                        composable(NavRoutes.Chat.route) {
+                            if (!parejaIdActual.isNullOrBlank()) {
+                                ChatScreen(
+                                    viewModel = chatViewModel,
+                                    usuarioId = uid,
+                                    usuarioNombre = usuario.nombre,
+                                    usuarioFoto = usuario.fotoPerfil,
+                                    parejaId = parejaIdActual,
+                                    nombrePareja = perfilState.pareja?.nombre ?: "Mi pareja",
+                                    fotoPareja = perfilState.pareja?.fotoPerfil,
+                                    onRegresar = irAlInicio
+                                )
+                            } else {
+                                PlaceholderScreen("Vincula tu pareja primero")
+                            }
+                        }
+
+                        composable(NavRoutes.Cuestionarios.route) {
+                            CuestionariosScreen(
+                                viewModel = cuestionarioViewModel,
+                                usuarioId = uid,
+                                parejaId = parejaIdActual ?: "",
+                                relacionId = relacionIdActual ?: "",
+                                onRegresar = irAlInicio,
+                                onIniciarCuestionario = { id ->
+                                    navController.navigate(NavRoutes.ResponderCuestionario.crearRuta(id))
+                                },
+                                onVerResultados = { id ->
+                                    navController.navigate(NavRoutes.ResultadosCuestionario.crearRuta(id))
+                                },
+                                onCrearCuestionario = {
+                                    navController.navigate(NavRoutes.CrearCuestionario.route)
+                                }
+                            )
+                        }
+
+                        composable(NavRoutes.Perfil.route) {
+                            PerfilScreen(
+                                viewModel = perfilViewModel,
+                                usuarioId = uid,
+                                parejaId = parejaIdActual,
+                                onRegresar = irAlInicio,
+                                onIrAjustes = { navController.navigate(NavRoutes.Ajustes.route) },
+                                onVerPerfilPareja = { id ->
+                                    navController.navigate(NavRoutes.PerfilPareja.crearRuta(id))
+                                },
+                                onLogout = {
+                                    navController.navigate(NavRoutes.Login.route) {
+                                        popUpTo(0) { inclusive = true }
+                                    }
+                                    FirebaseAuth.getInstance().signOut()
+                                }
+                            )
+                        }
+
+                        composable(NavRoutes.Ajustes.route) {
+                            AjustesScreen(
+                                viewModel = perfilViewModel,
+                                usuarioId = uid,
+                                parejaId = parejaIdActual,
+                                onRegresar = { navController.popBackStack() }
+                            )
+                        }
+
+                        composable(
+                            route = NavRoutes.PerfilPareja.route,
+                            arguments = listOf(
+                                navArgument("parejaId") { type = NavType.StringType }
+                            )
+                        ) { backStackEntry ->
+                            val pId = backStackEntry.arguments?.getString("parejaId") ?: ""
+                            PerfilParejaScreen(
+                                viewModel = perfilViewModel,
+                                parejaId = pId,
+                                onRegresar = { navController.popBackStack() }
+                            )
+                        }
                     }
-                )
-            }
-
-            composable(NavRoutes.Ajustes.route) {
-                AjustesScreen(
-                    viewModel = perfilViewModel,
-                    usuarioId = uid,
-                    parejaId = parejaIdActual,
-                    onRegresar = { navController.popBackStack() }
-                )
-            }
-
-            composable(
-                route = NavRoutes.PerfilPareja.route,
-                arguments = listOf(
-                    navArgument("parejaId") { type = NavType.StringType }
-                )
-            ) { backStackEntry ->
-                val pId = backStackEntry.arguments?.getString("parejaId") ?: ""
-                PerfilParejaScreen(
-                    viewModel = perfilViewModel,
-                    parejaId = pId,
-                    onRegresar = { navController.popBackStack() }
-                )
+                }
             }
         }
     }

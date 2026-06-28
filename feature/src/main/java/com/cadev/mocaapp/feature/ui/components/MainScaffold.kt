@@ -45,10 +45,16 @@ fun MainScaffold(
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
+                // Como MainScaffold es genérico, le pasamos valores por defecto o vacíos
+                // Pero lo ideal es que MainScreen maneje esto directamente
                 MocaHeader(
                     titulo = tituloHeader,
-                    alVolver = alVolver,
-                    alClickNotificaciones = { /* Acción notificaciones */ }
+                    nombreUsuario = "",
+                    nombrePareja = "",
+                    urlAvatarUsuario = "",
+                    urlAvatarPareja = "",
+                    esModoOscuro = false,
+                    alHacerClickEnTema = { }
                 )
             },
             bottomBar = {

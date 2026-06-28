@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -30,6 +31,7 @@ fun HomeHeader(
     nombrePareja: String,
     urlAvatarUsuario: String,
     urlAvatarPareja: String,
+    esModoOscuro: Boolean,
     alHacerClickEnTema: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -92,8 +94,8 @@ fun HomeHeader(
                         .background(colorPrimaryContainer.copy(alpha = 0.3f))
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.LightMode,
-                        contentDescription = "Cambiar modo de luz",
+                        imageVector = if (esModoOscuro) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
+                        contentDescription = if (esModoOscuro) "Cambiar a modo claro" else "Cambiar a modo oscuro",
                         tint = colorPrimary,
                         modifier = Modifier.size(20.dp)
                     )
@@ -149,6 +151,7 @@ fun HomeHeaderPreview() {
             nombrePareja = "Sam",
             urlAvatarUsuario = "",
             urlAvatarPareja = "",
+            esModoOscuro = false,
             alHacerClickEnTema = {}
         )
     }

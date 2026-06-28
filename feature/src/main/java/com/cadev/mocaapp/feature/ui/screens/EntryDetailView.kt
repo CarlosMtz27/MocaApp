@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -40,7 +41,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * VISTA DE LECTURA DE ENTRADA (SECCIÓN 4.4)
- * Fiel al diseño "Memories - Organic Minimalist" del HTML.
+ * Fiel al diseño "Memories - Organic Minimalist" con textos en español.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,7 +66,8 @@ fun EntryDetailView(
         else try {
             val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val date = sdf.parse(entrada.fecha) ?: Date()
-            SimpleDateFormat("MMMM d, yyyy", Locale.forLanguageTag("en-US")).format(date)
+            SimpleDateFormat("d 'de' MMMM, yyyy", Locale.forLanguageTag("es-MX")).format(date)
+                .replaceFirstChar { it.uppercase() }
         } catch (e: Exception) {
             entrada.fecha
         }
@@ -76,7 +78,7 @@ fun EntryDetailView(
             TopAppBar(
                 title = {
                     Text(
-                        "Memories",
+                        "Detalle del Recuerdo",
                         style = OrganicTypography.headlineMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
                         color = MocaOnSurface,
                         modifier = Modifier.fillMaxWidth().padding(end = 48.dp),
@@ -133,7 +135,8 @@ fun EntryDetailView(
                             contentDescription = null,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .aspectRatio(1.2f) // Reducido para ocupar aprox 1/3 de la pantalla
+                                .aspectRatio(1.2f)
+                                .shadow(8.dp, RoundedCornerShape(16.dp)) // Sombra para efecto flotante
                                 .clip(RoundedCornerShape(16.dp)),
                             contentScale = ContentScale.Crop
                         )
@@ -166,20 +169,21 @@ fun EntryDetailView(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 24.dp),
+                            .padding(start = 12.dp, end = 12.dp, bottom = 24.dp), // Ajustado para evitar cortes
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         StatusChip(
                             icon = Icons.Outlined.ChatBubbleOutline,
-                            text = "${comentarios.size} Comments",
+                            text = "${comentarios.size} Comentarios",
                             containerColor = MocaSurfaceContainerHigh
                         )
                         if (entrada.compartida) {
-                            Spacer(Modifier.width(12.dp))
+                            val textoCompartido = if (entrada.usuarioId == usuarioId) "Compartido con tu pareja" else "Compartido por tu pareja"
+                            Spacer(Modifier.width(8.dp))
                             StatusChip(
                                 icon = Icons.Default.Favorite,
-                                text = "Shared with your partner",
+                                text = textoCompartido,
                                 containerColor = MocaTertiaryContainer,
                                 contentColor = MocaOnTertiaryContainer,
                                 fillIcon = true
@@ -213,20 +217,25 @@ fun StatusChip(
         modifier = Modifier.height(32.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp),
+            modifier = Modifier.padding(horizontal = 12.dp), // Reducido de 16 a 12
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp) // Reducido de 8 a 6
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(16.dp), // Reducido de 18 a 16
                 tint = contentColor
             )
             Text(
                 text = text,
-                style = OrganicTypography.labelMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
-                color = contentColor
+                style = OrganicTypography.labelMedium.copy(
+                    fontSize = 12.sp, // Reducido de 14 a 12 para que quepa mejor
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = contentColor,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
         }
     }
@@ -235,12 +244,13 @@ fun StatusChip(
 @Composable
 fun CommentItem(comentario: Comentario) {
     val tiempoHace = remember(comentario.creadoEn) {
-        val diff = Date().time - comentario.creadoEn.toDate().time
+        val date = comentario.creadoEn.toDate()
+        val diff = Date().time - date.time
         val hours = TimeUnit.MILLISECONDS.toHours(diff)
         when {
-            hours < 1 -> "Just now"
-            hours < 24 -> "$hours hours ago"
-            else -> "Yesterday"
+            hours < 1 -> "Ahora mismo"
+            hours < 24 -> "Hace $hours h"
+            else -> SimpleDateFormat("d 'de' MMM", Locale.forLanguageTag("es-MX")).format(date)
         }
     }
 
@@ -250,7 +260,6 @@ fun CommentItem(comentario: Comentario) {
             .padding(horizontal = 24.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Avatar (Placeholder con inicial)
         Surface(
             modifier = Modifier.size(40.dp),
             shape = CircleShape,
@@ -299,7 +308,7 @@ fun BottomCommentBar(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .imePadding(), // Se eleva con el teclado
+            .imePadding(),
         color = MocaSurfaceContainerLowest,
         tonalElevation = 2.dp,
         border = BorderStroke(1.dp, MocaSurfaceVariant.copy(alpha = 0.5f))
@@ -311,7 +320,6 @@ fun BottomCommentBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Avatar del usuario actual (Placeholder circular)
             Surface(
                 modifier = Modifier.size(32.dp),
                 shape = CircleShape,
@@ -322,7 +330,6 @@ fun BottomCommentBar(
                 }
             }
             
-            // Campo de entrada estilo HTML (Píldora)
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -333,7 +340,7 @@ fun BottomCommentBar(
             ) {
                 if (nuevoComentario.isEmpty()) {
                     Text(
-                        text = "Add a comment...",
+                        text = "Escribe un comentario...",
                         style = OrganicTypography.bodyMedium.copy(fontSize = 14.sp),
                         color = MocaOutline
                     )
@@ -346,7 +353,7 @@ fun BottomCommentBar(
                         fontSize = 14.sp,
                         color = MocaOnSurface
                     ),
-                    cursorBrush = SolidColor(MocaAccentPink), // Cursor rosa
+                    cursorBrush = SolidColor(MocaAccentPink),
                     modifier = Modifier.fillMaxWidth(),
                     decorationBox = { innerTextField ->
                         innerTextField()
@@ -354,7 +361,6 @@ fun BottomCommentBar(
                 )
             }
             
-            // Botón de enviar circular con rosa vibrante
             IconButton(
                 onClick = onEnviar,
                 enabled = nuevoComentario.isNotBlank(),

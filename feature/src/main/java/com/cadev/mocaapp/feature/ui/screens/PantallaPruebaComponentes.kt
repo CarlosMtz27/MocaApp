@@ -68,7 +68,8 @@ fun PantallaPruebaComponentes(
                     pantallaActual = "lectura"
                 },
                 onVerDetalleEvento = { /* Navegar a detalle evento */ },
-                onIrAAjustes = { /* Navegar a ajustes */ }
+                onIrAAjustes = { /* Navegar a ajustes */ },
+                onRegresar = { pantallaActual = "calendario" }
             )
         }
         else -> {

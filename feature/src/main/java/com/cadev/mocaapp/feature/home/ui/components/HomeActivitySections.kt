@@ -2,7 +2,9 @@ package com.cadev.mocaapp.feature.home.ui.components
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -23,11 +25,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,6 +45,7 @@ data class RecuerdoMemoria(val id: String, val titulo: String, val detalles: Str
 @Composable
 fun HomeActivitySections(
     proximosEventos: List<EventoPlan>,
+    pendientesEventos: List<EventoPlan>,
     recuerdosRecientes: List<RecuerdoMemoria>,
     onVerEvento: (String) -> Unit,
     onVerRecuerdo: (String) -> Unit
@@ -50,14 +53,6 @@ fun HomeActivitySections(
     var selectedTab by remember { mutableIntStateOf(0) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "Activity Hub",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1E1B14),
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-        )
-
         SectionHeader(titulo = "Planes de Pareja")
 
         Box(
@@ -118,14 +113,24 @@ fun HomeActivitySections(
                     .padding(horizontal = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                if (tabIndex == 0) {
-                    proximosEventos.forEachIndexed { index, evento ->
-                        AnimatedCardEntrance(index = index) {
-                            PlanCard(evento = evento, onClick = { onVerEvento(evento.id) })
-                        }
+                val listaAMostrar = if (tabIndex == 0) proximosEventos else pendientesEventos
+                
+                if (listaAMostrar.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 20.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (tabIndex == 0) "Sin planes, ¡planea algo increíble!" else "¡Todo al día! No hay pendientes.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFF4F4446).copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 } else {
-                    proximosEventos.take(1).forEachIndexed { index, evento ->
+                    listaAMostrar.forEachIndexed { index, evento ->
                         AnimatedCardEntrance(index = index) {
                             PlanCard(evento = evento, onClick = { onVerEvento(evento.id) })
                         }
@@ -250,18 +255,22 @@ fun PlanCard(evento: EventoPlan, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(evento.urlImagen)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = null,
+            // Logo de la app en forma circular
+            Box(
                 modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .shadow(1.dp, RoundedCornerShape(12.dp)),
-                contentScale = ContentScale.Crop
-            )
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.5f))
+                    .border(1.dp, Color(0xFF78555E).copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = com.cadev.mocaapp.feature.R.drawable.ic_reaccion_corazon), // Usamos el corazón como logo representativo si no hay un logo.png claro
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
