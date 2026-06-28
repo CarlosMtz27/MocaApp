@@ -74,6 +74,12 @@ fun DayDetailList(
         }
     }
 
+    val esFuturo = remember(fecha) {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val hoy = sdf.format(Date())
+        fecha > hoy
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -100,13 +106,15 @@ fun DayDetailList(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { mostrarMenuCrear = true },
-                containerColor = MocaPrimary,
-                contentColor = Color.White,
-                shape = CircleShape
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Añadir")
+            if (!esFuturo) {
+                FloatingActionButton(
+                    onClick = { mostrarMenuCrear = true },
+                    containerColor = MocaPrimary,
+                    contentColor = Color.White,
+                    shape = CircleShape
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Añadir")
+                }
             }
         },
         containerColor = Color.Transparent

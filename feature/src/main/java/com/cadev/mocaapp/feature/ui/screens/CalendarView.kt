@@ -18,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -219,9 +220,13 @@ fun CalendarioGrid(
                             val fechaStr = formatoFecha.format(fechaCal.time)
                             val info = diasConEntrada[fechaStr]
                             
+                            val hoy = formatoFecha.format(Date())
+                            val esFuturo = fechaStr > hoy
+
                             DiaCelda(
                                 numero = dia,
                                 info = info,
+                                esFuturo = esFuturo,
                                 onClick = { onDiaClick(fechaStr) }
                             )
                         }
@@ -243,6 +248,7 @@ fun CalendarioGrid(
 fun DiaCelda(
     numero: Int,
     info: DiaCalendarioInfo?,
+    esFuturo: Boolean,
     onClick: () -> Unit
 ) {
     val tieneFoto = !info?.primeraFoto.isNullOrBlank()
@@ -250,13 +256,14 @@ fun DiaCelda(
 
     Box(
         modifier = Modifier
-            .size(46.dp) // Aumentado de 40.dp a 46.dp
+            .size(46.dp)
             .clip(MocaShapes.medium)
             .then(
                 if (tieneFoto) Modifier.neuInset(radioBorde = 12.dp)
                 else Modifier
             )
-            .clickable(onClick = onClick),
+            .alpha(if (esFuturo) 0.6f else 1f) // Menos opacidad pero legible para eventos
+            .clickable(onClick = onClick), // Habilitado para ver eventos futuros
         contentAlignment = Alignment.Center
     ) {
         if (tieneFoto) {

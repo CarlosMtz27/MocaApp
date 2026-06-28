@@ -14,6 +14,7 @@ data class Comentario(
     val entradaId: String = "",     // A qué recuerdo pertenece
     val usuarioId: String = "",     // Quién lo escribió
     val nombreUsuario: String = "", // Nombre de la persona para mostrar rápido
+    val fotoUsuario: String = "",   // Foto de perfil del autor
     val texto: String = "",         // El mensaje escrito
     val relacionId: String = "",    // ID de la relación para permisos
     val creadoEn: Timestamp = Timestamp.now() // Cuándo se publicó

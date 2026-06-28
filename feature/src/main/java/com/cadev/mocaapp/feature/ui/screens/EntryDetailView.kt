@@ -4,7 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -38,6 +38,8 @@ import com.cadev.mocaapp.feature.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
+
+import com.cadev.mocaapp.feature.ui.components.*
 
 /**
  * VISTA DE LECTURA DE ENTRADA (SECCIÓN 4.4)
@@ -95,8 +97,9 @@ fun EntryDetailView(
         },
         bottomBar = {
             if (entrada != null) {
-                BottomCommentBar(
+                ModernCommentInput(
                     nuevoComentario = uiState.nuevoComentario,
+                    fotoUsuario = uiState.fotoUsuario,
                     onTextoChange = { viewModel.actualizarNuevoComentario(it) },
                     onEnviar = {
                         val parejaId = if (entrada.usuarioId == usuarioId) entrada.parejaId else entrada.usuarioId
@@ -196,8 +199,8 @@ fun EntryDetailView(
             }
 
             // COMENTARIOS
-            items(comentarios) { comentario ->
-                CommentItem(comentario = comentario)
+            itemsIndexed(comentarios) { index, comentario ->
+                ModernCommentItem(comentario = comentario, index = index)
             }
         }
     }

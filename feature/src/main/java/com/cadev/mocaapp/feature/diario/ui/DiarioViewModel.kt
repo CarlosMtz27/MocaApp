@@ -48,6 +48,7 @@ data class DiarioUiState(
     val comentarios: List<Comentario> = emptyList(),
     val nuevoComentario: String = "",
     val nombreUsuario: String = "",
+    val fotoUsuario: String = "", // Añadido para mostrar en comentarios
     val relacionId: String = "",
     val ultimasEntradas: List<EntradaDiario> = emptyList(),
     val eventos: List<Evento> = emptyList(),
@@ -152,7 +153,8 @@ class DiarioViewModel(
                     .get()
                     .await()
                 _uiState.value = _uiState.value.copy(
-                    nombreUsuario = doc.getString("nombre") ?: "Usuario"
+                    nombreUsuario = doc.getString("nombre") ?: "Usuario",
+                    fotoUsuario = doc.getString("fotoPerfil") ?: ""
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(nombreUsuario = "Usuario")
@@ -494,23 +496,28 @@ class DiarioViewModel(
         viewModelScope.launch {
             repository.escucharComentarios(entradaId).collect { comentarios ->
                 val usuariosUnicos = comentarios.map { it.usuarioId }.distinct()
-                val nombresMap = mutableMapOf<String, String>()
+                val userDataMap = mutableMapOf<String, Pair<String, String>>() // Nombre y Foto
                 usuariosUnicos.forEach { uid ->
                     try {
                         val doc = FirebaseFirestore.getInstance()
                             .collection("usuarios").document(uid).get().await()
-                        nombresMap[uid] = doc.getString("nombre") ?: "Usuario"
+                        userDataMap[uid] = Pair(
+                            doc.getString("nombre") ?: "Usuario",
+                            doc.getString("fotoPerfil") ?: ""
+                        )
                     } catch (e: Exception) {
-                        nombresMap[uid] = "Usuario"
+                        userDataMap[uid] = Pair("Usuario", "")
                     }
                 }
-                val comentariosConNombre = comentarios.map { c ->
-                    if (c.nombreUsuario.isBlank())
-                        c.copy(nombreUsuario = nombresMap[c.usuarioId] ?: "Usuario")
-                    else c
+                val comentariosConData = comentarios.map { c ->
+                    val data = userDataMap[c.usuarioId]
+                    c.copy(
+                        nombreUsuario = if (c.nombreUsuario.isBlank()) data?.first ?: "Usuario" else c.nombreUsuario,
+                        fotoUsuario = data?.second ?: ""
+                    )
                 }
                 _uiState.value = _uiState.value.copy(
-                    comentarios = comentariosConNombre
+                    comentarios = comentariosConData
                 )
             }
         }
