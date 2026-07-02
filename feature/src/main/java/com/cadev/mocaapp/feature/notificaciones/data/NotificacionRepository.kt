@@ -145,12 +145,13 @@ class NotificacionRepository(
 
             val json = JSONObject().apply {
                 put("app_id", oneSignalAppId)
-                put("include_player_ids", JSONArray().put(playerId))
-                /**
-                 * NOTIFICACIONES "DATA-ONLY" DE ALTA PRIORIDAD:
-                 * Al no enviar 'headings' ni 'contents', el SDK de OneSignal no muestra nada automáticamente.
-                 * Enviamos 'priority': 10 para que FCM le dé importancia alta y despierte la app incluso en reposo.
-                 */
+                // Usamos include_subscription_ids para OneSignal v5+
+                put("include_subscription_ids", JSONArray().put(playerId))
+                
+                // Añadimos headings y contents para que la notificación sea VISIBLE
+                put("headings", JSONObject().put("en", titulo).put("es", titulo))
+                put("contents", JSONObject().put("en", cuerpo).put("es", cuerpo))
+
                 put("data", dataJson)
                 put("priority", 10) 
                 put("android_background_data", true)

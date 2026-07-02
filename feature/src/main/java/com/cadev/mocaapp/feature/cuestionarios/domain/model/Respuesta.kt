@@ -19,5 +19,6 @@ data class Respuesta(
     val preguntaId: String = "",              // Cuál era la pregunta
     val valor: String = "",                   // El contenido de la respuesta
     val imagenUrl: String = "",               // Enlace a la foto si el tipo era FOTO
+    val comentario: String = "",              // Texto opcional adicional
     val creadoEn: Timestamp = Timestamp.now() // Cuándo se guardó
 )

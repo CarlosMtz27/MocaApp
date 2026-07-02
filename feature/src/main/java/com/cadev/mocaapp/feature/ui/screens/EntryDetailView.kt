@@ -1,7 +1,5 @@
 package com.cadev.mocaapp.feature.ui.screens
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -9,12 +7,9 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,27 +18,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.cadev.mocaapp.feature.diario.domain.model.Comentario
 import com.cadev.mocaapp.feature.diario.ui.DiarioViewModel
 import com.cadev.mocaapp.feature.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.TimeUnit
 
 import com.cadev.mocaapp.feature.ui.components.*
 
 /**
  * VISTA DE LECTURA DE ENTRADA (SECCIÓN 4.4)
- * Fiel al diseño "Memories - Organic Minimalist" con textos en español.
+ * Fiel al diseño "Memories - Organic Minimalist" con textos en español y soporte Modo Oscuro.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,19 +71,23 @@ fun EntryDetailView(
             TopAppBar(
                 title = {
                     Text(
-                        "Detalle del Recuerdo",
+                        text = "Detalle del Recuerdo",
                         style = OrganicTypography.headlineMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
-                        color = MocaOnSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.fillMaxWidth().padding(end = 48.dp),
                         textAlign = TextAlign.Center
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onRegresar) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Regresar", tint = MocaOnSurface)
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack, 
+                            contentDescription = "Regresar", 
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MocaSurface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
         bottomBar = {
@@ -108,11 +103,11 @@ fun EntryDetailView(
                 )
             }
         },
-        containerColor = MocaSurface
+        containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
         if (entrada == null) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = MocaPrimary)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
             return@Scaffold
         }
@@ -139,7 +134,7 @@ fun EntryDetailView(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(1.2f)
-                                .shadow(8.dp, RoundedCornerShape(16.dp)) // Sombra para efecto flotante
+                                .shadow(8.dp, RoundedCornerShape(16.dp)) 
                                 .clip(RoundedCornerShape(16.dp)),
                             contentScale = ContentScale.Crop
                         )
@@ -158,13 +153,13 @@ fun EntryDetailView(
                     Text(
                         text = fechaFormateada,
                         style = OrganicTypography.labelMedium,
-                        color = MocaPrimary,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
                     )
                     Text(
                         text = entrada.titulo,
                         style = OrganicTypography.headlineLarge,
-                        color = MocaOnSurface,
+                        color = MaterialTheme.colorScheme.primary,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(bottom = 24.dp)
                     )
@@ -172,14 +167,14 @@ fun EntryDetailView(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 12.dp, end = 12.dp, bottom = 24.dp), // Ajustado para evitar cortes
+                            .padding(start = 12.dp, end = 12.dp, bottom = 24.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         StatusChip(
                             icon = Icons.Outlined.ChatBubbleOutline,
                             text = "${comentarios.size} Comentarios",
-                            containerColor = MocaSurfaceContainerHigh
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                         if (entrada.compartida) {
                             val textoCompartido = if (entrada.usuarioId == usuarioId) "Compartido con tu pareja" else "Compartido por tu pareja"
@@ -187,14 +182,14 @@ fun EntryDetailView(
                             StatusChip(
                                 icon = Icons.Default.Favorite,
                                 text = textoCompartido,
-                                containerColor = MocaTertiaryContainer,
-                                contentColor = MocaOnTertiaryContainer,
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                 fillIcon = true
                             )
                         }
                     }
                     
-                    HorizontalDivider(color = MocaSurfaceVariant)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 }
             }
 
@@ -211,7 +206,7 @@ fun StatusChip(
     icon: ImageVector,
     text: String,
     containerColor: Color,
-    contentColor: Color = MocaOnSurfaceVariant,
+    contentColor: Color = MaterialTheme.colorScheme.primary,
     fillIcon: Boolean = false
 ) {
     Surface(
@@ -220,167 +215,26 @@ fun StatusChip(
         modifier = Modifier.height(32.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp), // Reducido de 16 a 12
+            modifier = Modifier.padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp) // Reducido de 8 a 6
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp), // Reducido de 18 a 16
+                modifier = Modifier.size(16.dp),
                 tint = contentColor
             )
             Text(
                 text = text,
                 style = OrganicTypography.labelMedium.copy(
-                    fontSize = 12.sp, // Reducido de 14 a 12 para que quepa mejor
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold
                 ),
                 color = contentColor,
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
-        }
-    }
-}
-
-@Composable
-fun CommentItem(comentario: Comentario) {
-    val tiempoHace = remember(comentario.creadoEn) {
-        val date = comentario.creadoEn.toDate()
-        val diff = Date().time - date.time
-        val hours = TimeUnit.MILLISECONDS.toHours(diff)
-        when {
-            hours < 1 -> "Ahora mismo"
-            hours < 24 -> "Hace $hours h"
-            else -> SimpleDateFormat("d 'de' MMM", Locale.forLanguageTag("es-MX")).format(date)
-        }
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Surface(
-            modifier = Modifier.size(40.dp),
-            shape = CircleShape,
-            color = MocaSurfaceContainerHigh
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    comentario.nombreUsuario.take(1).uppercase(),
-                    style = OrganicTypography.labelMedium,
-                    color = MocaOnSurfaceVariant
-                )
-            }
-        }
-        
-        Column {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = comentario.nombreUsuario,
-                    style = OrganicTypography.labelMedium,
-                    color = MocaOnSurface
-                )
-                Text(
-                    text = tiempoHace,
-                    style = TextStyle(fontSize = 12.sp, color = MocaOutline)
-                )
-            }
-            Text(
-                text = comentario.texto,
-                style = OrganicTypography.bodyMedium,
-                color = MocaOnSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun BottomCommentBar(
-    nuevoComentario: String,
-    onTextoChange: (String) -> Unit,
-    onEnviar: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .imePadding(),
-        color = MocaSurfaceContainerLowest,
-        tonalElevation = 2.dp,
-        border = BorderStroke(1.dp, MocaSurfaceVariant.copy(alpha = 0.5f))
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .navigationBarsPadding(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Surface(
-                modifier = Modifier.size(32.dp),
-                shape = CircleShape,
-                color = MocaSurfaceVariant
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Person, null, modifier = Modifier.size(20.dp), tint = MocaOnSurfaceVariant)
-                }
-            }
-            
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 40.dp)
-                    .background(MocaSurfaceContainerLow, CircleShape)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                if (nuevoComentario.isEmpty()) {
-                    Text(
-                        text = "Escribe un comentario...",
-                        style = OrganicTypography.bodyMedium.copy(fontSize = 14.sp),
-                        color = MocaOutline
-                    )
-                }
-                
-                BasicTextField(
-                    value = nuevoComentario,
-                    onValueChange = onTextoChange,
-                    textStyle = OrganicTypography.bodyMedium.copy(
-                        fontSize = 14.sp,
-                        color = MocaOnSurface
-                    ),
-                    cursorBrush = SolidColor(MocaAccentPink),
-                    modifier = Modifier.fillMaxWidth(),
-                    decorationBox = { innerTextField ->
-                        innerTextField()
-                    }
-                )
-            }
-            
-            IconButton(
-                onClick = onEnviar,
-                enabled = nuevoComentario.isNotBlank(),
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(
-                        if (nuevoComentario.isNotBlank()) MocaAccentPink else MocaSurfaceVariant.copy(alpha = 0.5f),
-                        CircleShape
-                    )
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Enviar",
-                    tint = if (nuevoComentario.isNotBlank()) Color.White else MocaOutline,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
         }
     }
 }

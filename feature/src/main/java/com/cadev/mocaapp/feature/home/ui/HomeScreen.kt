@@ -55,6 +55,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.platform.LocalClipboardManager
 import com.cadev.mocaapp.feature.estadoanimo.ui.EstadoAnimoViewModel
 import com.cadev.mocaapp.feature.estadoanimo.ui.EstadoAnimoScreen
+import com.cadev.mocaapp.feature.notas.ui.components.NoteDialog
 import com.cadev.mocaapp.core.model.TipoEvento
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -68,18 +69,35 @@ import java.util.*
  * Modificador para el fondo Mesh Gradient del diseño de Stitch
  */
 fun Modifier.meshGradientBackground() = this.drawBehind {
+    val isDark = com.cadev.mocaapp.core.utils.ThemeManager.isDarkTheme
     val canvasWidth = size.width
     val canvasHeight = size.height
-    drawRect(color = Color(0xFFFFF8EF))
-    val gradients = listOf(
-        Triple(Offset(canvasWidth * 0.4f, canvasHeight * 0.2f), Color(0xFFFFD9E2), 0.5f),
-        Triple(Offset(canvasWidth * 0.8f, canvasHeight * 0.0f), Color(0xFFFAF3E7), 0.5f),
-        Triple(Offset(canvasWidth * 0.0f, canvasHeight * 0.5f), Color(0xFFF4EDE1), 0.5f),
-        Triple(Offset(canvasWidth * 0.8f, canvasHeight * 0.5f), Color(0xFFE7BBC6), 0.5f),
-        Triple(Offset(canvasWidth * 0.0f, canvasHeight * 1.0f), Color(0xFFFFD1DC), 0.5f),
-        Triple(Offset(canvasWidth * 0.8f, canvasHeight * 1.0f), Color(0xFFE9E2D6), 0.5f),
-        Triple(Offset(canvasWidth * 0.0f, canvasHeight * 0.0f), Color(0xFFFFF8EF), 0.5f)
-    )
+    
+    val bgColor = if (isDark) Color(0xFF1E1B14) else Color(0xFFFFF8EF)
+    drawRect(color = bgColor)
+
+    val gradients = if (isDark) {
+        listOf(
+            Triple(Offset(canvasWidth * 0.4f, canvasHeight * 0.2f), Color(0xFF442D34), 0.5f),
+            Triple(Offset(canvasWidth * 0.8f, canvasHeight * 0.0f), Color(0xFF333028), 0.5f),
+            Triple(Offset(canvasWidth * 0.0f, canvasHeight * 0.5f), Color(0xFF28251E), 0.5f),
+            Triple(Offset(canvasWidth * 0.8f, canvasHeight * 0.5f), Color(0xFF374C37), 0.5f),
+            Triple(Offset(canvasWidth * 0.0f, canvasHeight * 1.0f), Color(0xFF442D34), 0.5f),
+            Triple(Offset(canvasWidth * 0.8f, canvasHeight * 1.0f), Color(0xFF2D342D), 0.5f),
+            Triple(Offset(canvasWidth * 0.0f, canvasHeight * 0.0f), bgColor, 0.5f)
+        )
+    } else {
+        listOf(
+            Triple(Offset(canvasWidth * 0.4f, canvasHeight * 0.2f), Color(0xFFFFD9E2), 0.5f),
+            Triple(Offset(canvasWidth * 0.8f, canvasHeight * 0.0f), Color(0xFFFAF3E7), 0.5f),
+            Triple(Offset(canvasWidth * 0.0f, canvasHeight * 0.5f), Color(0xFFF4EDE1), 0.5f),
+            Triple(Offset(canvasWidth * 0.8f, canvasHeight * 0.5f), Color(0xFFE7BBC6), 0.5f),
+            Triple(Offset(canvasWidth * 0.0f, canvasHeight * 1.0f), Color(0xFFFFD1DC), 0.5f),
+            Triple(Offset(canvasWidth * 0.8f, canvasHeight * 1.0f), Color(0xFFE9E2D6), 0.5f),
+            Triple(Offset(canvasWidth * 0.0f, canvasHeight * 0.0f), bgColor, 0.5f)
+        )
+    }
+
     gradients.forEach { (offset, color, radiusScale) ->
         drawCircle(
             brush = Brush.radialGradient(
@@ -116,6 +134,7 @@ fun HomeScreen(
     val parejaState by parejaViewModel.uiState.collectAsState()
 
     var showMoodSelector by remember { mutableStateOf(false) }
+    var showNoteDialog by remember { mutableStateOf(false) }
     var visible by remember { mutableStateOf(false) }
     
     var isRefreshing by remember { mutableStateOf(false) }
@@ -125,6 +144,7 @@ fun HomeScreen(
     val usuario = perfilState.usuario
     val pareja = perfilState.pareja
     val context = LocalContext.current
+    val isDark = ThemeManager.isDarkTheme
 
     val onRefresh = {
         isRefreshing = true
@@ -135,6 +155,7 @@ fun HomeScreen(
                     eventoViewModel.iniciarEscucha(context, usuario.relacionId)
                     diarioViewModel.iniciarEscucha(usuario.id, usuario.parejaId, usuario.relacionId)
                     notaViewModel.iniciar(context, usuario.relacionId, usuario.id, usuario.parejaId)
+                    cuestionarioViewModel.iniciarEscucha(usuario.relacionId, usuario.id, usuario.parejaId)
                 }
             }
             kotlinx.coroutines.delay(1000)
@@ -153,6 +174,7 @@ fun HomeScreen(
                 eventoViewModel.iniciarEscucha(context, usuario.relacionId)
                 diarioViewModel.iniciarEscucha(usuario.id, usuario.parejaId, usuario.relacionId)
                 notaViewModel.iniciar(context, usuario.relacionId, usuario.id, usuario.parejaId)
+                cuestionarioViewModel.iniciarEscucha(usuario.relacionId, usuario.id, usuario.parejaId)
             }
         }
     }
@@ -185,6 +207,27 @@ fun HomeScreen(
         )
     }
 
+    if (showNoteDialog) {
+        NoteDialog(
+            onDismiss = { showNoteDialog = false },
+            notaPareja = notaState.notaPareja?.texto,
+            miNotaBorrador = notaState.borrador,
+            onBorradorChange = { notaViewModel.actualizarBorrador(it) },
+            onGuardar = {
+                if (usuario != null) {
+                    notaViewModel.guardarNota(
+                        context = context,
+                        relacionId = usuario.relacionId,
+                        usuarioId = usuario.id,
+                        nombreUsuario = usuario.nombre,
+                        parejaId = usuario.parejaId
+                    )
+                }
+                showNoteDialog = false
+            }
+        )
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -212,8 +255,8 @@ fun HomeScreen(
                             // Saludo y Frase Inspiradora
                             val hora = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
                             val saludo = when (hora) {
-                                in 6..12 -> "Buenos días"
-                                in 13..19 -> "Buenas tardes"
+                                in 6..11 -> "Buenos días"
+                                in 12..18 -> "Buenas tardes"
                                 else -> "Buenas noches"
                             }
 
@@ -228,20 +271,23 @@ fun HomeScreen(
                                     text = "$saludo, ${usuario.nombre}",
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF1E1B14)
+                                    color = if (isDark) Color.White else Color(0xFF1E1B14)
                                 )
                                 Text(
-                                    text = "“Tu lo eres todo, todo en mi vida”",
+                                    text = "“Tu, eres el faro que me busca en lejania, tu lo eres todo, todo en mi vida”",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF78555E).copy(alpha = 0.8f),
+                                    color = if (isDark) Color(0xFFE7BBC6) else Color(0xFF78555E).copy(alpha = 0.8f),
                                     lineHeight = 18.sp,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
                             }
 
                             Box(modifier = Modifier.padding(horizontal = 24.dp)) {
-                                DaysCounterCard(diasJuntos = perfilState.diasJuntos.toInt())
+                                DaysCounterCard(
+                                    diasJuntos = perfilState.diasJuntos.toInt(),
+                                    fechaRelacion = perfilState.fechaRelacion
+                                )
                             }
 
                             MoodAndNoteRow(
@@ -250,7 +296,7 @@ fun HomeScreen(
                                 notaPareja = notaState.notaPareja?.texto ?: "No hay notas nuevas por ahora...",
                                 nombrePareja = pareja.nombre,
                                 onMoodClick = { showMoodSelector = true },
-                                onNoteClick = { onNavigateToScreen(NavRoutes.Notas.route) },
+                                onNoteClick = { showNoteDialog = true },
                                 modifier = Modifier.padding(horizontal = 24.dp)
                             )
 
@@ -282,7 +328,7 @@ fun HomeScreen(
                                 RecuerdoMemoria(
                                     id = it.id,
                                     titulo = it.titulo,
-                                    detalles = it.fecha, // Quitamos el campo inexistente
+                                    detalles = it.fecha, 
                                     urlImagen = it.fotos.firstOrNull() ?: "",
                                     cantidadFotos = it.fotos.size
                                 )
@@ -296,10 +342,14 @@ fun HomeScreen(
                                 onVerRecuerdo = { id -> onNavigateToScreen(NavRoutes.DetalleEntrada.crearRuta(id)) }
                             )
 
-                            // SECCIÓN CUESTIONARIOS (ESTADÍSTICAS)
+                            // SECCIÓN CUESTIONARIOS (ESTADÍSTICAS REALES)
+                            val totalQuizzes = cuestionarioState.cuestionarios.size
+                            val completadosAmbos = cuestionarioState.estadosCuestionarios.values.count { it == EstadoCuestionario.AMBOS }
+                            val porCompletarCount = totalQuizzes - completadosAmbos
+
                             QuizStatsCard(
-                                completados = cuestionarioState.historial.size,
-                                coincidencias = 18, // Podrías calcular esto real si tienes el dato
+                                completados = completadosAmbos,
+                                porCompletar = porCompletarCount,
                                 onVerDetalles = { onNavigateToTab(NavRoutes.Cuestionarios.route) }
                             )
                         }

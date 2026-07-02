@@ -4,14 +4,6 @@ import com.cadev.mocaapp.feature.cuestionarios.domain.model.*
 
 /**
  * LISTA DE TESTS INICIALES
- * 
- * Qué hace:
- * Aquí escribimos los cuestionarios que ya vienen listos en la app para que la pareja 
- * pueda empezar a jugar desde el primer minuto sin tener que crear nada.
- * 
- * Cómo lo podemos modificar:
- * Si queremos añadir un test nuevo de fábrica, debemos crear un objeto `Cuestionario` 
- * nuevo dentro de la lista `listOf(...)` de abajo.
  */
 fun cuestionariosPredefinidos(): List<Cuestionario> = listOf(
     // TEST 1: Básicos de la relación
@@ -38,8 +30,7 @@ fun cuestionariosPredefinidos(): List<Cuestionario> = listOf(
             Pregunta(
                 id = "p4", tipo = TipoPregunta.OPCION_MULTIPLE.name,
                 texto = "¿Cuál es tu lenguaje del amor principal?",
-                opciones = listOf("Palabras de afirmación", "Tiempo de calidad",
-                    "Actos de servicio", "Regalos", "Contacto físico")
+                opciones = listOf("Palabras de afirmación", "Tiempo de calidad", "Actos de servicio", "Regalos", "Contacto físico")
             ),
             Pregunta(
                 id = "p5", tipo = TipoPregunta.SI_NO.name,
@@ -48,8 +39,7 @@ fun cuestionariosPredefinidos(): List<Cuestionario> = listOf(
             Pregunta(
                 id = "p6", tipo = TipoPregunta.OPCION_MULTIPLE.name,
                 texto = "¿Cómo prefieres resolver un conflicto?",
-                opciones = listOf("Hablar de inmediato", "Esperar a calmarse",
-                    "Escribir lo que siento", "Pedir tiempo")
+                opciones = listOf("Hablar de inmediato", "Esperar a calmarse", "Escribir lo que siento", "Pedir tiempo")
             ),
             Pregunta(
                 id = "p7", tipo = TipoPregunta.ESCALA.name,
@@ -86,8 +76,7 @@ fun cuestionariosPredefinidos(): List<Cuestionario> = listOf(
             Pregunta(
                 id = "f4", tipo = TipoPregunta.OPCION_MULTIPLE.name,
                 texto = "¿Dónde te ves en 5 años?",
-                opciones = listOf("Casados", "Con hijos", "Viajando",
-                    "Enfocados en carrera", "Viviendo juntos")
+                opciones = listOf("Casados", "Con hijos", "Viajando", "Enfocados en carrera", "Viviendo juntos")
             ),
             Pregunta(
                 id = "f5", tipo = TipoPregunta.SI_NO.name,
@@ -111,8 +100,7 @@ fun cuestionariosPredefinidos(): List<Cuestionario> = listOf(
             Pregunta(
                 id = "d1", tipo = TipoPregunta.OPCION_MULTIPLE.name,
                 texto = "¿Cuál sería tu superpoder ideal?",
-                opciones = listOf("Volar", "Invisibilidad",
-                    "Leer la mente", "Teletransportarse")
+                opciones = listOf("Volar", "Invisibilidad", "Leer la mente", "Teletransportarse")
             ),
             Pregunta(
                 id = "d2", tipo = TipoPregunta.SI_NO.name,
@@ -121,8 +109,7 @@ fun cuestionariosPredefinidos(): List<Cuestionario> = listOf(
             Pregunta(
                 id = "d3", tipo = TipoPregunta.OPCION_MULTIPLE.name,
                 texto = "¿Cuál es tu plan de viaje soñado?",
-                opciones = listOf("Playa tropical", "Ciudad europea",
-                    "Aventura en montaña", "Ruta por Asia")
+                opciones = listOf("Playa tropical", "Ciudad europea", "Aventura en montaña", "Ruta por Asia")
             ),
             Pregunta(
                 id = "d4", tipo = TipoPregunta.ESCALA.name,
@@ -131,8 +118,7 @@ fun cuestionariosPredefinidos(): List<Cuestionario> = listOf(
             Pregunta(
                 id = "d5", tipo = TipoPregunta.OPCION_MULTIPLE.name,
                 texto = "¿Qué harías con un millón de dólares?",
-                opciones = listOf("Viajar por el mundo", "Invertir",
-                    "Comprar casa", "Donarlo")
+                opciones = listOf("Viajar por el mundo", "Invertir", "Comprar casa", "Donarlo")
             ),
             Pregunta(
                 id = "d6", tipo = TipoPregunta.SI_NO.name,
@@ -141,6 +127,59 @@ fun cuestionariosPredefinidos(): List<Cuestionario> = listOf(
             Pregunta(
                 id = "d7", tipo = TipoPregunta.TEXTO_LIBRE.name,
                 texto = "¿A qué personaje de serie o película te pareces más?"
+            )
+        )
+    ),
+
+    // TEST 4: Prueba Maestra de Componentes
+    Cuestionario(
+        id = "prueba_maestra_moca",
+        titulo = "Test Maestro: Prueba Total",
+        descripcion = "Todas las combinaciones posibles de preguntas e imágenes para testear la UI.",
+        categoria = CategoriaCuestionario.PERSONALIZADO.name,
+        creadoPor = "sistema",
+        preguntas = listOf(
+            Pregunta(
+                id = "pt1", tipo = TipoPregunta.OPCION_MULTIPLE.name,
+                texto = "¿Cuál de estos climas prefieres?",
+                opciones = listOf("Frío polar", "Calor tropical", "Templado", "Lluvioso")
+            ),
+            Pregunta(
+                id = "pt2", tipo = TipoPregunta.SI_NO.name,
+                texto = "¿Te gusta bailar bajo la lluvia?"
+            ),
+            Pregunta(
+                id = "pt3", tipo = TipoPregunta.ESCALA.name,
+                texto = "¿Qué tan aventurero/a te sientes hoy?"
+            ),
+            Pregunta(
+                id = "pt4", tipo = TipoPregunta.TEXTO_LIBRE.name,
+                texto = "Escribe una frase que resuma nuestra relación."
+            ),
+            Pregunta(
+                id = "pt5", tipo = TipoPregunta.FOTO.name,
+                texto = "Sube una foto de tu rincón favorito de la casa."
+            ),
+            Pregunta(
+                id = "pt6", tipo = TipoPregunta.OPCION_MULTIPLE.name,
+                texto = "¿Qué animal ves representado en esta imagen?",
+                opciones = listOf("Un león", "Un águila", "Un lobo", "Un oso"),
+                imagenUrl = "https://images.unsplash.com/photo-1546182990-dffeafbe841d"
+            ),
+            Pregunta(
+                id = "pt7", tipo = TipoPregunta.SI_NO.name,
+                texto = "¿Te gustaría tener una cena romántica en este lugar?",
+                imagenUrl = "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf"
+            ),
+            Pregunta(
+                id = "pt8", tipo = TipoPregunta.ESCALA.name,
+                texto = "¿Qué tanta paz te transmite este paisaje?",
+                imagenUrl = "https://images.unsplash.com/photo-1470770841072-f978cf4d019e"
+            ),
+            Pregunta(
+                id = "pt9", tipo = TipoPregunta.TEXTO_LIBRE.name,
+                texto = "Observa la imagen y escribe lo primero que se te venga a la mente.",
+                imagenUrl = "https://images.unsplash.com/photo-1501785888041-af3ef285b470"
             )
         )
     )

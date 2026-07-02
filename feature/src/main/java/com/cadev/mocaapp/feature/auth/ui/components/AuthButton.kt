@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cadev.mocaapp.feature.ui.animations.CorazonesOrbitando
 
 @Composable
 fun BotonAutenticacion(
@@ -51,11 +52,7 @@ fun BotonAutenticacion(
             contentAlignment = Alignment.Center
         ) {
             if (estaCargando) {
-                CircularProgressIndicator(
-                    color = Color(0xFF5E3E47),
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp
-                )
+                CorazonesOrbitando(modifier = Modifier.size(40.dp))
             } else {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

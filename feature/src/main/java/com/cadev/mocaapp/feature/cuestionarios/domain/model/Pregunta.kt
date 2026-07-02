@@ -28,5 +28,6 @@ data class Pregunta(
     val tipo: String = TipoPregunta.OPCION_MULTIPLE.name, // El formato de la respuesta
     val opciones: List<String> = emptyList(),           // Lista de opciones si es de selección
     val imagenUrl: String = "",                         // Foto que ayuda a entender la pregunta
-    val puntos: Int = 10                                // Cuánto vale esta pregunta para el total
+    val puntos: Int = 10,                               // Cuánto vale esta pregunta para el total
+    val esObligatoria: Boolean = true                   // Si es necesario responder para avanzar
 )

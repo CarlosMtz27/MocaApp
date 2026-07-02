@@ -13,70 +13,67 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 /**
- * EL TEMA VISUAL DE LA APLICACIÓN
- * 
- * Qué hace
- * Aquí se definen todos los colores que utiliza la aplicación. Hay dos grupos de colores 
- * uno para cuando el teléfono está en modo claro y otro para cuando está en modo oscuro.
- * 
- * Cómo añadir o cambiar cosas
- * Si quieres cambiar el color principal de la aplicación busca la palabra primary en los listados 
- * de abajo y cámbialo por el color que prefieras. Los nombres de los colores como RosaPrimario 
- * se definen en el archivo llamado Color.kt.
+ * PALETA ZEN (MODO CLARO)
  */
-
-// Este es el grupo de colores que se activan durante el día o en modo claro
-private val LightColors = lightColorScheme(
-    primary          = RosaPrimario,
-    onPrimary        = Blanco,
-    primaryContainer = RosaClaro,
-    onPrimaryContainer = RosaOscuro,
-    secondary        = RosaSecundario,
-    onSecondary      = Blanco,
-    background       = Blanco,
-    onBackground     = Negro,
-    surface          = GrisClaro,
-    onSurface        = Negro,
-    surfaceVariant   = RosaClaro,
-)
-
-// Este es el grupo de colores que se activan por la noche o en modo oscuro
-private val DarkColors = darkColorScheme(
-    primary          = RosaSecundario,
-    onPrimary        = RosaOscuro,
-    primaryContainer = RosaOscuro,
-    onPrimaryContainer = RosaClaro,
-    secondary        = RosaMedio,
-    onSecondary      = Negro,
-    background       = Color(0xFF1A1A1A), // Un tono gris muy oscuro casi negro
-    onBackground     = Blanco,
-    surface          = Color(0xFF2D2D2D),
-    onSurface        = Blanco,
+private val LightZenColors = lightColorScheme(
+    primary = Color(0xFF78555E),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFFFD1DC),
+    onPrimaryContainer = Color(0xFF7A5761),
+    secondary = Color(0xFF635F40),
+    onSecondary = Color.White,
+    background = Color(0xFFFFF8EF),
+    onBackground = Color(0xFF1E1B14),
+    surface = Color(0xFFFFF8EF),
+    onSurface = Color(0xFF1E1B14),
+    surfaceVariant = Color(0xFFE9E2D6),
+    onSurfaceVariant = Color(0xFF4F4446),
+    outline = Color(0xFF817476),
+    inverseSurface = Color(0xFF333028),
+    inverseOnSurface = Color(0xFFF7F0E4),
+    error = Color(0xFFBA1A1A),
+    onError = Color.White
 )
 
 /**
- * Esta es la función que aplica los colores y el estilo a toda la aplicación
+ * PALETA ZEN (MODO OSCURO)
  */
+private val DarkZenColors = darkColorScheme(
+    primary = Color(0xFFE7BBC6),
+    onPrimary = Color(0xFF452730),
+    primaryContainer = Color(0xFF5E3E47),
+    onPrimaryContainer = Color(0xFFFFD9E2),
+    secondary = Color(0xFFCEC7A2),
+    onSecondary = Color(0xFF343116),
+    background = Color(0xFF1E1B14),
+    onBackground = Color(0xFFE0D9CE),
+    surface = Color(0xFF1E1B14),
+    onSurface = Color(0xFFE0D9CE),
+    surfaceVariant = Color(0xFF4F4446),
+    onSurfaceVariant = Color(0xFFD3C3C5),
+    outline = Color(0xFF9C8D8F),
+    inverseSurface = Color(0xFFE0D9CE),
+    inverseOnSurface = Color(0xFF1E1B14),
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005)
+)
+
 @Composable
 fun MocaAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    // Se elige la paleta de colores según si el móvil está en modo oscuro o no
-    val colorScheme = if (darkTheme) DarkColors else LightColors
+    val colorScheme = if (darkTheme) DarkZenColors else LightZenColors
 
-    // Este bloque sirve para cambiar el color de la barra superior donde sale la hora en el teléfono
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view)
-                .isAppearanceLightStatusBars = !darkTheme
+            window.statusBarColor = colorScheme.background.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 
-    // Se aplican los colores y las tipografías elegidas al resto de la aplicación
     MaterialTheme(
         colorScheme = colorScheme,
         typography  = MocaTypography,

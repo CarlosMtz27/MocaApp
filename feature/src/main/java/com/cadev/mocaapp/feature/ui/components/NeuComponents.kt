@@ -86,6 +86,7 @@ fun NeuButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     radioBorde: Dp = 16.dp,
+    colorFondo: Color = MocaSurface, // Añadido soporte para color personalizado
     contenido: @Composable BoxScope.() -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -94,8 +95,8 @@ fun NeuButton(
     Box(
         modifier = modifier
             .then(
-                if (isPressed) Modifier.neuInset(radioBorde = radioBorde)
-                else Modifier.neuFlat(radioBorde = radioBorde)
+                if (isPressed) Modifier.neuInset(radioBorde = radioBorde, colorFondo = colorFondo)
+                else Modifier.neuFlat(radioBorde = radioBorde, colorFondo = colorFondo)
             )
             .clip(RoundedCornerShape(radioBorde))
             .clickable(

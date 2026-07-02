@@ -29,6 +29,7 @@ data class CuestionarioUiState(
     val cuestionarioActual: Cuestionario? = null,       // El test que estamos haciendo ahora
     val preguntaActual: Int = 0,                        // En qué número de pregunta vamos
     val respuestas: Map<String, String> = emptyMap(),   // Lo que vamos contestando
+    val comentarios: Map<String, String> = emptyMap(),  // Comentarios opcionales por pregunta
     val respuestasFoto: Map<String, String> = emptyMap(),// Las fotos que subimos como respuesta
     val subiendoFoto: Boolean = false,                  // Si una imagen se está enviando a la nube
     val enviando: Boolean = false,                      // Si estamos guardando todo el test
@@ -152,6 +153,17 @@ class CuestionarioViewModel(
     }
 
     /**
+     * Guarda un comentario opcional para una pregunta
+     */
+    fun guardarComentario(preguntaId: String, comentario: String) {
+        _uiState.update { current ->
+            val map = current.comentarios.toMutableMap()
+            map[preguntaId] = comentario
+            current.copy(comentarios = map)
+        }
+    }
+
+    /**
      * Sube una imagen de respuesta y la asocia a una pregunta del test
      */
     fun subirFotoRespuesta(preguntaId: String, rutaLocal: String) {
@@ -207,7 +219,8 @@ class CuestionarioViewModel(
                 cuestionarioId = cuestionario.id,
                 usuarioId = usuarioId,
                 respuestas = _uiState.value.respuestas,
-                respuestasFoto = _uiState.value.respuestasFoto
+                respuestasFoto = _uiState.value.respuestasFoto,
+                comentarios = _uiState.value.comentarios
             ).fold(
                 onSuccess = {
                     val estado = repository.obtenerEstado(

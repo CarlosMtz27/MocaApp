@@ -1,46 +1,41 @@
 package com.cadev.mocaapp.feature.cuestionarios.ui
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
-import androidx.compose.material3.ripple
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.cadev.mocaapp.core.ui.meshGradientBackground
 import com.cadev.mocaapp.feature.cuestionarios.domain.model.TipoPregunta
+import com.cadev.mocaapp.feature.cuestionarios.ui.components.ExitoCuestionario
+import com.cadev.mocaapp.feature.cuestionarios.ui.components.respuestas.*
+import com.cadev.mocaapp.feature.ui.screens.LoadingTransition
+import com.cadev.mocaapp.feature.ui.animations.CorazonesOrbitando
+import com.cadev.mocaapp.feature.ui.theme.*
 
-/**
- * ESTA ES LA PANTALLA PARA CONTESTAR TESTS
- * 
- * Qué hace:
- * Muestra las preguntas una por una. Adapta el diseño según si debemos elegir 
- * una opción, puntuar en una escala, escribir texto o subir una foto. 
- * Muestra una barra de progreso para que sepamos cuánto nos falta.
- * 
- * Cómo lo podemos modificar:
- * Si queremos añadir un botón de "Saltar pregunta", debemos añadirlo en la 
- * sección de navegación inferior y hacer que llame a `viewModel.siguientePregunta()`.
- */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResponderScreen(
     viewModel: CuestionarioViewModel,
@@ -52,24 +47,30 @@ fun ResponderScreen(
     onRegresar: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isDark = isSystemInDarkTheme() || com.cadev.mocaapp.core.utils.ThemeManager.isDarkTheme
+
+    val colorPrimary = if (isDark) Color(0xFFE7BBC6) else MocaPrimary
+    val colorSurface = if (isDark) Color(0xFF1E1B14) else MocaSurface
+    val colorOnSurface = if (isDark) Color(0xFFE7BBC6) else MocaOnSurface
+    val colorOnSurfaceVariant = if (isDark) Color(0xFFD3C3C5) else MocaOnSurfaceVariant
+    val colorCardBackground = if (isDark) Color(0xFF2D2921).copy(alpha = 0.9f) else MocaSurfaceContainerLowest
 
     LaunchedEffect(cuestionarioId) {
         viewModel.iniciarCuestionario(cuestionarioId)
     }
 
-    //Ir a resultados inmediatamente al completar
-    LaunchedEffect(uiState.completado) {
-        if (uiState.completado) {
-            onCompletado(cuestionarioId)
-        }
+    if (uiState.completado) {
+        ExitoCuestionario(
+            onVerResumen = { onCompletado(cuestionarioId) },
+            onRegresarInicio = onRegresar
+        )
+        return
     }
 
     val cuestionario = uiState.cuestionarioActual
 
     if (uiState.cargando || cuestionario == null) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
+        LoadingTransition()
         return
     }
 
@@ -80,402 +81,217 @@ fun ResponderScreen(
     val progreso = (indice + 1).toFloat() / preguntas.size.toFloat()
     val esUltima = indice == preguntas.size - 1
 
-    // Launcher para galería (respuestas tipo FOTO)
-    val launcherGaleria = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { uri ->
-        uri?.let {
-            viewModel.subirFotoRespuesta(pregunta.id, it.toString())
-        }
-    }
-
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = { Text(cuestionario.titulo) },
-                navigationIcon = {
-                    IconButton(onClick = onRegresar) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Regresar")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 20.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            Spacer(Modifier.height(8.dp))
-
-            //Progreso
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Surface(color = colorSurface, shadowElevation = 2.dp, modifier = Modifier.statusBarsPadding()) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    IconButton(onClick = onRegresar) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Regresar", tint = colorPrimary)
+                    }
                     Text(
-                        "Pregunta ${indice + 1} de ${preguntas.size}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        text = "Cuestionario",
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = colorPrimary
                     )
-                    Text(
-                        "${(progreso * 100).toInt()}%",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Icon(Icons.Default.Favorite, null, tint = MocaAccentPink, modifier = Modifier.size(24.dp))
+                    Spacer(Modifier.width(8.dp))
                 }
-                LinearProgressIndicator(
-                    progress = { progreso },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(50.dp)),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant
-                )
             }
-
-            //Pregunta
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+        },
+        bottomBar = {
+            Surface(
+                tonalElevation = 8.dp,
+                shadowElevation = 12.dp,
+                color = colorSurface,
+                modifier = Modifier.navigationBarsPadding()
             ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text(
-                        text = pregunta.texto,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        textAlign = TextAlign.Center
-                    )
-                    //Imagen opcional en la pregunta
-                    if (pregunta.imagenUrl.isNotBlank()) {
-                        AsyncImage(
-                            model = pregunta.imagenUrl,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(180.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                        )
-                    }
-                }
-            }
-
-            // Opciones según tipo
-            when (pregunta.tipo) {
-
-                TipoPregunta.OPCION_MULTIPLE.name -> {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        pregunta.opciones.forEach { opcion ->
-                            val seleccionada = respuestaActual == opcion
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(
-                                        if (seleccionada)
-                                            MaterialTheme.colorScheme.primaryContainer
-                                        else MaterialTheme.colorScheme.surfaceVariant
-                                    )
-                                    .border(
-                                        width = if (seleccionada) 2.dp else 0.dp,
-                                        color = if (seleccionada)
-                                            MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.surface,
-                                        shape = RoundedCornerShape(14.dp)
-                                    )
-                                    .clickable(
-                                        interactionSource = remember {
-                                            MutableInteractionSource()
-                                        },
-                                        indication = ripple()
-                                    ) {
-                                        viewModel.responderPregunta(
-                                            pregunta.id, opcion
-                                        )
-                                    }
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                RadioButton(
-                                    selected = seleccionada,
-                                    onClick = {
-                                        viewModel.responderPregunta(
-                                            pregunta.id, opcion
-                                        )
-                                    }
-                                )
-                                Text(
-                                    text = opcion,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = if (seleccionada)
-                                        FontWeight.SemiBold else FontWeight.Normal,
-                                    color = if (seleccionada)
-                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                    else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-
-                TipoPregunta.SI_NO.name -> {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        listOf("Sí" to "si", "No" to "no").forEach { (etiqueta, valor) ->
-                            val sel = respuestaActual == valor
-                            Button(
-                                onClick = {
-                                    viewModel.responderPregunta(pregunta.id, valor)
-                                },
-                                modifier = Modifier.weight(1f).height(56.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (sel)
-                                        MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor = if (sel)
-                                        MaterialTheme.colorScheme.onPrimary
-                                    else MaterialTheme.colorScheme.onSurfaceVariant
-                                ),
-                                shape = RoundedCornerShape(14.dp)
-                            ) {
-                                Text(etiqueta, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-
-                TipoPregunta.ESCALA.name -> {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        val valorActual = respuestaActual.toFloatOrNull() ?: 5f
-                        Text(
-                            text = valorActual.toInt().toString(),
-                            style = MaterialTheme.typography.displayMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Slider(
-                            value = valorActual,
-                            onValueChange = { nuevo ->
-                                viewModel.responderPregunta(
-                                    pregunta.id, nuevo.toInt().toString()
-                                )
-                            },
-                            valueRange = 1f..10f,
-                            steps = 8,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                "1",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface
-                                    .copy(alpha = 0.5f)
-                            )
-                            Text(
-                                "10",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface
-                                    .copy(alpha = 0.5f)
-                            )
-                        }
-                    }
-                }
-
-                TipoPregunta.TEXTO_LIBRE.name -> {
-                    OutlinedTextField(
-                        value = respuestaActual,
-                        onValueChange = { nuevo ->
-                            viewModel.responderPregunta(pregunta.id, nuevo)
-                        },
-                        placeholder = { Text("Escribe tu respuesta...") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(140.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        maxLines = 5
-                    )
-                }
-
-                //FOTO
-                TipoPregunta.FOTO.name -> {
-                    val fotoUrl = uiState.respuestasFoto[pregunta.id]
-
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        if (fotoUrl != null) {
-                            // ← Foto seleccionada
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(220.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                            ) {
-                                AsyncImage(
-                                    model = fotoUrl,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                                // Botón cambiar
-                                FilledTonalButton(
-                                    onClick = { launcherGaleria.launch("image/*") },
-                                    modifier = Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .padding(12.dp),
-                                    shape = RoundedCornerShape(10.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Filled.Edit, null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("Cambiar")
-                                }
-                            }
-                        } else if (uiState.subiendoFoto) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(140.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(
-                                        MaterialTheme.colorScheme.surfaceVariant
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    CircularProgressIndicator()
-                                    Text("Subiendo foto...")
-                                }
-                            }
-                        } else {
-                            // ← Sin foto aún
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(140.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(
-                                        MaterialTheme.colorScheme.surfaceVariant
-                                    )
-                                    .clickable(
-                                        interactionSource = remember {
-                                            MutableInteractionSource()
-                                        },
-                                        indication = ripple()
-                                    ) { launcherGaleria.launch("image/*") },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Filled.AddPhotoAlternate,
-                                        null,
-                                        modifier = Modifier.size(48.dp),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        "Toca para elegir una foto",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            //Botones de navegación
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                if (indice > 0) {
                     OutlinedButton(
                         onClick = { viewModel.preguntaAnterior() },
-                        modifier = Modifier.weight(1f).height(52.dp),
-                        shape = RoundedCornerShape(14.dp)
+                        enabled = indice > 0,
+                        modifier = Modifier.weight(1f).height(56.dp),
+                        shape = CircleShape,
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, colorPrimary.copy(alpha = 0.3f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = colorPrimary)
                     ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack, null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text("Anterior")
+                        Icon(Icons.Default.ChevronLeft, null)
+                        Text("Anterior", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
-                }
 
-                Button(
-                    onClick = {
-                        if (esUltima) {
-                            viewModel.enviarRespuestas(usuarioId, parejaId, relacionId)
+                    Button(
+                        onClick = {
+                            if (esUltima) {
+                                viewModel.enviarRespuestas(usuarioId, parejaId, relacionId)
+                            } else {
+                                viewModel.siguientePregunta()
+                            }
+                        },
+                        enabled = (respuestaActual.isNotBlank() || (pregunta.tipo == TipoPregunta.FOTO.name && uiState.respuestasFoto[pregunta.id] != null)) &&
+                                !uiState.enviando && !uiState.subiendoFoto,
+                        modifier = Modifier.weight(1f).height(56.dp),
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(containerColor = MocaAccentPink),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+                    ) {
+                        if (uiState.enviando) {
+                            CorazonesOrbitando(modifier = Modifier.size(40.dp))
                         } else {
-                            viewModel.siguientePregunta()
-                        }
-                    },
-                    enabled = respuestaActual.isNotBlank() &&
-                            !uiState.enviando && !uiState.subiendoFoto,
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    if (uiState.enviando) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    } else {
-                        Text(if (esUltima) "Enviar ✓" else "Siguiente")
-                        if (!esUltima) {
-                            Spacer(Modifier.width(4.dp))
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowForward, null,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Text(if (esUltima) "Finalizar" else "Siguiente", fontSize = 16.sp, fontWeight = FontWeight.Black)
+                            if (!esUltima) {
+                                Spacer(Modifier.width(4.dp))
+                                Icon(Icons.Default.ChevronRight, null)
+                            }
                         }
                     }
                 }
             }
+        }
+    ) { padding ->
+        Box(modifier = Modifier.fillMaxSize().meshGradientBackground()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                // Barra de Progreso Estilizada
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Text(
+                            "Pregunta ${indice + 1} de ${preguntas.size}",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = colorOnSurfaceVariant
+                        )
+                        Text(
+                            "${(progreso * 100).toInt()}%",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Black,
+                            color = colorPrimary
+                        )
+                    }
+                    LinearProgressIndicator(
+                        progress = { progreso },
+                        modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape),
+                        color = MocaAccentPink,
+                        trackColor = colorPrimary.copy(alpha = 0.2f)
+                    )
+                }
 
-            Spacer(Modifier.height(24.dp))
+                // Card de la Pregunta
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .shadow(
+                            elevation = if (isDark) 0.dp else 16.dp, 
+                            shape = RoundedCornerShape(28.dp), 
+                            spotColor = Color.Black.copy(alpha = 0.08f)
+                        )
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(colorCardBackground)
+                        .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(28.dp))
+                        .padding(24.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                        Text(
+                            text = pregunta.texto,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorOnSurface,
+                            lineHeight = 30.sp
+                        )
+
+                        if (pregunta.imagenUrl.isNotBlank()) {
+                            Card(
+                                shape = RoundedCornerShape(20.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            ) {
+                                AsyncImage(
+                                    model = pregunta.imagenUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxWidth().aspectRatio(16/9f)
+                                )
+                            }
+                        }
+
+                        // Componente de Respuesta con Animación de Deslizamiento
+                        AnimatedContent(
+                            targetState = pregunta,
+                            transitionSpec = {
+                                (slideInHorizontally(animationSpec = tween(400)) { it } + fadeIn(animationSpec = tween(400)))
+                                    .togetherWith(slideOutHorizontally(animationSpec = tween(400)) { -it } + fadeOut(animationSpec = tween(400)))
+                            },
+                            label = "RespuestaAnim"
+                        ) { targetPregunta ->
+                            when (targetPregunta.tipo) {
+                                TipoPregunta.OPCION_MULTIPLE.name -> {
+                                    RespuestaOpcionMultiple(
+                                        opciones = targetPregunta.opciones,
+                                        respuestaSeleccionada = respuestaActual,
+                                        onRespuestaSelected = { viewModel.responderPregunta(targetPregunta.id, it) }
+                                    )
+                                }
+                                TipoPregunta.TEXTO_LIBRE.name -> {
+                                    RespuestaTextoLibre(
+                                        texto = respuestaActual,
+                                        onTextoChanged = { viewModel.responderPregunta(targetPregunta.id, it) }
+                                    )
+                                }
+                                TipoPregunta.SI_NO.name -> {
+                                    RespuestaSiNo(
+                                        respuesta = respuestaActual,
+                                        onRespuestaSelected = { viewModel.responderPregunta(targetPregunta.id, it) }
+                                    )
+                                }
+                                TipoPregunta.ESCALA.name -> {
+                                    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                                        RespuestaEscala(
+                                            valor = respuestaActual.toIntOrNull() ?: 0,
+                                            onValorChanged = { viewModel.responderPregunta(targetPregunta.id, it.toString()) }
+                                        )
+                                        
+                                        // Texto Opcional Mejorado
+                                        RespuestaTextoLibre(
+                                            texto = uiState.comentarios[targetPregunta.id] ?: "",
+                                            onTextoChanged = { viewModel.guardarComentario(targetPregunta.id, it) },
+                                            placeholder = "¿Algún pensamiento adicional? (Opcional)",
+                                            maxChars = 300
+                                        )
+                                    }
+                                }
+                                TipoPregunta.FOTO.name -> {
+                                    RespuestaFoto(
+                                        fotoUrl = uiState.respuestasFoto[targetPregunta.id],
+                                        subiendo = uiState.subiendoFoto,
+                                        onFotoSeleccionada = { viewModel.subirFotoRespuesta(targetPregunta.id, it) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(Modifier.height(100.dp))
+            }
         }
     }
 }

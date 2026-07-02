@@ -41,6 +41,7 @@ import java.util.*
 /**
  * PANTALLA DE DETALLE DEL DÍA - LÍNEA DE TIEMPO (SECCIÓN 4.2)
  * Recrea la estética de "Day Detail Screen" con Timeline luminosa.
+ * Adaptada para soportar Modo Oscuro y con sombras/bordes refinados.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +58,7 @@ fun DayDetailList(
     val uiState by viewModel.uiState.collectAsState()
     var mostrarMenuCrear by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
+    val isDark = esModoOscuro()
     
     // Cargar entradas del día al iniciar
     LaunchedEffect(fecha) {
@@ -75,8 +77,7 @@ fun DayDetailList(
     }
 
     val esFuturo = remember(fecha) {
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val hoy = sdf.format(Date())
+        val hoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         fecha > hoy
     }
 
@@ -87,21 +88,29 @@ fun DayDetailList(
                     Text(
                         "Nuestro Camino", 
                         style = OrganicTypography.headlineMedium.copy(fontSize = 22.sp, fontWeight = FontWeight.Bold),
-                        color = MocaPrimary
+                        color = MaterialTheme.colorScheme.primary
                     ) 
                 },
                 navigationIcon = {
                     IconButton(onClick = onRegresar) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Regresar", tint = MocaOnSurfaceVariant)
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack, 
+                            contentDescription = "Regresar", 
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 },
                 actions = {
                     IconButton(onClick = onIrAlCalendario) {
-                        Icon(Icons.Default.CalendarToday, contentDescription = "Calendario", tint = MocaOnSurfaceVariant)
+                        Icon(
+                            imageVector = Icons.Default.CalendarToday, 
+                            contentDescription = "Calendario", 
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MocaSurface.copy(alpha = 0.8f)
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
                 )
             )
         },
@@ -109,8 +118,8 @@ fun DayDetailList(
             if (!esFuturo) {
                 FloatingActionButton(
                     onClick = { mostrarMenuCrear = true },
-                    containerColor = MocaPrimary,
-                    contentColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     shape = CircleShape
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Añadir")
@@ -124,7 +133,7 @@ fun DayDetailList(
             ModalBottomSheet(
                 onDismissRequest = { mostrarMenuCrear = false },
                 sheetState = sheetState,
-                containerColor = MocaSurface
+                containerColor = MaterialTheme.colorScheme.surface
             ) {
                 Column(
                     modifier = Modifier
@@ -134,7 +143,7 @@ fun DayDetailList(
                     Text(
                         "¿Qué quieres añadir?",
                         style = OrganicTypography.headlineMedium.copy(fontSize = 20.sp),
-                        color = MocaOnSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(bottom = 24.dp)
                     )
                     
@@ -166,7 +175,7 @@ fun DayDetailList(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MocaBackground)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(padding)
         ) {
             LazyColumn(
@@ -182,18 +191,16 @@ fun DayDetailList(
                             Text(
                                 text = fechaFormateada,
                                 style = OrganicTypography.headlineMedium.copy(fontSize = 40.sp),
-                                color = MocaPrimary
+                                color = MaterialTheme.colorScheme.primary
                             )
                             Text(
                                 text = "Un día de reflexión y conexión.",
                                 style = OrganicTypography.bodyLarge,
-                                color = MocaOnSurfaceVariant
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                             )
                         }
                     }
                 }
-                // ... resto del lazy column igual ...
-
 
                 // CONTENEDOR DE LA LÍNEA DE TIEMPO
                 item {
@@ -220,8 +227,9 @@ fun TimelineItem(
     esUltimo: Boolean,
     onClick: () -> Unit
 ) {
+    val isDark = esModoOscuro()
     val hora = remember(entrada.creadaEn) {
-        val date = entrada.creadaEn?.toDate() ?: Date()
+        val date = entrada.creadaEn.toDate()
         SimpleDateFormat("hh:mm a", Locale.US).format(date)
     }
 
@@ -253,9 +261,9 @@ fun TimelineItem(
                     .background(
                         brush = Brush.verticalGradient(
                             colors = if (esUltimo) {
-                                listOf(MocaPrimaryContainer.copy(alpha = 0.8f), Color.Transparent)
+                                listOf(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f), Color.Transparent)
                             } else {
-                                listOf(MocaPrimaryContainer.copy(alpha = 0.8f), MocaPrimaryContainer.copy(alpha = 0.8f))
+                                listOf(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f), MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f))
                             }
                         ),
                         shape = CircleShape
@@ -267,9 +275,9 @@ fun TimelineItem(
                 modifier = Modifier
                     .padding(top = 24.dp)
                     .size(10.dp)
-                    .background(MocaPrimaryContainer, CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
                     .padding(2.dp)
-                    .background(MocaSurface, CircleShape)
+                    .background(MaterialTheme.colorScheme.surface, CircleShape)
             )
         }
 
@@ -277,9 +285,10 @@ fun TimelineItem(
         GlassCard(
             modifier = Modifier
                 .weight(1f)
-                .padding(start = 8.dp),
+                .padding(start = 8.dp)
+                .shadow(elevation = 2.dp, shape = RoundedCornerShape(16.dp)), // Sombra de 2.dp con forma
             bordeRedondeado = 16.dp,
-            colorBorde = Color.Gray.copy(alpha = 0.1f),
+            colorBorde = if (isDark) Color.White.copy(alpha = 0.1f) else Color.Gray.copy(alpha = 0.1f), // Bordes muy tenues
             alHacerClick = onClick
         ) {
             Row(
@@ -297,27 +306,27 @@ fun TimelineItem(
                         Icon(
                             imageVector = icono,
                             contentDescription = null,
-                            tint = MocaPrimary,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
                             text = hora,
                             style = OrganicTypography.labelMedium,
-                            color = MocaPrimary
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
 
                     Text(
                         text = entrada.titulo,
                         style = OrganicTypography.headlineMedium.copy(fontSize = 24.sp),
-                        color = MocaOnSurface,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
 
                     Text(
                         text = entrada.detalles,
                         style = OrganicTypography.bodyMedium,
-                        color = MocaOnSurfaceVariant,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -349,7 +358,7 @@ fun MenuOptionItem(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        color = MocaSurfaceContainerLow,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -360,14 +369,27 @@ fun MenuOptionItem(
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(MocaPrimaryContainer, CircleShape),
+                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, null, tint = MocaPrimary, modifier = Modifier.size(24.dp))
+                Icon(
+                    imageVector = icon, 
+                    contentDescription = null, 
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer, 
+                    modifier = Modifier.size(24.dp)
+                )
             }
             Column {
-                Text(title, style = OrganicTypography.labelMedium.copy(fontSize = 16.sp), color = MocaOnSurface)
-                Text(subtitle, style = OrganicTypography.bodySmall, color = MocaOnSurfaceVariant)
+                Text(
+                    text = title, 
+                    style = OrganicTypography.labelMedium.copy(fontSize = 16.sp), 
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = subtitle, 
+                    style = OrganicTypography.bodySmall, 
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                )
             }
         }
     }

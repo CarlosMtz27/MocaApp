@@ -37,6 +37,16 @@ interface PerfilRepository {
     ): Result<Unit>
 
     /**
+     * Trae todas las entradas de diario asociadas a un usuario o pareja.
+     */
+    suspend fun obtenerEntradas(usuarioId: String, parejaId: String?): Result<List<com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario>>
+
+    /**
+     * Cuenta cuántos cuestionarios han sido completados por el usuario.
+     */
+    suspend fun contarCuestionariosCompletados(usuarioId: String): Result<Int>
+
+    /**
      * Cambia nuestro correo electrónico de acceso de forma segura.
      */
     suspend fun actualizarEmail(

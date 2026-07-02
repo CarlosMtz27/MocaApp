@@ -2,12 +2,31 @@ package com.cadev.mocaapp.feature.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.Composable
+import com.cadev.mocaapp.core.utils.ThemeManager
+
+/**
+ * Función de conveniencia para obtener si estamos en modo oscuro
+ */
+@Composable
+fun esModoOscuro(): Boolean = isSystemInDarkTheme() || ThemeManager.isDarkTheme
+
 // COLORES EXTRAÍDOS FIELMENTE DEL HTML/TAILWIND CONFIG
 val MocaPrimary = Color(0xFF78555E)
-val MocaAccentPink = Color(0xFFA1455A) // Rosa más vibrante para botones
+val MocaAccentPink = Color(0xFFA1455A) 
 val MocaOnPrimary = Color(0xFFFFFFFF)
 val MocaPrimaryContainer = Color(0xFFFFD1DC)
 val MocaOnPrimaryContainer = Color(0xFF7A5761)
+
+// ... resto de colores ...
+val MocaDarkBackground = Color(0xFF1E1B14)
+val MocaDarkSurface = Color(0xFF1E1B14)
+val MocaDarkOnSurface = Color(0xFFE0D9CE)
+val MocaDarkPrimary = Color(0xFFE7BBC6)
+val MocaDarkPrimaryContainer = Color(0xFF5E3E47)
+val MocaDarkOnPrimaryContainer = Color(0xFFFFD9E2)
+
 
 val MocaSecondary = Color(0xFF635F40)
 val MocaOnSecondary = Color(0xFFFFFFFF)

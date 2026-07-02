@@ -40,6 +40,7 @@ import com.cadev.mocaapp.feature.diario.domain.model.Emocion
 import com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
 import com.cadev.mocaapp.core.model.TipoEvento
+import com.cadev.mocaapp.feature.ui.screens.LoadingTransition
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -168,10 +169,7 @@ fun DetalleEntradaScreen(
     ) { padding ->
 
         if (uiState.cargando && entrada == null) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
-            ) { CircularProgressIndicator() }
+            LoadingTransition()
             return@Scaffold
         }
 

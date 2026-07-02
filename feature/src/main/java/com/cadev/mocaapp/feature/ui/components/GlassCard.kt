@@ -12,6 +12,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -29,8 +30,8 @@ import androidx.compose.ui.unit.dp
 fun GlassCard(
     modifier: Modifier = Modifier,
     bordeRedondeado: Dp = 32.dp,
-    colorFondo: Color = Color.White.copy(alpha = 0.4f),
-    colorBorde: Color = Color.White.copy(alpha = 0.2f),
+    colorFondo: Color = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
+    colorBorde: Color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
     alHacerClick: (() -> Unit)? = null,
     contenido: @Composable BoxScope.() -> Unit
 ) {

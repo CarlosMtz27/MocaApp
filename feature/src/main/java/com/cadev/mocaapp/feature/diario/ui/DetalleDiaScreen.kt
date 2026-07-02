@@ -34,6 +34,7 @@ import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
+import com.cadev.mocaapp.feature.ui.screens.LoadingTransition
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -135,9 +136,7 @@ fun DetalleDiaScreen(
                 )
         ) {
             if (uiState.cargando) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+                LoadingTransition()
             } else if (uiState.entradas.isEmpty()) {
                 /**
                  * Se muestra un mensaje amigable si el día todavía no tiene ningún recuerdo

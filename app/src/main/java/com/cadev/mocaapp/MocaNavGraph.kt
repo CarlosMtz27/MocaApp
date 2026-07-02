@@ -49,8 +49,8 @@ import com.cadev.mocaapp.feature.pareja.data.UsuarioHelper
 import com.cadev.mocaapp.feature.pareja.ui.PantallaVincularPareja
 import com.cadev.mocaapp.feature.pareja.ui.PantallaAniversario
 import com.cadev.mocaapp.feature.pareja.ui.ParejaViewModel
+import com.cadev.mocaapp.feature.pareja.ui.PerfilParejaScreen
 import com.cadev.mocaapp.feature.perfil.ui.AjustesScreen
-import com.cadev.mocaapp.feature.perfil.ui.PerfilParejaScreen
 import com.cadev.mocaapp.feature.perfil.ui.PerfilViewModel
 import com.cadev.mocaapp.feature.ui.screens.LoadingTransition
 import com.cadev.mocaapp.feature.ui.screens.PantallaPruebaComponentes
@@ -326,7 +326,14 @@ fun MocaNavGraph(
             PerfilParejaScreen(
                 viewModel = viewModel,
                 parejaId = pId,
-                onRegresar = irAlInicio
+
+                onRegresar = irAlInicio,
+                onVerDetalleEntrada = { id ->
+                    navController.navigate(NavRoutes.DetalleEntrada.crearRuta(id))
+                },
+                onVerDetalleDia = { fecha ->
+                    navController.navigate(NavRoutes.DetalleDia.crearRuta(fecha))
+                }
             )
         }
 
@@ -376,6 +383,8 @@ fun MocaNavGraph(
                 parejaId = parejaId ?: "",
                 nombreUsuario = perfilState.usuario?.nombre ?: "Tú",
                 nombrePareja = perfilState.pareja?.nombre ?: "Tu pareja",
+                fotoUsuario = perfilState.usuario?.fotoPerfil ?: "",
+                fotoPareja = perfilState.pareja?.fotoPerfil ?: "",
                 onRegresar = irAlInicio
             )
         }
@@ -409,7 +418,7 @@ fun MocaNavGraph(
                 relacionId = relacionId,
                 onCrearEvento = { navController.navigate(NavRoutes.CrearEvento.route) },
                 onVerEvento = { id -> navController.navigate(NavRoutes.DetalleEvento.crearRuta(id)) },
-                onRegresar = irAlInicio
+                onRegresar = { navController.popBackStack() }
             )
         }
 
@@ -425,8 +434,8 @@ fun MocaNavGraph(
                 usuarioId = uid,
                 parejaId = parejaId ?: "",
                 relacionId = relacionId,
-                onGuardado = irAlInicio,
-                onRegresar = irAlInicio
+                onGuardado = { navController.popBackStack() },
+                onRegresar = { navController.popBackStack() }
             )
         }
 
@@ -441,7 +450,7 @@ fun MocaNavGraph(
                 viewModel = viewModel,
                 eventoId = eventoId,
                 usuarioId = uid,
-                onRegresar = irAlInicio,
+                onRegresar = { navController.popBackStack() },
                 onEditar = { id -> navController.navigate(NavRoutes.EditarEvento.crearRuta(id)) },
                 onConvertirEnRecuerdo = { fecha, titulo ->
                     navController.navigate(NavRoutes.CrearEntrada.crearRuta(fecha, TipoEntrada.RECUERDO.name))
@@ -477,7 +486,7 @@ fun MocaNavGraph(
                     onRegresar = irAlInicio
                 )
             } else {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                LoadingTransition()
             }
         }
 
@@ -492,8 +501,8 @@ fun MocaNavGraph(
                 viewModel = viewModel,
                 eventoId = eventoId,
                 usuarioId = uid,
-                onGuardado = irAlInicio,
-                onRegresar = irAlInicio
+                onGuardado = { navController.popBackStack() },
+                onRegresar = { navController.popBackStack() }
             )
         }
         

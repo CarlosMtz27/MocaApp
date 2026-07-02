@@ -18,7 +18,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
  */
 enum class TipoEvento(val icono: ImageVector, val etiqueta: String) {
     CITA(Icons.Default.Favorite, "Cita"),
-    ANIVERSARIO(Icons.Default.Stars, "Aniversario"),
+    ANIVERSARIO(Icons.Default.AllInclusive, "Aniversario"),
     CUMPLEANOS(Icons.Default.Cake, "Cumpleaños"),
     VIAJE(Icons.Default.Flight, "Viaje"),
     SALIDA(Icons.AutoMirrored.Filled.DirectionsWalk, "Salida"),

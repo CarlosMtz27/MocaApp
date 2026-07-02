@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -33,7 +34,17 @@ data class PerfilUiState(
     val fechaRelacion: String? = null,          // Día del aniversario
     val guardandoAjuste: Boolean = false,       // Si estamos guardando un cambio
     val ajusteExitoso: Boolean = false,         // Si el cambio se guardó bien
-    val entradasPareja: Int = 0                 // Recuerdos totales de nuestra pareja
+    val entradasPareja: Int = 0,                 // Recuerdos totales de nuestra pareja
+    val totalTests: Int = 0,
+    val totalTestsPareja: Int = 0,
+    val todasLasEntradas: List<com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario> = emptyList(),
+    val todasLasEntradasPareja: List<com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario> = emptyList(),
+    val totalFotos: Int = 0,
+    val totalFotosPareja: Int = 0,
+    val enviandoTeAmo: Boolean = false,
+    val teAmoFinalizado: Boolean = false,
+    val totalDiasUsuario: Int = 0,
+    val totalDiasPareja: Int = 0
 )
 
 /**
@@ -49,7 +60,8 @@ data class PerfilUiState(
  * escritos, debemos añadir esa lógica dentro de la función `cargarPerfil`.
  */
 class PerfilViewModel(
-    private val repository: PerfilRepository
+    private val repository: PerfilRepository,
+    private val notificacionRepository: com.cadev.mocaapp.feature.notificaciones.data.NotificacionRepository? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PerfilUiState())
@@ -87,24 +99,44 @@ class PerfilViewModel(
     private fun cargarDatosExtras(usuarioId: String, parejaId: String) {
         viewModelScope.launch {
             val deferredPareja = async { repository.obtenerPareja(parejaId) }
-            val deferredEntradas = async { repository.contarEntradas(usuarioId) }
-            val deferredEntradasPareja = async { repository.contarEntradas(parejaId) }
+            val deferredEntradas = async { repository.obtenerEntradas(usuarioId, null) }
+            val deferredEntradasPareja = async { repository.obtenerEntradas(parejaId, null) }
             val deferredFecha = async { repository.obtenerFechaRelacion(usuarioId) }
+            val deferredTests = async { repository.contarCuestionariosCompletados(usuarioId) }
+            val deferredTestsPareja = async { repository.contarCuestionariosCompletados(parejaId) }
 
             deferredPareja.await().onSuccess { pareja ->
                 _uiState.value = _uiState.value.copy(pareja = pareja)
             }
-            deferredEntradas.await().onSuccess { count ->
-                _uiState.value = _uiState.value.copy(totalEntradas = count)
+            deferredEntradas.await().onSuccess { entradas ->
+                val countDias = entradas.count { it.tipo == com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada.MI_DIA.name }
+                _uiState.value = _uiState.value.copy(
+                    totalEntradas = entradas.size,
+                    todasLasEntradas = entradas,
+                    totalFotos = entradas.sumOf { it.fotos.size },
+                    totalDiasUsuario = countDias
+                )
             }
-            deferredEntradasPareja.await().onSuccess { count ->
-                _uiState.value = _uiState.value.copy(entradasPareja = count)
+            deferredEntradasPareja.await().onSuccess { entradas ->
+                val countDiasPareja = entradas.count { it.tipo == com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada.MI_DIA.name }
+                _uiState.value = _uiState.value.copy(
+                    entradasPareja = entradas.size,
+                    todasLasEntradasPareja = entradas,
+                    totalFotosPareja = entradas.sumOf { it.fotos.size },
+                    totalDiasPareja = countDiasPareja
+                )
             }
             deferredFecha.await().onSuccess { fecha ->
                 _uiState.value = _uiState.value.copy(
                     fechaRelacion = fecha,
                     diasJuntos = calcularDiasJuntos(fecha)
                 )
+            }
+            deferredTests.await().onSuccess { count ->
+                _uiState.value = _uiState.value.copy(totalTests = count)
+            }
+            deferredTestsPareja.await().onSuccess { count ->
+                _uiState.value = _uiState.value.copy(totalTestsPareja = count)
             }
         }
     }
@@ -124,11 +156,15 @@ class PerfilViewModel(
             val deferredPareja = if (parejaId != null) {
                 async { repository.obtenerPareja(parejaId) }
             } else null
-            val deferredEntradas = async { repository.contarEntradas(usuarioId) }
+            val deferredEntradas = async { repository.obtenerEntradas(usuarioId, null) }
             val deferredEntradasPareja = if (parejaId != null) {
-                async { repository.contarEntradas(parejaId) }
+                async { repository.obtenerEntradas(parejaId, null) }
             } else null
             val deferredFecha = async { repository.obtenerFechaRelacion(usuarioId) }
+            val deferredTests = async { repository.contarCuestionariosCompletados(usuarioId) }
+            val deferredTestsPareja = if (parejaId != null) {
+                async { repository.contarCuestionariosCompletados(parejaId) }
+            } else null
 
             deferredUsuario.await().fold(
                 onSuccess = { usuario ->
@@ -145,15 +181,42 @@ class PerfilViewModel(
             )
 
             deferredEntradas.await().fold(
-                onSuccess = { count ->
-                    _uiState.value = _uiState.value.copy(totalEntradas = count)
+                onSuccess = { entradas ->
+                    val countDias = entradas.count { it.tipo == com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada.MI_DIA.name }
+                    _uiState.value = _uiState.value.copy(
+                        totalEntradas = entradas.size,
+                        todasLasEntradas = entradas,
+                        totalFotos = entradas.sumOf { it.fotos.size },
+                        totalDiasUsuario = countDias,
+                        diasJuntos = countDias.toLong()
+                    )
                 },
                 onFailure = { }
             )
 
             deferredEntradasPareja?.await()?.fold(
+                onSuccess = { entradas ->
+                    val countDiasPareja = entradas.count { it.tipo == com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada.MI_DIA.name }
+                    _uiState.value = _uiState.value.copy(
+                        entradasPareja = entradas.size,
+                        todasLasEntradasPareja = entradas,
+                        totalFotosPareja = entradas.sumOf { it.fotos.size },
+                        totalDiasPareja = countDiasPareja
+                    )
+                },
+                onFailure = { }
+            )
+
+            deferredTests.await().fold(
                 onSuccess = { count ->
-                    _uiState.value = _uiState.value.copy(entradasPareja = count)
+                    _uiState.value = _uiState.value.copy(totalTests = count)
+                },
+                onFailure = { }
+            )
+
+            deferredTestsPareja?.await()?.fold(
+                onSuccess = { count ->
+                    _uiState.value = _uiState.value.copy(totalTestsPareja = count)
                 },
                 onFailure = { }
             )
@@ -347,6 +410,35 @@ class PerfilViewModel(
         }
     }
 
+    fun enviarTeAmo(parejaId: String, miNombre: String) {
+        if (parejaId.isBlank() || _uiState.value.enviandoTeAmo) return
+        
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(enviandoTeAmo = true, teAmoFinalizado = false)
+            
+            // Intentar enviar la notificación
+            val resultado = notificacionRepository?.enviarPush(
+                parejaId = parejaId,
+                titulo = "¡Un mensaje especial!",
+                cuerpo = "$miNombre te ha enviado un: ¡Te amo! ❤️",
+                deepLink = "moca://home",
+                tipo = "TE_AMO"
+            )
+            
+            // Simular un tiempo de "recarga" para la animación en la UI
+            kotlinx.coroutines.delay(3000)
+            
+            _uiState.value = _uiState.value.copy(
+                enviandoTeAmo = false,
+                teAmoFinalizado = true
+            )
+            
+            // Limpiar el estado de finalizado después de un momento
+            kotlinx.coroutines.delay(2000)
+            _uiState.value = _uiState.value.copy(teAmoFinalizado = false)
+        }
+    }
+
     /**
      * LIMPIEZA:
      * Borra los avisos viejos para que la pantalla de ajustes se vea limpia de nuevo.
@@ -367,9 +459,23 @@ class PerfilViewModel(
         if (fecha == null) return 0
         return try {
             val inicio = formatoFecha.parse(fecha) ?: return 0
-            val hoy = Date()
-            val diff = hoy.time - inicio.time
-            TimeUnit.MILLISECONDS.toDays(diff)
+            val calHoy = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            
+            val calInicio = Calendar.getInstance().apply {
+                time = inicio
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            
+            val diff = calHoy.timeInMillis - calInicio.timeInMillis
+            TimeUnit.MILLISECONDS.toDays(diff) + 1 // +1 para que el primer día cuente como 1
         } catch (e: Exception) {
             0
         }

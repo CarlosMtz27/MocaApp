@@ -41,7 +41,10 @@ data class EventoUiState(
     val hora: String = "12:00",
     val tipo: String = TipoEvento.OTRO.name,
     val recordatorio: Boolean = true,
-    val minutosAntes: Int = 60
+    val minutosAntes: Int = 60,
+    val lugar: String = "",
+    val fotoUrl: String = "",
+    val subiendoImagen: Boolean = false
 )
 
 /**
@@ -135,7 +138,9 @@ class EventoViewModel(
                         hora        = evento.hora,
                         tipo        = evento.tipo,
                         recordatorio = evento.recordatorio,
-                        minutosAntes = evento.minutosAntes
+                        minutosAntes = evento.minutosAntes,
+                        lugar       = evento.lugar,
+                        fotoUrl     = evento.fotoUrl
                     )
                 },
                 onFailure = {
@@ -180,7 +185,9 @@ class EventoViewModel(
                 creadoPor    = usuarioId,
                 relacionId   = relacionId,
                 recordatorio = estado.recordatorio,
-                minutosAntes = estado.minutosAntes
+                minutosAntes = estado.minutosAntes,
+                lugar        = estado.lugar,
+                fotoUrl      = estado.fotoUrl
             )
 
             repository.crearEvento(evento).fold(
@@ -255,7 +262,9 @@ class EventoViewModel(
                 hora         = estado.hora,
                 tipo         = estado.tipo,
                 recordatorio = estado.recordatorio,
-                minutosAntes = estado.minutosAntes
+                minutosAntes = estado.minutosAntes,
+                lugar        = estado.lugar,
+                fotoUrl      = estado.fotoUrl
             )
             repository.actualizarEvento(actualizado).fold(
                 onSuccess = {
@@ -347,6 +356,33 @@ class EventoViewModel(
     fun actualizarFecha(v: String)        { _uiState.value = _uiState.value.copy(fecha = v) }
     fun actualizarHora(v: String)         { _uiState.value = _uiState.value.copy(hora = v) }
     fun actualizarTipo(v: String)         { _uiState.value = _uiState.value.copy(tipo = v) }
+    fun actualizarLugar(v: String)        { _uiState.value = _uiState.value.copy(lugar = v) }
+    
+    /**
+     * SUBIR IMAGEN:
+     * Gestiona el proceso de subir la foto seleccionada y actualiza el estado.
+     */
+    fun subirImagen(rutaLocal: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(subiendoImagen = true)
+            repository.subirFoto(rutaLocal).fold(
+                onSuccess = { url ->
+                    _uiState.value = _uiState.value.copy(
+                        fotoUrl = url,
+                        subiendoImagen = false
+                    )
+                },
+                onFailure = { e ->
+                    _uiState.value = _uiState.value.copy(
+                        subiendoImagen = false,
+                        error = "Error al subir imagen: ${e.message}"
+                    )
+                }
+            )
+        }
+    }
+
+    fun actualizarFotoUrl(v: String)      { _uiState.value = _uiState.value.copy(fotoUrl = v) }
     fun toggleRecordatorio()              { _uiState.value = _uiState.value.copy(recordatorio = !_uiState.value.recordatorio) }
     fun actualizarMinutosAntes(v: Int)    { _uiState.value = _uiState.value.copy(minutosAntes = v) }
 
@@ -371,7 +407,8 @@ class EventoViewModel(
         _uiState.value = _uiState.value.copy(
             titulo = "", descripcion = "", fecha = "", hora = "12:00",
             tipo = TipoEvento.OTRO.name, recordatorio = true,
-            minutosAntes = 60, guardado = false, eliminado = false,
+            minutosAntes = 60, lugar = "", fotoUrl = "",
+            guardado = false, eliminado = false,
             eventoActual = null, error = null
         )
     }

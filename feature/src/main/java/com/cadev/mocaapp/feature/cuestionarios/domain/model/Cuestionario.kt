@@ -44,6 +44,7 @@ data class Cuestionario(
     val titulo: String = "",                                          // Nombre del cuestionario
     val descripcion: String = "",                                     // Breve explicación de qué trata
     val categoria: String = CategoriaCuestionario.COMPATIBILIDAD.name, // El tema del test
+    val etiquetas: List<String> = emptyList(),                        // Etiquetas (divertido, hot, etc.)
     val preguntas: List<Pregunta> = emptyList(),                      // Las preguntas que hay que responder
     val creadoPor: String = "sistema",                                // Quién lo inventó ("sistema" o un usuario)
     val relacionId: String = "",                                      // A qué relación pertenece si es personalizado

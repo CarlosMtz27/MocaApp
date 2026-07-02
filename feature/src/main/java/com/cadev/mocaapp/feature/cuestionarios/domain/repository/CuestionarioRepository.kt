@@ -68,7 +68,8 @@ interface CuestionarioRepository {
         cuestionarioId: String,
         usuarioId: String,
         respuestas: Map<String, String>,
-        respuestasFoto: Map<String, String>
+        respuestasFoto: Map<String, String>,
+        comentarios: Map<String, String> = emptyMap()
     ): Result<Unit>
 
     /**

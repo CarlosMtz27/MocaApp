@@ -1,11 +1,13 @@
 package com.cadev.mocaapp.feature.home.ui.components
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -86,9 +88,12 @@ fun DailyMoodModal(
     estadoPareja: String = "",
     haceCuantoPareja: String = ""
 ) {
-    val colorBackground = Color(0xFFFFF8EF)
-    val colorOnSurface = Color(0xFF1E1B14)
-    val colorOnSurfaceVariant = Color(0xFF4F4446)
+    val isDark = isSystemInDarkTheme() || com.cadev.mocaapp.core.utils.ThemeManager.isDarkTheme
+    
+    val colorBackground = if (isDark) Color(0xFF1E1B14) else Color(0xFFFFF8EF)
+    val colorOnSurface = if (isDark) Color.White else Color(0xFF1E1B14)
+    val colorOnSurfaceVariant = if (isDark) Color(0xFFD3C3C5) else Color(0xFF4F4446)
+    val cardColor = if (isDark) Color(0xFF2D2921) else colorBackground
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -97,7 +102,7 @@ fun DailyMoodModal(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.4f))
+                .background(Color.Black.copy(alpha = 0.5f))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -112,10 +117,10 @@ fun DailyMoodModal(
                     .clickable(enabled = false) {},
                 shape = RoundedCornerShape(32.dp),
                 color = colorBackground,
-                shadowElevation = 8.dp
+                shadowElevation = if (isDark) 0.dp else 12.dp,
+                border = if (isDark) BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)) else null
             ) {
                 Box(modifier = Modifier.padding(24.dp)) {
-                    // Botón Cerrar simple
                     IconButton(
                         onClick = onDismiss,
                         modifier = Modifier
@@ -142,12 +147,12 @@ fun DailyMoodModal(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Card de Selección
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = colorBackground),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            colors = CardDefaults.cardColors(containerColor = cardColor),
+                            elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 2.dp),
+                            border = if (isDark) BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)) else null
                         ) {
                             Column(modifier = Modifier.padding(20.dp)) {
                                 Text(
@@ -168,6 +173,7 @@ fun DailyMoodModal(
                                             MoodBubbleItem(
                                                 mood = mood,
                                                 isSelected = mood.emoji == currentMood,
+                                                isDark = isDark,
                                                 onClick = { onMoodSelected(mood) }
                                             )
                                         }
@@ -207,12 +213,13 @@ fun DailyMoodModal(
 fun MoodBubbleItem(
     mood: MoodOption,
     isSelected: Boolean,
+    isDark: Boolean,
     onClick: () -> Unit
 ) {
-    val colorBackground = Color(0xFFFFF8EF)
-    val colorPrimary = MocaPrimary
-    val colorPrimaryContainer = MocaPrimaryContainer
-    val colorOnSurfaceVariant = Color(0xFF4F4446)
+    val colorBackground = if (isDark) Color(0xFF2D2921) else Color(0xFFFFF8EF)
+    val colorPrimary = if (isDark) Color(0xFFE7BBC6) else MocaPrimary
+    val colorPrimaryContainer = if (isDark) Color(0xFF5E3E47) else MocaPrimaryContainer
+    val colorOnSurfaceVariant = if (isDark) Color(0xFFD3C3C5) else Color(0xFF4F4446)
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -231,19 +238,29 @@ fun MoodBubbleItem(
         Box(
             modifier = Modifier
                 .size(if (isSelected) 56.dp else 48.dp)
-                .neumorphicShadow(
-                    shape = CircleShape,
-                    offset = if (isSelected) 0.dp else 4.dp,
-                    blur = if (isSelected) 8.dp else 8.dp,
-                    alpha = if (isPressed) 0.5f else 1f
+                .then(
+                    if (!isDark) {
+                        Modifier.neumorphicShadow(
+                            shape = CircleShape,
+                            offset = if (isSelected) 0.dp else 4.dp,
+                            blur = if (isSelected) 8.dp else 8.dp,
+                            alpha = if (isPressed) 0.5f else 1f
+                        )
+                    } else {
+                        Modifier.border(
+                            width = 1.dp,
+                            color = if (isSelected) colorPrimary else Color.White.copy(alpha = 0.05f),
+                            shape = CircleShape
+                        )
+                    }
                 )
                 .then(
-                    if (isSelected) {
+                    if (isSelected && !isDark) {
                         Modifier.border(2.dp, colorPrimaryContainer.copy(alpha = 0.5f), CircleShape)
                     } else Modifier
                 )
                 .clip(CircleShape)
-                .background(colorBackground),
+                .background(if (isSelected && isDark) colorPrimaryContainer else colorBackground),
             contentAlignment = Alignment.Center
         ) {
             Text(

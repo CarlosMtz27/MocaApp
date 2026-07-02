@@ -3,6 +3,7 @@ package com.cadev.mocaapp.feature.home.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cadev.mocaapp.feature.ui.theme.MocaPrimary
 
 @Composable
 fun MoodAndNoteRow(
@@ -36,13 +38,16 @@ fun MoodAndNoteRow(
     onNoteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val colorPrimary = Color(0xFF78555E)
-    val colorOnSurface = Color(0xFF1E1B14)
-    val colorOnSurfaceVariant = Color(0xFF4F4446)
+    val isDark = isSystemInDarkTheme() || com.cadev.mocaapp.core.utils.ThemeManager.isDarkTheme
     
-    // Tono CREMA suave para transmitir tranquilidad y amor
-    val colorMoodBackground = Color(0xFFFFF1E1) 
-    val colorNoteBackground = Color(0xFFFFF9C4)
+    val colorPrimary = if (isDark) Color(0xFFE7BBC6) else MocaPrimary
+    val colorOnSurface = if (isDark) Color.White else Color(0xFF1E1B14)
+    val colorOnSurfaceVariant = if (isDark) Color(0xFFD3C3C5) else Color(0xFF4F4446)
+    
+    // Tonos ajustados para modo oscuro
+    val colorMoodBackground = if (isDark) Color(0xFF343B2D) else Color(0xFFFFF1E1) 
+    val colorNoteBackground = if (isDark) Color(0xFF4D4926) else Color(0xFFFFF9C4)
+    val shadowColor = if (isDark) Color.Black.copy(alpha = 0.5f) else Color(0xFFE0D9CE).copy(alpha = 0.5f)
 
     Row(
         modifier = modifier
@@ -55,7 +60,7 @@ fun MoodAndNoteRow(
             modifier = Modifier
                 .weight(1.2f)
                 .fillMaxHeight()
-                .shadowWithBlur(offset = 8.dp, blur = 16.dp, color = Color(0xFFE0D9CE).copy(alpha = 0.5f))
+                .shadowWithBlur(offset = 8.dp, blur = 16.dp, color = shadowColor)
                 .clip(RoundedCornerShape(24.dp))
                 .background(colorMoodBackground)
                 .clickable { onMoodClick() }
@@ -82,9 +87,9 @@ fun MoodAndNoteRow(
                     Box(
                         modifier = Modifier
                             .size(56.dp)
-                            .shadowWithBlur(4.dp, blur = 12.dp, color = Color.White.copy(alpha = 0.3f))
-                            .background(Color.White.copy(alpha = 0.4f), CircleShape)
-                            .border(1.5.dp, Color.White.copy(alpha = 0.6f), CircleShape),
+                            .shadowWithBlur(4.dp, blur = 12.dp, color = if (isDark) Color.Black.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.3f))
+                            .background(if (isDark) Color.White.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.4f), CircleShape)
+                            .border(1.5.dp, Color.White.copy(alpha = if (isDark) 0.2f else 0.6f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(text = miEmoji, fontSize = 32.sp)
@@ -94,9 +99,9 @@ fun MoodAndNoteRow(
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .shadowWithBlur(4.dp, blur = 12.dp, color = Color.White.copy(alpha = 0.3f))
-                            .background(Color.White.copy(alpha = 0.4f), CircleShape)
-                            .border(1.5.dp, Color.White.copy(alpha = 0.6f), CircleShape)
+                            .shadowWithBlur(4.dp, blur = 12.dp, color = if (isDark) Color.Black.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.3f))
+                            .background(if (isDark) Color.White.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.4f), CircleShape)
+                            .border(1.5.dp, Color.White.copy(alpha = if (isDark) 0.2f else 0.6f), CircleShape)
                             .padding(bottom = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -111,7 +116,7 @@ fun MoodAndNoteRow(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .shadowWithBlur(offset = 8.dp, blur = 16.dp, color = Color(0xFFE0D9CE).copy(alpha = 0.5f))
+                .shadowWithBlur(offset = 8.dp, blur = 16.dp, color = shadowColor)
                 .clip(RoundedCornerShape(24.dp))
                 .background(colorNoteBackground)
                 .clickable { onNoteClick() }

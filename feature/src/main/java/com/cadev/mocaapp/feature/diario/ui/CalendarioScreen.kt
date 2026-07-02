@@ -43,6 +43,7 @@ import com.cadev.mocaapp.feature.diario.domain.model.DiaCalendarioInfo
 import com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario
 import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
 import com.cadev.mocaapp.feature.eventos.domain.model.Evento
+import com.cadev.mocaapp.feature.ui.screens.LoadingTransition
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -171,9 +172,7 @@ fun CalendarioScreen(
                             label = "MonthTransition"
                         ) { targetCal ->
                             if (uiState.cargando && uiState.diasConEntrada.isEmpty()) {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                                }
+                                LoadingTransition()
                             } else {
                                 CuadriculaMes(
                                     calendario = targetCal,

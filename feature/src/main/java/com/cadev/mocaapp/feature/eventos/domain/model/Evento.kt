@@ -29,7 +29,8 @@ data class Evento(
     val convertidoEnRecuerdo: Boolean = false, // Si ya se creó un recuerdo de este evento
     val pospuesto: Boolean = false,            // Si el evento fue movido de su fecha original
     val fechaOriginal: String? = null,         // Almacena la fecha inicial si se pospone
-    val fotoUrl: String = ""                   // Imagen destacada del evento
+    val fotoUrl: String = "",                  // Imagen destacada del evento
+    val lugar: String = ""                     // Lugar de la cita
 )
 
 /**

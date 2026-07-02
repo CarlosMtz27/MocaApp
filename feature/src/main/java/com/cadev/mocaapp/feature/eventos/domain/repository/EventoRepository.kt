@@ -37,6 +37,11 @@ interface EventoRepository {
     suspend fun actualizarEvento(evento: Evento): Result<Unit>
 
     /**
+     * Sube una foto a internet y devuelve la dirección donde se guardó.
+     */
+    suspend fun subirFoto(rutaLocal: String): Result<String>
+
+    /**
      * Quita una cita de nuestro calendario compartido.
      */
     suspend fun eliminarEvento(eventoId: String): Result<Unit>

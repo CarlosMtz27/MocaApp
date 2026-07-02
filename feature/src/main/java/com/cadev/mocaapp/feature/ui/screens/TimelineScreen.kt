@@ -47,7 +47,7 @@ import com.cadev.mocaapp.feature.R
 
 /**
  * VISTA DE HISTORIAL COMBINADO (SECCIÓN 4.5)
- * Ahora integrada en el MainScaffold.
+ * Ahora integrada en el MainScaffold con soporte para Modo Oscuro.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -63,6 +63,7 @@ fun TimelineScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
+    val isDark = esModoOscuro()
     
     LaunchedEffect(usuarioId, parejaId, relacionId) {
         viewModel.iniciarEscucha(usuarioId, parejaId, relacionId)
@@ -121,15 +122,19 @@ fun TimelineScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column {
-            // Barra de acciones superior (dentro del contenido para dar espacio al Header de MainScreen)
+            // Barra de acciones superior
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onRegresar) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver", tint = MocaPrimary)
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack, 
+                        contentDescription = "Volver", 
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
                 Spacer(Modifier.width(8.dp))
                 FilterTabsRow(
@@ -151,7 +156,7 @@ fun TimelineScreen(
                         val strokeWidth = 1.dp.toPx()
                         val dashPathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
                         drawLine(
-                            color = MocaOutlineVariant,
+                            color = if (isDark) Color.White.copy(alpha = 0.1f) else MocaOutlineVariant,
                             start = Offset(24.dp.toPx(), 0f),
                             end = Offset(24.dp.toPx(), size.height),
                             strokeWidth = strokeWidth,
@@ -249,9 +254,13 @@ fun FilterTabsRow(
             onClick = onToggleOrden,
             modifier = Modifier
                 .size(40.dp)
-                .background(MocaSurfaceContainer, CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
         ) {
-            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort", tint = MocaOnSurfaceVariant)
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Sort, 
+                contentDescription = "Ordenar", 
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -261,14 +270,14 @@ fun FilterTabButton(text: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         shape = CircleShape,
-        color = if (selected) MocaPrimaryContainer else MocaSurfaceContainer,
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         modifier = Modifier.height(36.dp)
     ) {
         Box(modifier = Modifier.padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
             Text(
                 text = text,
                 style = OrganicTypography.labelMedium.copy(fontSize = 12.sp),
-                color = if (selected) MocaOnPrimaryContainer else MocaOnSurfaceVariant
+                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
             )
         }
     }
@@ -279,7 +288,7 @@ fun MonthHeader(mes: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MocaBackground.copy(alpha = 0.9f))
+            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.9f))
             .padding(vertical = 12.dp, horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -287,8 +296,8 @@ fun MonthHeader(mes: String) {
             modifier = Modifier
                 .size(12.dp)
                 .offset(x = 2.dp)
-                .background(MocaPrimaryFixedDim, CircleShape)
-                .border(4.dp, MocaBackground, CircleShape)
+                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                .border(4.dp, MaterialTheme.colorScheme.background, CircleShape)
         )
         
         Text(
@@ -299,7 +308,7 @@ fun MonthHeader(mes: String) {
                 fontStyle = FontStyle.Italic,
                 fontFamily = SerifFontFamily
             ),
-            color = MocaOnPrimaryFixedVariant
+            color = MaterialTheme.colorScheme.primary
         )
     }
 }
@@ -309,6 +318,7 @@ fun TimelineItemEntry(item: Any, onClick: () -> Unit) {
     val esEntrada = item is EntradaDiario
     val titulo = if (esEntrada) (item as EntradaDiario).titulo else (item as Evento).titulo
     val fechaStr = if (esEntrada) (item as EntradaDiario).fecha else (item as Evento).fecha
+    val isDark = esModoOscuro()
     
     val subtitulo = if (esEntrada) (item as EntradaDiario).detalles else {
         val ev = item as Evento
@@ -336,12 +346,12 @@ fun TimelineItemEntry(item: Any, onClick: () -> Unit) {
     ) {
         Box(
             modifier = Modifier
-                .size(32.dp) // Aumentado para mejor visibilidad
+                .size(32.dp) 
                 .background(
-                    if (esEntrada) MocaSurfaceContainerHighest else MocaTertiaryContainer,
+                    if (esEntrada) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primaryContainer,
                     CircleShape
                 )
-                .border(4.dp, MocaBackground, CircleShape),
+                .border(4.dp, MaterialTheme.colorScheme.background, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             val iconoTira = when {
@@ -352,8 +362,8 @@ fun TimelineItemEntry(item: Any, onClick: () -> Unit) {
             Icon(
                 imageVector = iconoTira,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp), // Icono más grande
-                tint = if (esEntrada) MocaOnSurfaceVariant else MocaOnTertiaryContainer
+                modifier = Modifier.size(16.dp),
+                tint = if (esEntrada) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
 
@@ -368,7 +378,7 @@ fun TimelineItemEntry(item: Any, onClick: () -> Unit) {
                 )
                 .clip(RoundedCornerShape(32.dp))
                 .background(
-                    if (esEntrada) MocaSurfaceContainerLowest else MocaTertiaryFixed.copy(alpha = 0.5f)
+                    if (esEntrada) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
                 )
         ) {
             // FONDO DECORATIVO - SOLO PARA EVENTOS
@@ -378,7 +388,7 @@ fun TimelineItemEntry(item: Any, onClick: () -> Unit) {
                     contentDescription = null,
                     modifier = Modifier
                         .matchParentSize()
-                        .alpha(0.5f) // Más visible
+                        .alpha(if (isDark) 0.15f else 0.5f)
                         .blur(8.dp),
                     contentScale = ContentScale.Crop
                 )
@@ -392,7 +402,7 @@ fun TimelineItemEntry(item: Any, onClick: () -> Unit) {
                 Text(
                     text = "$diaNum • $etiquetaTipo",
                     style = OrganicTypography.labelSmall.copy(letterSpacing = 1.sp),
-                    color = if (esEntrada) MocaOnSurfaceVariant.copy(alpha = 0.6f) else MocaOnSurface.copy(alpha = 0.6f),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
@@ -420,13 +430,13 @@ fun TimelineItemEntry(item: Any, onClick: () -> Unit) {
                                 fontFamily = SerifFontFamily,
                                 fontWeight = FontWeight.Bold
                             ),
-                            color = MocaOnSurface,
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
                         Text(
                             text = subtitulo,
                             style = OrganicTypography.bodyMedium,
-                            color = if (esEntrada) MocaOnSurfaceVariant else MocaOnSurface.copy(alpha = 0.8f),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
                             maxLines = 3
                         )
                     }
@@ -441,14 +451,14 @@ fun TimelineItemEntry(item: Any, onClick: () -> Unit) {
                             val etiqueta = try { Emocion.valueOf(emocionId).etiqueta } catch(e: Exception) { emocionId }
                             Surface(
                                 shape = CircleShape,
-                                color = MocaSurfaceContainer,
+                                color = MaterialTheme.colorScheme.surfaceVariant,
                                 modifier = Modifier.padding(end = 4.dp)
                             ) {
                                 Text(
                                     text = etiqueta,
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                                     style = OrganicTypography.labelSmall.copy(fontSize = 10.sp),
-                                    color = MocaOnSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }

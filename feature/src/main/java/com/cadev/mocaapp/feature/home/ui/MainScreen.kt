@@ -38,8 +38,8 @@ import com.cadev.mocaapp.feature.notas.ui.NotaViewModel
 import com.cadev.mocaapp.feature.notificaciones.ui.NotificacionViewModel
 import com.cadev.mocaapp.feature.pareja.data.UsuarioHelper
 import com.cadev.mocaapp.feature.pareja.ui.ParejaViewModel
+import com.cadev.mocaapp.feature.pareja.ui.PerfilParejaScreen
 import com.cadev.mocaapp.feature.perfil.ui.AjustesScreen
-import com.cadev.mocaapp.feature.perfil.ui.PerfilParejaScreen
 import com.cadev.mocaapp.feature.perfil.ui.PerfilScreen
 import com.cadev.mocaapp.feature.perfil.ui.PerfilViewModel
 import com.cadev.mocaapp.feature.ui.screens.*
@@ -181,24 +181,26 @@ fun MainScreen(
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
+                if (rutaActual != NavRoutes.Chat.route) {
                     val titulo = when (rutaActual) {
-                    NavRoutes.Home.route -> "Inicio"
-                    NavRoutes.Calendario.route -> "Nuestro Diario"
-                    NavRoutes.Historial.route -> "Nuestra Historia"
-                    NavRoutes.Chat.route -> "Chat Privado"
-                    NavRoutes.Cuestionarios.route -> "Retos y Tests"
-                    NavRoutes.Perfil.route -> "Mi Perfil"
-                    else -> "Moca"
+                        NavRoutes.Home.route -> "Inicio"
+                        NavRoutes.Calendario.route -> "Nuestro Diario"
+                        NavRoutes.Historial.route -> "Nuestra Historia"
+                        NavRoutes.Chat.route -> "Chat Privado"
+                        NavRoutes.Cuestionarios.route -> "Retos y Tests"
+                        NavRoutes.Perfil.route -> "Mi Perfil"
+                        else -> "Moca"
+                    }
+                    MocaHeader(
+                        titulo = titulo,
+                        nombreUsuario = usuario.nombre,
+                        nombrePareja = perfilState.pareja?.nombre ?: "",
+                        urlAvatarUsuario = usuario.fotoPerfil,
+                        urlAvatarPareja = perfilState.pareja?.fotoPerfil ?: "",
+                        esModoOscuro = ThemeManager.isDarkTheme,
+                        alHacerClickEnTema = { ThemeManager.isDarkTheme = !ThemeManager.isDarkTheme }
+                    )
                 }
-                MocaHeader(
-                    titulo = titulo,
-                    nombreUsuario = usuario.nombre,
-                    nombrePareja = perfilState.pareja?.nombre ?: "",
-                    urlAvatarUsuario = usuario.fotoPerfil,
-                    urlAvatarPareja = perfilState.pareja?.fotoPerfil ?: "",
-                    esModoOscuro = ThemeManager.isDarkTheme,
-                    alHacerClickEnTema = { ThemeManager.isDarkTheme = !ThemeManager.isDarkTheme }
-                )
             },
             bottomBar = {
                 BarraNavegacionFlotante(
@@ -325,6 +327,7 @@ fun MainScreen(
                                 usuarioId = uid,
                                 parejaId = parejaIdActual ?: "",
                                 relacionId = relacionIdActual ?: "",
+                                nombrePareja = perfilState.pareja?.nombre ?: "Pareja",
                                 onRegresar = irAlInicio,
                                 onIniciarCuestionario = { id ->
                                     navController.navigate(NavRoutes.ResponderCuestionario.crearRuta(id))
@@ -334,6 +337,9 @@ fun MainScreen(
                                 },
                                 onCrearCuestionario = {
                                     navController.navigate(NavRoutes.CrearCuestionario.route)
+                                },
+                                onConfiguracion = {
+                                    navController.navigate(NavRoutes.Ajustes.route)
                                 }
                             )
                         }
@@ -353,6 +359,21 @@ fun MainScreen(
                                         popUpTo(0) { inclusive = true }
                                     }
                                     FirebaseAuth.getInstance().signOut()
+                                },
+                                onVerDetalleEntrada = { id ->
+                                    navController.navigate(NavRoutes.DetalleEntrada.crearRuta(id))
+                                },
+                                onVerDetalleDia = { fecha ->
+                                    navController.navigate(NavRoutes.DetalleDia.crearRuta(fecha))
+                                },
+                                onIrATests = {
+                                    tabNavController.navigate(NavRoutes.Cuestionarios.route) {
+                                        popUpTo(tabNavController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
                                 }
                             )
                         }
@@ -362,7 +383,14 @@ fun MainScreen(
                                 viewModel = perfilViewModel,
                                 usuarioId = uid,
                                 parejaId = parejaIdActual,
-                                onRegresar = { navController.popBackStack() }
+                                onRegresar = { navController.popBackStack() },
+                                onNavigateToWidgets = { navController.navigate(NavRoutes.WidgetsPreview.route) },
+                                onLogout = {
+                                    navController.navigate(NavRoutes.Login.route) {
+                                        popUpTo(0) { inclusive = true }
+                                    }
+                                    FirebaseAuth.getInstance().signOut()
+                                }
                             )
                         }
 
@@ -376,7 +404,13 @@ fun MainScreen(
                             PerfilParejaScreen(
                                 viewModel = perfilViewModel,
                                 parejaId = pId,
-                                onRegresar = { navController.popBackStack() }
+                                onRegresar = { navController.popBackStack() },
+                                onVerDetalleEntrada = { id ->
+                                    navController.navigate(NavRoutes.DetalleEntrada.crearRuta(id))
+                                },
+                                onVerDetalleDia = { fecha ->
+                                    navController.navigate(NavRoutes.DetalleDia.crearRuta(fecha))
+                                }
                             )
                         }
                     }

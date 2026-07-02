@@ -2,11 +2,16 @@ package com.cadev.mocaapp.feature.eventos.data.repository
 
 import com.cadev.mocaapp.feature.eventos.domain.model.Evento
 import com.cadev.mocaapp.feature.eventos.domain.repository.EventoRepository
+import com.cloudinary.android.MediaManager
+import com.cloudinary.android.callback.ErrorInfo
+import com.cloudinary.android.callback.UploadCallback
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
+import kotlin.coroutines.resume
 
 /**
  * EL MOTOR DEL CALENDARIO (FIREBASE)
@@ -83,6 +88,32 @@ class EventoRepositoryImpl(
         col.document(evento.id).set(evento).await()
         Result.success(Unit)
     } catch (e: Exception) { Result.failure(e) }
+
+    /**
+     * SUBIR FOTO:
+     * Envía la imagen seleccionada por el usuario al servicio de almacenamiento Cloudinary.
+     */
+    override suspend fun subirFoto(rutaLocal: String): Result<String> = suspendCancellableCoroutine { continuation ->
+        val requestId = MediaManager.get()
+            .upload(android.net.Uri.parse(rutaLocal))
+            .option("folder", "eventos")
+            .callback(object : UploadCallback {
+                override fun onStart(requestId: String?) {}
+                override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {}
+                override fun onSuccess(requestId: String?, resultData: MutableMap<Any?, Any?>?) {
+                    val url = resultData?.get("secure_url") as? String ?: ""
+                    continuation.resume(Result.success(url))
+                }
+                override fun onError(requestId: String?, error: ErrorInfo?) {
+                    continuation.resume(Result.failure(Exception(error?.description ?: "Error al subir")))
+                }
+                override fun onReschedule(requestId: String?, error: ErrorInfo?) {}
+            }).dispatch()
+        
+        continuation.invokeOnCancellation {
+            MediaManager.get().cancelRequest(requestId)
+        }
+    }
 
     /**
      * ELIMINAR:

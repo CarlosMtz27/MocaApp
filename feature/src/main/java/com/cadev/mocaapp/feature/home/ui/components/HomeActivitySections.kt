@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -51,10 +52,12 @@ fun HomeActivitySections(
     onVerRecuerdo: (String) -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
+    val isDark = isSystemInDarkTheme() || com.cadev.mocaapp.core.utils.ThemeManager.isDarkTheme
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        SectionHeader(titulo = "Planes de Pareja")
+        SectionHeader(titulo = "Planes de Pareja", isDark = isDark)
 
+        // TabRow con indicador animado
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -62,7 +65,7 @@ fun HomeActivitySections(
                 .drawBehind {
                     val strokeWidth = 1.dp.toPx()
                     drawLine(
-                        color = Color(0xFFD3C3C5).copy(alpha = 0.3f),
+                        color = if (isDark) Color.White.copy(alpha = 0.1f) else Color(0xFFD3C3C5).copy(alpha = 0.3f),
                         start = androidx.compose.ui.geometry.Offset(0f, size.height),
                         end = androidx.compose.ui.geometry.Offset(size.width, size.height),
                         strokeWidth = strokeWidth
@@ -73,12 +76,14 @@ fun HomeActivitySections(
                 TabItem(
                     text = "Próximos",
                     isSelected = selectedTab == 0,
+                    isDark = isDark,
                     modifier = Modifier.weight(1f),
                     onClick = { selectedTab = 0 }
                 )
                 TabItem(
                     text = "Pendientes",
                     isSelected = selectedTab == 1,
+                    isDark = isDark,
                     modifier = Modifier.weight(1f),
                     onClick = { selectedTab = 1 }
                 )
@@ -93,7 +98,7 @@ fun HomeActivitySections(
                     .fillMaxWidth(0.5f)
                     .padding(horizontal = 40.dp)
                     .height(3.dp)
-                    .background(Color(0xFF78555E), RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                    .background(if (isDark) Color(0xFFE7BBC6) else Color(0xFF78555E), RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
             )
         }
 
@@ -125,14 +130,14 @@ fun HomeActivitySections(
                         Text(
                             text = if (tabIndex == 0) "Sin planes, ¡planea algo increíble!" else "¡Todo al día! No hay pendientes.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF4F4446).copy(alpha = 0.6f),
+                            color = if (isDark) Color(0xFFD3C3C5) else Color(0xFF4F4446).copy(alpha = 0.6f),
                             fontWeight = FontWeight.Medium
                         )
                     }
                 } else {
                     listaAMostrar.forEachIndexed { index, evento ->
                         AnimatedCardEntrance(index = index) {
-                            PlanCard(evento = evento, onClick = { onVerEvento(evento.id) })
+                            PlanCard(evento = evento, isDark = isDark, onClick = { onVerEvento(evento.id) })
                         }
                     }
                 }
@@ -141,7 +146,7 @@ fun HomeActivitySections(
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        SectionHeader(titulo = "Recuerdos Recientes")
+        SectionHeader(titulo = "Recuerdos Recientes", isDark = isDark)
 
         val listState = rememberLazyListState()
         LazyRow(
@@ -153,7 +158,7 @@ fun HomeActivitySections(
         ) {
             itemsIndexed(recuerdosRecientes) { index, recuerdo ->
                 AnimatedCardEntrance(index = index, delayMultiplier = 150) {
-                    RecuerdoCard(recuerdo = recuerdo, onClick = { onVerRecuerdo(recuerdo.id) })
+                    RecuerdoCard(recuerdo = recuerdo, isDark = isDark, onClick = { onVerRecuerdo(recuerdo.id) })
                 }
             }
         }
@@ -191,7 +196,7 @@ fun AnimatedCardEntrance(
 }
 
 @Composable
-fun SectionHeader(titulo: String) {
+fun SectionHeader(titulo: String, isDark: Boolean) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -202,14 +207,14 @@ fun SectionHeader(titulo: String) {
         Icon(
             imageVector = Icons.Default.Favorite,
             contentDescription = null,
-            tint = Color(0xFF78555E),
+            tint = if (isDark) Color(0xFFE7BBC6) else Color(0xFF78555E),
             modifier = Modifier.size(16.dp)
         )
         Text(
             text = titulo,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF1E1B14)
+            color = if (isDark) Color.White else Color(0xFF1E1B14)
         )
     }
 }
@@ -218,11 +223,12 @@ fun SectionHeader(titulo: String) {
 fun TabItem(
     text: String,
     isSelected: Boolean,
+    isDark: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val colorPrimary = Color(0xFF78555E)
-    val colorVariant = Color(0xFF4F4446)
+    val colorPrimary = if (isDark) Color(0xFFE7BBC6) else Color(0xFF78555E)
+    val colorVariant = if (isDark) Color(0xFFD3C3C5) else Color(0xFF4F4446)
 
     Box(
         modifier = modifier
@@ -244,10 +250,14 @@ fun TabItem(
 }
 
 @Composable
-fun PlanCard(evento: EventoPlan, onClick: () -> Unit) {
+fun PlanCard(evento: EventoPlan, isDark: Boolean, onClick: () -> Unit) {
+    val colorPrimary = if (isDark) Color(0xFFE7BBC6) else Color(0xFF78555E)
+    
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
         bordeRedondeado = 20.dp,
+        colorFondo = if (isDark) Color.Black.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.4f),
+        colorBorde = if (isDark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.2f),
         alHacerClick = onClick
     ) {
         Row(
@@ -255,17 +265,16 @@ fun PlanCard(evento: EventoPlan, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Logo de la app en forma circular
             Box(
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.5f))
-                    .border(1.dp, Color(0xFF78555E).copy(alpha = 0.1f), CircleShape),
+                    .background(if (isDark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.5f))
+                    .border(1.dp, colorPrimary.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
-                    painter = painterResource(id = com.cadev.mocaapp.feature.R.drawable.ic_reaccion_corazon), // Usamos el corazón como logo representativo si no hay un logo.png claro
+                    painter = painterResource(id = com.cadev.mocaapp.feature.R.drawable.ic_reaccion_corazon), 
                     contentDescription = null,
                     modifier = Modifier.size(32.dp),
                     contentScale = ContentScale.Fit
@@ -277,7 +286,7 @@ fun PlanCard(evento: EventoPlan, onClick: () -> Unit) {
                     text = evento.titulo,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF1E1B14),
+                    color = if (isDark) Color.White else Color(0xFF1E1B14),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -289,13 +298,13 @@ fun PlanCard(evento: EventoPlan, onClick: () -> Unit) {
                     Icon(
                         imageVector = Icons.Default.CalendarToday,
                         contentDescription = null,
-                        tint = Color(0xFF78555E),
+                        tint = colorPrimary,
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
                         text = evento.fechaHora,
                         fontSize = 14.sp,
-                        color = Color(0xFF78555E)
+                        color = colorPrimary
                     )
                 }
             }
@@ -303,13 +312,13 @@ fun PlanCard(evento: EventoPlan, onClick: () -> Unit) {
             Box(
                 modifier = Modifier
                     .size(32.dp)
-                    .background(Color.White.copy(alpha = 0.5f), CircleShape),
+                    .background(if (isDark) Color.White.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.5f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = Color(0xFF78555E),
+                    tint = colorPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -318,10 +327,12 @@ fun PlanCard(evento: EventoPlan, onClick: () -> Unit) {
 }
 
 @Composable
-fun RecuerdoCard(recuerdo: RecuerdoMemoria, onClick: () -> Unit) {
+fun RecuerdoCard(recuerdo: RecuerdoMemoria, isDark: Boolean, onClick: () -> Unit) {
     GlassCard(
         modifier = Modifier.width(280.dp),
         bordeRedondeado = 24.dp,
+        colorFondo = if (isDark) Color.Black.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.4f),
+        colorBorde = if (isDark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.2f),
         alHacerClick = onClick
     ) {
         Column {
@@ -378,12 +389,12 @@ fun RecuerdoCard(recuerdo: RecuerdoMemoria, onClick: () -> Unit) {
                     text = recuerdo.titulo,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E1B14)
+                    color = if (isDark) Color.White else Color(0xFF1E1B14)
                 )
                 Text(
                     text = recuerdo.detalles,
                     fontSize = 14.sp,
-                    color = Color(0xFF4F4446),
+                    color = if (isDark) Color(0xFFD3C3C5) else Color(0xFF4F4446),
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }

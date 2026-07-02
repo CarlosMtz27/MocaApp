@@ -81,7 +81,8 @@ class MocaViewModelFactory(private val application: Application) : ViewModelProv
             // Gestor para ver y editar la información del perfil
             modelClass.isAssignableFrom(PerfilViewModel::class.java) ->
                 PerfilViewModel(
-                    PerfilRepositoryImpl(auth, firestore)
+                    PerfilRepositoryImpl(auth, firestore),
+                    notificacionRepository
                 ) as T
 
             // Gestor para escribir en el diario y ver el calendario

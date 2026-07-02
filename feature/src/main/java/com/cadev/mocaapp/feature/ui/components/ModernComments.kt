@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.cadev.mocaapp.feature.diario.domain.model.Comentario
 import com.cadev.mocaapp.feature.ui.theme.*
+import com.google.firebase.Timestamp
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -36,7 +37,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * COMPONENTE DE COMENTARIO MODERNO FIEL AL HTML
- * Incluye animación de entrada "Pop-in"
+ * Adaptado para soportar Modo Oscuro.
  */
 @Composable
 fun ModernCommentItem(
@@ -46,7 +47,7 @@ fun ModernCommentItem(
     var visible by remember { mutableStateOf(false) }
     
     LaunchedEffect(Unit) {
-        delay(index * 80L) // Delay escalonado como el HTML
+        delay(index * 80L) 
         visible = true
     }
 
@@ -67,25 +68,25 @@ fun ModernCommentItem(
             initialScale = 0.8f,
             animationSpec = spring(dampingRatio = 0.64f, stiffness = Spring.StiffnessLow)
         ) + fadeIn() + slideInVertically { 20 },
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp) // Reducido vertical
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
     ) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(2.dp, RoundedCornerShape(12.dp)), // Reducido de 16.dp
+                .shadow(2.dp, RoundedCornerShape(12.dp)),
             shape = RoundedCornerShape(12.dp),
-            color = Color.White
+            color = MaterialTheme.colorScheme.surface
         ) {
             Row(
-                modifier = Modifier.padding(10.dp), // Reducido de 12.dp
+                modifier = Modifier.padding(10.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp) 
             ) {
-                // Avatar con Foto o Default
+                // Avatar
                 Box(
                     modifier = Modifier
-                        .size(36.dp) // Reducido de 40.dp
+                        .size(36.dp)
                         .clip(CircleShape)
-                        .background(MocaPrimaryContainer.copy(alpha = 0.4f)), // Fondo rosa tenue por defecto
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)),
                     contentAlignment = Alignment.Center
                 ) {
                     if (comentario.fotoUsuario.isNotBlank()) {
@@ -98,7 +99,7 @@ fun ModernCommentItem(
                     } else {
                         Text(
                             text = comentario.nombreUsuario.take(1).uppercase(),
-                            color = MocaAccentPink,
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
@@ -114,18 +115,18 @@ fun ModernCommentItem(
                         Text(
                             text = comentario.nombreUsuario,
                             style = OrganicTypography.labelMedium.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp),
-                            color = MocaOnSurface
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Text(
                             text = tiempoHace,
-                            style = TextStyle(fontSize = 10.sp, color = MocaOutline)
+                            style = TextStyle(fontSize = 10.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
                         )
                     }
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = comentario.texto,
                         style = OrganicTypography.bodyMedium.copy(lineHeight = 18.sp, fontSize = 13.sp),
-                        color = Color(0xFF374151)
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
                     )
                 }
             }
@@ -147,9 +148,9 @@ fun ModernCommentInput(
         modifier = Modifier
             .fillMaxWidth()
             .imePadding(),
-        color = Color.White.copy(alpha = 0.9f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
         tonalElevation = 4.dp,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
     ) {
         Row(
             modifier = Modifier
@@ -158,12 +159,12 @@ fun ModernCommentInput(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Avatar con Foto del Usuario o Default
+            // Avatar
             Box(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(MocaPrimaryContainer.copy(alpha = 0.4f)), // Fondo rosa tenue
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)),
                 contentAlignment = Alignment.Center
             ) {
                 if (fotoUsuario.isNotBlank()) {
@@ -177,19 +178,19 @@ fun ModernCommentInput(
                     Icon(
                         imageVector = Icons.Default.Person,
                         contentDescription = null,
-                        tint = MocaAccentPink, // Icono rosa
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
             }
             
-            // Contenedor del Campo
+            // Campo de texto
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 44.dp)
-                    .background(Color.White, CircleShape)
-                    .border(1.dp, MocaSurfaceVariant, CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), CircleShape)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
@@ -197,24 +198,24 @@ fun ModernCommentInput(
                     Text(
                         text = "Escribe un comentario...",
                         style = OrganicTypography.bodyMedium.copy(fontSize = 14.sp),
-                        color = Color(0xFF9CA3AF)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 }
                 
                 BasicTextField(
                     value = nuevoComentario,
                     onValueChange = onTextoChange,
-                    textStyle = OrganicTypography.bodyMedium.copy(fontSize = 14.sp, color = MocaOnSurface),
-                    cursorBrush = SolidColor(MocaAccentPink),
+                    textStyle = OrganicTypography.bodyMedium.copy(fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     modifier = Modifier.fillMaxWidth(),
                     decorationBox = { it() }
                 )
             }
             
-            // Botón de Envío Animado
+            // Botón Envío
             val isActive = nuevoComentario.isNotBlank()
-            val buttonColor by animateColorAsState(if (isActive) MocaAccentPink else Color(0xFFF3F4F6))
-            val contentColor by animateColorAsState(if (isActive) Color.White else Color(0xFF9CA3AF))
+            val buttonColor by animateColorAsState(if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+            val contentColor by animateColorAsState(if (isActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
             
             IconButton(
                 onClick = onEnviar,

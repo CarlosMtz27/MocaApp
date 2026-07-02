@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -59,6 +60,7 @@ fun CalendarView(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var calendario by remember { mutableStateOf(Calendar.getInstance()) }
+    val isDark = esModoOscuro()
     
     val mesNombre = SimpleDateFormat("MMMM yyyy", Locale.forLanguageTag("es-MX"))
         .format(calendario.time)
@@ -89,15 +91,20 @@ fun CalendarView(
                             calendario = (calendario.clone() as Calendar).apply { add(Calendar.MONTH, -1) }
                         },
                         modifier = Modifier.size(40.dp),
-                        radioBorde = 20.dp
+                        radioBorde = 20.dp,
+                        colorFondo = MaterialTheme.colorScheme.surface
                     ) {
-                        Icon(Icons.Default.ChevronLeft, contentDescription = "Anterior", tint = MocaOnSurfaceVariant)
+                        Icon(
+                            imageVector = Icons.Default.ChevronLeft, 
+                            contentDescription = "Anterior", 
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
 
                     Text(
                         text = mesNombre,
                         style = OrganicTypography.headlineMedium,
-                        color = MocaPrimary,
+                        color = MaterialTheme.colorScheme.primary,
                         textAlign = TextAlign.Center
                     )
 
@@ -106,9 +113,14 @@ fun CalendarView(
                             calendario = (calendario.clone() as Calendar).apply { add(Calendar.MONTH, 1) }
                         },
                         modifier = Modifier.size(40.dp),
-                        radioBorde = 20.dp
+                        radioBorde = 20.dp,
+                        colorFondo = MaterialTheme.colorScheme.surface
                     ) {
-                        Icon(Icons.Default.ChevronRight, contentDescription = "Siguiente", tint = MocaOnSurfaceVariant)
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight, 
+                            contentDescription = "Siguiente", 
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
             }
@@ -120,8 +132,12 @@ fun CalendarView(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .neuFlat(radioBorde = 32.dp)
-                        .padding(horizontal = 12.dp, vertical = 20.dp) // Relleno ajustado
+                        .neuFlat(
+                            radioBorde = 32.dp,
+                            colorFondo = MaterialTheme.colorScheme.surface,
+                            sombraOscura = if (isDark) Color.Black.copy(alpha = 0.5f) else Color(0xFFE8E0D5)
+                        )
+                        .padding(horizontal = 12.dp, vertical = 20.dp)
                 ) {
                     CalendarioGrid(
                         calendario = calendario,
@@ -148,7 +164,7 @@ fun CalendarView(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp)) // Espacio reducido para subir los botones
+            Spacer(modifier = Modifier.height(16.dp))
 
             // BOTONES DE ACCIÓN (Glassmorphism)
             AnimacionFadeIn(delayMillis = 600) {
@@ -203,7 +219,7 @@ fun CalendarioGrid(
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center,
                     style = OrganicTypography.labelSmall,
-                    color = MocaOnSurfaceVariant,
+                    color = MaterialTheme.colorScheme.primary, // Cambiado a rosa para visibilidad
                     letterSpacing = 2.sp
                 )
             }
@@ -220,13 +236,15 @@ fun CalendarioGrid(
                             val fechaStr = formatoFecha.format(fechaCal.time)
                             val info = diasConEntrada[fechaStr]
                             
-                            val hoy = formatoFecha.format(Date())
-                            val esFuturo = fechaStr > hoy
+                            val hoyStr = formatoFecha.format(Date())
+                            val esFuturo = fechaStr > hoyStr
+                            val esHoy = fechaStr == hoyStr
 
                             DiaCelda(
                                 numero = dia,
                                 info = info,
                                 esFuturo = esFuturo,
+                                esHoy = esHoy,
                                 onClick = { onDiaClick(fechaStr) }
                             )
                         }
@@ -249,6 +267,7 @@ fun DiaCelda(
     numero: Int,
     info: DiaCalendarioInfo?,
     esFuturo: Boolean,
+    esHoy: Boolean,
     onClick: () -> Unit
 ) {
     val tieneFoto = !info?.primeraFoto.isNullOrBlank()
@@ -262,8 +281,8 @@ fun DiaCelda(
                 if (tieneFoto) Modifier.neuInset(radioBorde = 12.dp)
                 else Modifier
             )
-            .alpha(if (esFuturo) 0.6f else 1f) // Menos opacidad pero legible para eventos
-            .clickable(onClick = onClick), // Habilitado para ver eventos futuros
+            .alpha(if (esFuturo) 0.6f else 1f)
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         if (tieneFoto) {
@@ -276,13 +295,23 @@ fun DiaCelda(
             )
         }
 
+        // Corazón para el día actual
+        if (esHoy) {
+            Icon(
+                imageVector = Icons.Default.Favorite,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                modifier = Modifier.size(32.dp)
+            )
+        }
+
         Text(
             text = numero.toString(),
             style = OrganicTypography.bodyLarge.copy(
-                fontWeight = if (tieneEntrada) FontWeight.Bold else FontWeight.Normal,
+                fontWeight = if (tieneEntrada || esHoy) FontWeight.Bold else FontWeight.Normal,
                 fontSize = 18.sp
             ),
-            color = if (tieneFoto) Color.White else MocaOnSurface
+            color = if (tieneFoto) Color.White else MaterialTheme.colorScheme.primary
         )
 
         // Indicadores de tipo (puntitos) siempre visibles
@@ -325,7 +354,11 @@ fun LeyendaItem(color: Color, texto: String) {
         ) {
             Box(modifier = Modifier.size(10.dp).background(color, CircleShape))
             Spacer(modifier = Modifier.width(8.dp))
-            Text(text = texto, style = OrganicTypography.labelSmall, color = MocaOnSurfaceVariant)
+            Text(
+                text = texto, 
+                style = OrganicTypography.labelSmall, 
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
@@ -347,12 +380,17 @@ fun ActionButton(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icono, contentDescription = null, tint = MocaOnSurface, modifier = Modifier.size(20.dp))
+            Icon(
+                imageVector = icono, 
+                contentDescription = null, 
+                tint = MaterialTheme.colorScheme.primary, 
+                modifier = Modifier.size(20.dp)
+            )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = texto,
                 style = OrganicTypography.labelMedium,
-                color = MocaOnSurface,
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
             )
         }

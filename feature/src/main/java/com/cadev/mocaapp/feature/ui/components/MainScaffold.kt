@@ -18,7 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cadev.mocaapp.feature.ui.theme.*
+import com.cadev.mocaapp.core.utils.ThemeManager
+import com.cadev.mocaapp.feature.ui.theme.CirculoCompleto
 import com.cadev.mocaapp.feature.ui.utils.FondoMeshMoca
 
 /**
@@ -45,16 +46,14 @@ fun MainScaffold(
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
-                // Como MainScaffold es genérico, le pasamos valores por defecto o vacíos
-                // Pero lo ideal es que MainScreen maneje esto directamente
                 MocaHeader(
                     titulo = tituloHeader,
                     nombreUsuario = "",
                     nombrePareja = "",
                     urlAvatarUsuario = "",
                     urlAvatarPareja = "",
-                    esModoOscuro = false,
-                    alHacerClickEnTema = { }
+                    esModoOscuro = ThemeManager.isDarkTheme,
+                    alHacerClickEnTema = { ThemeManager.isDarkTheme = !ThemeManager.isDarkTheme }
                 )
             },
             bottomBar = {
@@ -74,7 +73,6 @@ fun MainScaffold(
                 label = "transicionContenido"
             ) { targetIndice ->
                 Box(modifier = Modifier.fillMaxSize()) {
-                    // Aquí podrías filtrar el contenido por targetIndice
                     contenido(rellenosPadding)
                 }
             }
@@ -87,6 +85,7 @@ fun MainScaffold(
  */
 @Composable
 fun ContenidoDemoMoca(paddingValues: PaddingValues) {
+    val colorEsquema = MaterialTheme.colorScheme
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -106,27 +105,27 @@ fun ContenidoDemoMoca(paddingValues: PaddingValues) {
                 Text(
                     text = "MORNING RITUAL",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MocaOnSurfaceVariant,
+                    color = colorEsquema.onSurfaceVariant,
                     letterSpacing = 2.sp
                 )
                 Text(
                     text = "Inner Peace",
                     style = MaterialTheme.typography.headlineLarge,
-                    color = MocaOnSurface
+                    color = colorEsquema.onSurface
                 )
                 Text(
                     text = "Start your journey with a calming breath exercise. Designed to reduce digital fatigue and restore mental clarity.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MocaOnSurfaceVariant
+                    color = colorEsquema.onSurfaceVariant
                 )
                 
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Button(
                         onClick = {},
-                        colors = ButtonDefaults.buttonColors(containerColor = MocaPrimaryContainer),
+                        colors = ButtonDefaults.buttonColors(containerColor = colorEsquema.primaryContainer),
                         shape = CirculoCompleto
                     ) {
-                        Text("Begin Session", color = MocaOnPrimaryContainer)
+                        Text("Begin Session", color = colorEsquema.onPrimaryContainer)
                     }
                 }
             }

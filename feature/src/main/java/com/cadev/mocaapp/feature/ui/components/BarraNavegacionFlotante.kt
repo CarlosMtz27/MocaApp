@@ -60,8 +60,8 @@ fun BarraNavegacionFlotante(
                 .widthIn(max = 420.dp)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(32.dp))
-                .background(Color(0xFFFFF8EF).copy(alpha = 0.9f))
-                .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(32.dp))
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
+                .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(32.dp))
                 .padding(horizontal = 18.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -86,9 +86,11 @@ private fun ItemNavegacion(
     estaActivo: Boolean,
     alHacerClick: () -> Unit
 ) {
+    val colorEsquema = MaterialTheme.colorScheme
+    
     // Animaciones de color y escala para feedback visual
     val colorIcono by animateColorAsState(
-        targetValue = if (estaActivo) Color(0xFF78555E) else Color(0xFF817476),
+        targetValue = if (estaActivo) colorEsquema.primary else colorEsquema.outline,
         label = "colorIcono"
     )
     
@@ -109,7 +111,7 @@ private fun ItemNavegacion(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(Color(0xFFFFD1DC).copy(alpha = 0.35f), CircleShape)
+                    .background(colorEsquema.primaryContainer.copy(alpha = 0.35f), CircleShape)
             )
         }
 
@@ -137,8 +139,8 @@ private fun ItemNavegacion(
                             .align(Alignment.TopEnd)
                             .offset(x = 2.dp, y = (-2).dp)
                             .size(9.dp)
-                            .background(Color(0xFFBA1A1A), CircleShape)
-                            .border(2.dp, Color.White.copy(alpha = 0.8f), CircleShape)
+                            .background(MaterialTheme.colorScheme.error, CircleShape)
+                            .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape)
                     )
                 }
             }

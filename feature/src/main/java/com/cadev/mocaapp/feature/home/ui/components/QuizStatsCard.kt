@@ -3,9 +3,9 @@ package com.cadev.mocaapp.feature.home.ui.components
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,7 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,15 +33,19 @@ import com.cadev.mocaapp.feature.ui.theme.MocaPrimaryContainer
 @Composable
 fun QuizStatsCard(
     completados: Int,
-    coincidencias: Int,
+    porCompletar: Int,
     onVerDetalles: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val colorPrimary = MocaPrimary
-    val colorTertiary = Color(0xFF4F644E)
-    val colorTertiaryContainer = Color(0xFFCBE3C7)
-    val colorOnSurfaceVariant = Color(0xFF4F4446)
-    val colorSurfaceBright = Color(0xFFFFF8EF)
+    val isDark = isSystemInDarkTheme() || com.cadev.mocaapp.core.utils.ThemeManager.isDarkTheme
+    
+    val colorPrimary = if (isDark) Color(0xFFE7BBC6) else MocaPrimary
+    val colorTertiary = if (isDark) Color(0xFFB5CDB2) else Color(0xFF4F644E)
+    val colorTertiaryContainer = if (isDark) Color(0xFF374C37) else Color(0xFFCBE3C7)
+    val colorOnSurfaceVariant = if (isDark) Color(0xFFD3C3C5) else Color(0xFF4F4446)
+    val colorSurfaceBright = if (isDark) Color(0xFF1E1B14) else Color(0xFFFFF8EF)
+    val glassColor = if (isDark) Color.Black.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.4f)
+    val glassBorderColor = if (isDark) Color.White.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.4f)
 
     Box(
         modifier = modifier
@@ -50,7 +54,11 @@ fun QuizStatsCard(
             .clip(RoundedCornerShape(28.dp))
             .background(
                 Brush.linearGradient(
-                    colors = listOf(MocaPrimaryContainer, colorTertiaryContainer)
+                    colors = if (isDark) {
+                        listOf(Color(0xFF442D34), Color(0xFF2D342D))
+                    } else {
+                        listOf(MocaPrimaryContainer, colorTertiaryContainer)
+                    }
                 )
             )
             .padding(20.dp),
@@ -62,7 +70,7 @@ fun QuizStatsCard(
                 .align(Alignment.TopEnd)
                 .offset(x = 40.dp, y = (-40).dp)
                 .size(150.dp)
-                .background(Color.White.copy(alpha = 0.2f), CircleShape)
+                .background(if (isDark) Color.Black.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.2f), CircleShape)
                 .blur(40.dp)
         )
         Box(
@@ -70,17 +78,17 @@ fun QuizStatsCard(
                 .align(Alignment.BottomStart)
                 .offset(x = (-40.dp), y = 40.dp)
                 .size(180.dp)
-                .background(colorSurfaceBright.copy(alpha = 0.3f), CircleShape)
+                .background(if (isDark) colorPrimary.copy(alpha = 0.1f) else colorSurfaceBright.copy(alpha = 0.3f), CircleShape)
                 .blur(30.dp)
         )
 
         // Capa de cristal principal
         Surface(
-            color = Color.White.copy(alpha = 0.4f),
+            color = glassColor,
             shape = RoundedCornerShape(24.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(24.dp))
+                .border(1.dp, glassBorderColor, RoundedCornerShape(24.dp))
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -102,14 +110,14 @@ fun QuizStatsCard(
                     ) {
                         Text(
                             text = "¿Cuánto se conocen?",
-                            fontSize = 26.sp,
+                            fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                             color = colorPrimary,
                             letterSpacing = (-0.5).sp
                         )
                         Text(
                             text = "Su historia en números",
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                             color = colorOnSurfaceVariant
                         )
                     }
@@ -126,16 +134,18 @@ fun QuizStatsCard(
                         icon = Icons.Default.Checklist,
                         value = completados.toString(),
                         label = "Completados",
-                        iconBg = MocaPrimaryContainer,
+                        iconBg = if (isDark) Color(0xFF5E3E47) else MocaPrimaryContainer,
                         iconTint = colorPrimary,
+                        isDark = isDark,
                         modifier = Modifier.weight(1f)
                     )
                     StatItem(
-                        icon = Icons.Default.Group,
-                        value = coincidencias.toString(),
-                        label = "Coincidencias",
+                        icon = Icons.Default.HourglassTop,
+                        value = porCompletar.toString(),
+                        label = "Por completar",
                         iconBg = colorTertiaryContainer,
                         iconTint = colorTertiary,
+                        isDark = isDark,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -165,7 +175,11 @@ fun QuizStatsCard(
                             .fillMaxSize()
                             .background(
                                 Brush.horizontalGradient(
-                                    listOf(colorPrimary, Color(0xFFA47081))
+                                    if (isDark) {
+                                        listOf(colorPrimary, Color(0xFF865364))
+                                    } else {
+                                        listOf(colorPrimary, Color(0xFFA47081))
+                                    }
                                 )
                             ),
                         contentAlignment = Alignment.Center
@@ -177,11 +191,13 @@ fun QuizStatsCard(
                             Text(
                                 "Ver detalles",
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 15.sp
+                                fontSize = 15.sp,
+                                color = if (isDark) Color.Black else Color.White
                             )
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = null,
+                                tint = if (isDark) Color.Black else Color.White,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -199,6 +215,7 @@ private fun StatItem(
     label: String,
     iconBg: Color,
     iconTint: Color,
+    isDark: Boolean,
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -206,10 +223,10 @@ private fun StatItem(
     val scale by animateFloatAsState(if (isPressed) 1.1f else 1f, label = "IconScale")
 
     Surface(
-        color = Color(0xFFFFF8EF).copy(alpha = 0.8f),
+        color = if (isDark) Color(0xFF2D2921).copy(alpha = 0.8f) else Color(0xFFFFF8EF).copy(alpha = 0.8f),
         shape = RoundedCornerShape(20.dp),
         modifier = modifier
-            .border(1.dp, Color(0xFFE9E2D6), RoundedCornerShape(20.dp))
+            .border(1.dp, if (isDark) Color.White.copy(alpha = 0.05f) else Color(0xFFE9E2D6), RoundedCornerShape(20.dp))
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -239,10 +256,11 @@ private fun StatItem(
             )
             Text(
                 text = label,
-                fontSize = 11.sp,
+                fontSize = 10.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF4F4446),
-                letterSpacing = 1.sp
+                color = if (isDark) Color(0xFFD3C3C5) else Color(0xFF4F4446),
+                letterSpacing = 1.sp,
+                lineHeight = 12.sp
             )
         }
     }

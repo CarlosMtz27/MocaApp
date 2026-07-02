@@ -108,11 +108,26 @@ class CuestionarioRepositoryImpl(
         Result.success(c)
     } catch (e: Exception) { Result.failure(e) }
 
-    override suspend fun guardarRespuestas(cuestionarioId: String, usuarioId: String, respuestas: Map<String, String>, respuestasFoto: Map<String, String>): Result<Unit> = try {
+    override suspend fun guardarRespuestas(
+        cuestionarioId: String,
+        usuarioId: String,
+        respuestas: Map<String, String>,
+        respuestasFoto: Map<String, String>,
+        comentarios: Map<String, String>
+    ): Result<Unit> = try {
         val batch = firestore.batch()
         respuestas.forEach { (preguntaId, valor) ->
             val fotoUrl = respuestasFoto[preguntaId] ?: ""
-            val respuesta = Respuesta(id = "$usuarioId-$preguntaId", cuestionarioId = cuestionarioId, usuarioId = usuarioId, preguntaId = preguntaId, valor = valor, imagenUrl = fotoUrl)
+            val comentario = comentarios[preguntaId] ?: ""
+            val respuesta = Respuesta(
+                id = "$usuarioId-$preguntaId",
+                cuestionarioId = cuestionarioId,
+                usuarioId = usuarioId,
+                preguntaId = preguntaId,
+                valor = valor,
+                imagenUrl = fotoUrl,
+                comentario = comentario
+            )
             val ref = firestore.collection("respuestas").document(cuestionarioId).collection(usuarioId).document(preguntaId)
             batch.set(ref, respuesta)
         }
@@ -214,13 +229,16 @@ class CuestionarioRepositoryImpl(
     } catch (e: Exception) { Result.failure(e) }
 
     override suspend fun poblarPredefinidos(): Result<Unit> = try {
-        val yaExisten = firestore.collection("cuestionarios").whereEqualTo("creadoPor", "sistema").limit(1).get().await().documents.isNotEmpty()
-        if (!yaExisten) {
-            val predefinidos = cuestionariosPredefinidos()
-            val batch = firestore.batch()
-            predefinidos.forEach { c -> batch.set(firestore.collection("cuestionarios").document(c.id), c) }
-            batch.commit().await()
+        val predefinidos = cuestionariosPredefinidos()
+        val batch = firestore.batch()
+        
+        predefinidos.forEach { c ->
+            val doc = firestore.collection("cuestionarios").document(c.id).get().await()
+            if (!doc.exists()) {
+                batch.set(firestore.collection("cuestionarios").document(c.id), c)
+            }
         }
+        batch.commit().await()
         Result.success(Unit)
     } catch (e: Exception) { Result.failure(e) }
 

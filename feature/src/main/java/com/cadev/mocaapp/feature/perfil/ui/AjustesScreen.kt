@@ -3,39 +3,32 @@ package com.cadev.mocaapp.feature.perfil.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.ripple
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.cadev.mocaapp.core.utils.ThemeManager
 
-/**
- * ESTA ES NUESTRA PANTALLA DE AJUSTES Y CONFIGURACIÓN
- * 
- * Qué hace:
- * Ofrece un panel donde podemos modificar todos los datos de nuestra cuenta. 
- * Permite cambiar nuestro nombre, correo y contraseña. También podemos 
- * ajustar la fecha de aniversario y consultar nuestro código compartido.
- * 
- * Cómo lo podemos modificar:
- * Si queremos añadir un interruptor para "Notificaciones silenciosas", debemos 
- * añadir un nuevo componente `Switch` dentro de la `Column` principal.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AjustesScreen(
@@ -43,694 +36,424 @@ fun AjustesScreen(
     usuarioId: String,
     parejaId: String?,
     onRegresar: () -> Unit,
-    onNavigateToWidgets: () -> Unit = {}
+    onNavigateToWidgets: () -> Unit = {},
+    onLogout: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-
-    /**
-     * Se asegura de que la información del perfil esté cargada al entrar
-     */
-    LaunchedEffect(usuarioId) {
-        if (uiState.usuario == null) {
-            viewModel.cargarPerfil(usuarioId, parejaId)
-        }
-    }
-
     val context = LocalContext.current
+    val scrollState = rememberScrollState()
 
+    // Estados de edición
     var editandoNombre by remember { mutableStateOf(false) }
     var editandoEmail by remember { mutableStateOf(false) }
     var editandoPassword by remember { mutableStateOf(false) }
-    var editandoFecha by remember { mutableStateOf(false) }
+    var editandoNotificaciones by remember { mutableStateOf(false) }
+    var mostrarAcercaDe by remember { mutableStateOf(false) }
 
-    var valorNombre by remember(uiState.usuario?.nombre) {
-        mutableStateOf(uiState.usuario?.nombre ?: "")
-    }
-    var valorEmail by remember(uiState.usuario?.email) {
-        mutableStateOf(uiState.usuario?.email ?: "")
-    }
+    var valorNombre by remember(uiState.usuario?.nombre) { mutableStateOf(uiState.usuario?.nombre ?: "") }
+    var valorEmail by remember(uiState.usuario?.email) { mutableStateOf(uiState.usuario?.email ?: "") }
     var valorPasswordActual by remember { mutableStateOf("") }
     var valorPasswordNuevo by remember { mutableStateOf("") }
-    var valorPasswordConfirmar by remember { mutableStateOf("") }
 
-    val partesF = (uiState.fechaRelacion ?: "").split("-")
-    var valorAnio by remember(uiState.fechaRelacion) {
-        mutableStateOf(partesF.getOrNull(0) ?: "")
-    }
-    var valorMes by remember(uiState.fechaRelacion) {
-        mutableStateOf(partesF.getOrNull(1) ?: "")
-    }
-    var valorDia by remember(uiState.fechaRelacion) {
-        mutableStateOf(partesF.getOrNull(2) ?: "")
-    }
+    // Preferencias de notificaciones (simuladas)
+    var notifChat by remember { mutableStateOf(true) }
+    var notifDiario by remember { mutableStateOf(true) }
+    var notifTests by remember { mutableStateOf(true) }
+    var notifNotas by remember { mutableStateOf(true) }
 
-    /**
-     * Cierra todos los paneles de edición cuando los cambios se guardan bien
-     */
     LaunchedEffect(uiState.ajusteExitoso) {
         if (uiState.ajusteExitoso) {
             editandoNombre = false
             editandoEmail = false
             editandoPassword = false
-            editandoFecha = false
             valorPasswordActual = ""
             valorPasswordNuevo = ""
-            valorPasswordConfirmar = ""
             viewModel.limpiarMensajes()
         }
     }
 
+    if (mostrarAcercaDe) {
+        AlertDialog(
+            onDismissRequest = { mostrarAcercaDe = false },
+            confirmButton = { TextButton(onClick = { mostrarAcercaDe = false }) { Text("Cerrar") } },
+            title = { Text("Moca App", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text("Versión 1.0.0", style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Una aplicación diseñada para fortalecer el vínculo de pareja a través de recuerdos, retos y momentos compartidos.")
+                    Spacer(Modifier.height(16.dp))
+                    Text("Hecho con ❤️ para ti.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                }
+            },
+            shape = RoundedCornerShape(28.dp),
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Ajustes") },
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        "Ajustes",
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            letterSpacing = (-0.02).sp
+                        )
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onRegresar) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Regresar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Regresar", tint = MaterialTheme.colorScheme.onSurface)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.8f)
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .verticalScroll(scrollState)
+                .padding(horizontal = 24.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            // Sección General
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                // Modo Oscuro
+                ItemAjusteSwitch(
+                    icon = Icons.Default.DarkMode,
+                    label = "Modo Oscuro",
+                    checked = ThemeManager.isDarkTheme,
+                    onCheckedChange = { ThemeManager.isDarkTheme = it }
+                )
 
-            /**
-             * Muestra un aviso rojo si ha ocurrido un error al intentar cambiar algún dato
-             */
-            if (uiState.error != null) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
+                // Notificaciones (Expandible con checkboxes)
+                ItemAjusteExpandible(
+                    icon = Icons.Default.Notifications,
+                    label = "Notificaciones",
+                    value = if (editandoNotificaciones) "Configurando..." else "Gestionar avisos",
+                    isExpanded = editandoNotificaciones,
+                    onExpandClick = { editandoNotificaciones = !editandoNotificaciones }
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Filled.Error, null,
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                        Text(
-                            uiState.error!!,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        NotificacionCheckItem("Chat Privado", notifChat) { notifChat = it }
+                        NotificacionCheckItem("Recuerdos del Diario", notifDiario) { notifDiario = it }
+                        NotificacionCheckItem("Nuevos Tests", notifTests) { notifTests = it }
+                        NotificacionCheckItem("Notas en el Muro", notifNotas) { notifNotas = it }
                     }
                 }
+
+                // Privacidad
+                ItemAjusteClickable(
+                    icon = Icons.Default.Lock,
+                    label = "Privacidad",
+                    onClick = { }
+                )
             }
 
-            /**
-             * Muestra un aviso de confirmación cuando los datos se actualizan correctamente
-             */
-            if (uiState.ajusteExitoso) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Filled.CheckCircle, null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            "Cambios guardados",
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
-            }
+            // Sección Cuenta
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(
+                    text = "CUENTA",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 2.sp
+                    ),
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
 
-            Text(
-                "Información personal",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
-            )
+                // Nombre
+                CampoEditableZen(
+                    icon = Icons.Default.Person,
+                    label = "Nombre",
+                    value = valorNombre,
+                    isEditing = editandoNombre,
+                    onEditClick = { editandoNombre = true },
+                    onCancelClick = { editandoNombre = false; valorNombre = uiState.usuario?.nombre ?: "" },
+                    onSaveClick = { viewModel.actualizarNombre(usuarioId, valorNombre) },
+                    onValueChange = { valorNombre = it }
+                )
 
-            /**
-             * Sección para editar el nombre público
-             */
-            CampoEditable(
-                icono = Icons.Filled.Person,
-                etiqueta = "Nombre",
-                valor = valorNombre,
-                editando = editandoNombre,
-                cargando = uiState.guardandoAjuste,
-                onValorChange = { valorNombre = it },
-                onEditar = {
-                    editandoNombre = true
-                    editandoEmail = false
-                    editandoPassword = false
-                    editandoFecha = false
-                    viewModel.limpiarMensajes()
-                },
-                onCancelar = {
-                    editandoNombre = false
-                    valorNombre = uiState.usuario?.nombre ?: ""
-                },
-                onGuardar = {
-                    viewModel.actualizarNombre(usuarioId, valorNombre)
-                }
-            )
-
-            /**
-             * Sección para cambiar el correo electrónico asociado a la cuenta
-             */
-            CampoEditable(
-                icono = Icons.Filled.Email,
-                etiqueta = "Correo electrónico",
-                valor = valorEmail,
-                editando = editandoEmail,
-                cargando = uiState.guardandoAjuste,
-                onValorChange = { valorEmail = it },
-                onEditar = {
-                    editandoEmail = true
-                    editandoNombre = false
-                    editandoPassword = false
-                    editandoFecha = false
-                    viewModel.limpiarMensajes()
-                },
-                onCancelar = {
-                    editandoEmail = false
-                    valorEmail = uiState.usuario?.email ?: ""
-                },
-                onGuardar = {
-                    viewModel.actualizarEmail(
-                        usuarioId, valorEmail, valorPasswordActual
-                    )
-                },
-                contenidoExtra = if (editandoEmail) {
-                    {
-                        OutlinedTextField(
-                            value = valorPasswordActual,
-                            onValueChange = { valorPasswordActual = it },
-                            label = { Text("Contraseña actual") },
-                            singleLine = true,
-                            visualTransformation = PasswordVisualTransformation(),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                } else null
-            )
-
-            /**
-             * Panel especial para el cambio de contraseña por motivos de seguridad
-             */
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                Icons.Filled.Lock, null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Column {
-                                Text(
-                                    "Contraseña",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                        .copy(alpha = 0.5f)
-                                )
-                                Text(
-                                    "••••••••",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                        IconButton(onClick = {
-                            editandoPassword = !editandoPassword
-                            editandoNombre = false
-                            editandoEmail = false
-                            editandoFecha = false
-                            valorPasswordActual = ""
-                            valorPasswordNuevo = ""
-                            valorPasswordConfirmar = ""
-                            viewModel.limpiarMensajes()
-                        }) {
-                            Icon(
-                                if (editandoPassword) Icons.Filled.Close
-                                else Icons.Filled.Edit,
-                                null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-
-                    if (editandoPassword) {
-                        Spacer(Modifier.height(12.dp))
-                        HorizontalDivider()
-                        Spacer(Modifier.height(12.dp))
-
-                        var verActual by remember { mutableStateOf(false) }
-                        var verNuevo by remember { mutableStateOf(false) }
-
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Email
+                CampoEditableZen(
+                    icon = Icons.Default.Email,
+                    label = "Correo electrónico",
+                    value = valorEmail,
+                    isEditing = editandoEmail,
+                    onEditClick = { editandoEmail = true },
+                    onCancelClick = { editandoEmail = false; valorEmail = uiState.usuario?.email ?: "" },
+                    onSaveClick = { viewModel.actualizarEmail(usuarioId, valorEmail, valorPasswordActual) },
+                    onValueChange = { valorEmail = it },
+                    extraContent = if (editandoEmail) {
+                        {
                             OutlinedTextField(
                                 value = valorPasswordActual,
                                 onValueChange = { valorPasswordActual = it },
                                 label = { Text("Contraseña actual") },
-                                singleLine = true,
-                                visualTransformation = if (verActual)
-                                    VisualTransformation.None
-                                else PasswordVisualTransformation(),
-                                trailingIcon = {
-                                    TextButton(onClick = { verActual = !verActual }) {
-                                        Text(if (verActual) "Ocultar" else "Ver")
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            OutlinedTextField(
-                                value = valorPasswordNuevo,
-                                onValueChange = { valorPasswordNuevo = it },
-                                label = { Text("Nueva contraseña") },
-                                singleLine = true,
-                                visualTransformation = if (verNuevo)
-                                    VisualTransformation.None
-                                else PasswordVisualTransformation(),
-                                trailingIcon = {
-                                    TextButton(onClick = { verNuevo = !verNuevo }) {
-                                        Text(if (verNuevo) "Ocultar" else "Ver")
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            OutlinedTextField(
-                                value = valorPasswordConfirmar,
-                                onValueChange = { valorPasswordConfirmar = it },
-                                label = { Text("Confirmar nueva contraseña") },
-                                singleLine = true,
                                 visualTransformation = PasswordVisualTransformation(),
-                                isError = valorPasswordConfirmar.isNotEmpty() &&
-                                        valorPasswordNuevo != valorPasswordConfirmar,
-                                supportingText = {
-                                    if (valorPasswordConfirmar.isNotEmpty() &&
-                                        valorPasswordNuevo != valorPasswordConfirmar
-                                    ) Text("Las contraseñas no coinciden")
-                                },
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
                             )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(
-                                    onClick = { editandoPassword = false },
-                                    modifier = Modifier.weight(1f)
-                                ) { Text("Cancelar") }
-                                Button(
-                                    onClick = {
-                                        viewModel.actualizarPassword(
-                                            uiState.usuario?.email ?: "",
-                                            valorPasswordActual,
-                                            valorPasswordNuevo,
-                                            valorPasswordConfirmar
-                                        )
-                                    },
-                                    enabled = !uiState.guardandoAjuste &&
-                                            valorPasswordActual.isNotBlank() &&
-                                            valorPasswordNuevo.isNotBlank() &&
-                                            valorPasswordConfirmar.isNotBlank(),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    if (uiState.guardandoAjuste) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(18.dp),
-                                            strokeWidth = 2.dp,
-                                            color = MaterialTheme.colorScheme.onPrimary
-                                        )
-                                    } else Text("Guardar")
-                                }
-                            }
+                        }
+                    } else null
+                )
+
+                // Seguridad (Contraseña)
+                ItemAjusteExpandible(
+                    icon = Icons.Default.Security,
+                    label = "Seguridad",
+                    value = "Cambiar contraseña",
+                    isExpanded = editandoPassword,
+                    onExpandClick = { editandoPassword = !editandoPassword }
+                ) {
+                    var verActual by remember { mutableStateOf(false) }
+                    var verNuevo by remember { mutableStateOf(false) }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = valorPasswordActual,
+                            onValueChange = { valorPasswordActual = it },
+                            label = { Text("Contraseña actual") },
+                            visualTransformation = if (verActual) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = { IconButton(onClick = { verActual = !verActual }) { Icon(if (verActual) Icons.Default.VisibilityOff else Icons.Default.Visibility, null) } },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        OutlinedTextField(
+                            value = valorPasswordNuevo,
+                            onValueChange = { valorPasswordNuevo = it },
+                            label = { Text("Nueva contraseña") },
+                            visualTransformation = if (verNuevo) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = { IconButton(onClick = { verNuevo = !verNuevo }) { Icon(if (verNuevo) Icons.Default.VisibilityOff else Icons.Default.Visibility, null) } },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        Button(
+                            onClick = { viewModel.actualizarPassword(uiState.usuario?.email ?: "", valorPasswordActual, valorPasswordNuevo, valorPasswordNuevo) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            if (uiState.guardandoAjuste) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
+                            else Text("Actualizar Contraseña")
                         }
                     }
                 }
+
+                // Acerca de (Reemplaza Ayuda)
+                ItemAjusteClickable(
+                    icon = Icons.Default.Info,
+                    label = "Acerca de",
+                    onClick = { mostrarAcercaDe = true }
+                )
             }
 
-            /**
-             * Panel para modificar el día en que comenzó la relación sentimental
-             */
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+            // Sección Extra
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                Icons.Filled.Favorite, null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Column {
-                                Text(
-                                    "Fecha de aniversario",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                        .copy(alpha = 0.5f)
-                                )
-                                Text(
-                                    text = uiState.fechaRelacion ?: "No configurada",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
+                        Column {
+                            Text("Código de pareja", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            Text(uiState.usuario?.codigoPareja ?: "---", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         }
                         IconButton(onClick = {
-                            editandoFecha = !editandoFecha
-                            editandoNombre = false
-                            editandoEmail = false
-                            editandoPassword = false
-                            viewModel.limpiarMensajes()
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("Moca Code", uiState.usuario?.codigoPareja))
                         }) {
-                            Icon(
-                                if (editandoFecha) Icons.Filled.Close
-                                else Icons.Filled.Edit,
-                                null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-
-                    if (editandoFecha) {
-                        Spacer(Modifier.height(12.dp))
-                        HorizontalDivider()
-                        Spacer(Modifier.height(12.dp))
-
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedTextField(
-                                    value = valorDia,
-                                    onValueChange = {
-                                        if (it.length <= 2)
-                                            valorDia = it.filter { c -> c.isDigit() }
-                                    },
-                                    label = { Text("Día") },
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                OutlinedTextField(
-                                    value = valorMes,
-                                    onValueChange = {
-                                        if (it.length <= 2)
-                                            valorMes = it.filter { c -> c.isDigit() }
-                                    },
-                                    label = { Text("Mes") },
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                OutlinedTextField(
-                                    value = valorAnio,
-                                    onValueChange = {
-                                        if (it.length <= 4)
-                                            valorAnio = it.filter { c -> c.isDigit() }
-                                    },
-                                    label = { Text("Año") },
-                                    singleLine = true,
-                                    modifier = Modifier.weight(2f)
-                                )
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(
-                                    onClick = { editandoFecha = false },
-                                    modifier = Modifier.weight(1f)
-                                ) { Text("Cancelar") }
-                                Button(
-                                    onClick = {
-                                        val fecha = "$valorAnio-${
-                                            valorMes.padStart(2, '0')
-                                        }-${valorDia.padStart(2, '0')}"
-                                        viewModel.actualizarFechaRelacion(
-                                            usuarioId, fecha
-                                        )
-                                    },
-                                    enabled = !uiState.guardandoAjuste &&
-                                            valorAnio.length == 4 &&
-                                            valorMes.isNotBlank() &&
-                                            valorDia.isNotBlank(),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    if (uiState.guardandoAjuste) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(18.dp),
-                                            strokeWidth = 2.dp,
-                                            color = MaterialTheme.colorScheme.onPrimary
-                                        )
-                                    } else Text("Guardar")
-                                }
-                            }
+                            Icon(Icons.Default.ContentCopy, null, tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
-            }
 
-            Spacer(Modifier.height(4.dp))
-
-            Text(
-                "Cuenta",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                modifier = Modifier.padding(start = 4.dp)
-            )
-
-            /**
-             * Muestra el código de invitación para compartirlo de nuevo si se necesita
-             */
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                ItemAjusteClickable(
+                    icon = Icons.Default.Widgets,
+                    label = "Widgets de inicio",
+                    onClick = onNavigateToWidgets
                 )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(
-                            Icons.Filled.Link, null,
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                        Column {
-                            Text(
-                                "Código de pareja",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                                    .copy(alpha = 0.7f)
-                            )
-                            Text(
-                                text = uiState.usuario?.codigoPareja ?: "---",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        }
-                    }
-                    IconButton(onClick = {
-                        val codigo =
-                            uiState.usuario?.codigoPareja ?: return@IconButton
-                        val clipboard = context.getSystemService(
-                            Context.CLIPBOARD_SERVICE
-                        ) as ClipboardManager
-                        clipboard.setPrimaryClip(
-                            ClipData.newPlainText("Código pareja", codigo)
-                        )
-                    }) {
-                        Icon(
-                            Icons.Filled.ContentCopy, "Copiar",
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    }
-                }
             }
 
-            Spacer(Modifier.height(4.dp))
-
-            Text(
-                "Personalización",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                modifier = Modifier.padding(start = 4.dp)
-            )
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToWidgets() },
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+            // Botón Cerrar Sesión
+            Box(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
+                TextButton(
+                    onClick = onLogout,
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Icon(
-                        Icons.Filled.Widgets,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Widgets de pantalla de inicio",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            "Explora y añade widgets para tu escritorio",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                        )
-                    }
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                    )
+                    Icon(Icons.Default.Logout, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Cerrar Sesión", fontWeight = FontWeight.SemiBold)
                 }
             }
         }
     }
 }
 
-/**
- * Función genérica para dibujar un panel de información que se despliega al editar
- */
 @Composable
-private fun CampoEditable(
-    icono: androidx.compose.ui.graphics.vector.ImageVector,
-    etiqueta: String,
-    valor: String,
-    editando: Boolean,
-    cargando: Boolean,
-    onValorChange: (String) -> Unit,
-    onEditar: () -> Unit,
-    onCancelar: () -> Unit,
-    onGuardar: () -> Unit,
-    contenidoExtra: (@Composable () -> Unit)? = null
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp)
+fun NotificacionCheckItem(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 4.dp, horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = ripple()
-                ) { if (!editando) onEditar() }
-                .padding(16.dp)
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
+        )
+    }
+}
+
+@Composable
+fun ItemAjusteSwitch(
+    icon: ImageVector,
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth().shadow(20.dp, RoundedCornerShape(16.dp), spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+                Text(label, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
+            }
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                    uncheckedThumbColor = Color.White,
+                    uncheckedTrackColor = Color.LightGray
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun ItemAjusteClickable(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth().shadow(20.dp, RoundedCornerShape(16.dp), spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+                Text(label, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
+            }
+            Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+fun ItemAjusteExpandible(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    isExpanded: Boolean,
+    onExpandClick: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth().shadow(20.dp, RoundedCornerShape(16.dp), spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        icono, null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            etiqueta,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface
-                                .copy(alpha = 0.5f)
-                        )
-                        if (!editando) {
-                            Text(
-                                text = valor.ifBlank { "No configurado" },
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+                    Column {
+                        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(value, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
-                IconButton(onClick = if (editando) onCancelar else onEditar) {
-                    Icon(
-                        if (editando) Icons.Filled.Close else Icons.Filled.Edit,
-                        null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                IconButton(onClick = onExpandClick) {
+                    Icon(if (isExpanded) Icons.Default.Close else Icons.Default.Edit, null, tint = MaterialTheme.colorScheme.primary)
                 }
             }
+            AnimatedVisibility(visible = isExpanded) {
+                Column(modifier = Modifier.padding(top = 16.dp)) {
+                    content()
+                }
+            }
+        }
+    }
+}
 
-            if (editando) {
-                Spacer(Modifier.height(12.dp))
-                HorizontalDivider()
-                Spacer(Modifier.height(12.dp))
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = valor,
-                        onValueChange = onValorChange,
-                        label = { Text(etiqueta) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    contenidoExtra?.invoke()
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
-                            onClick = onCancelar,
-                            modifier = Modifier.weight(1f)
-                        ) { Text("Cancelar") }
-                        Button(
-                            onClick = onGuardar,
-                            enabled = !cargando && valor.isNotBlank(),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            if (cargando) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            } else Text("Guardar")
-                        }
-                    }
+@Composable
+fun CampoEditableZen(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    isEditing: Boolean,
+    onEditClick: () -> Unit,
+    onCancelClick: () -> Unit,
+    onSaveClick: () -> Unit,
+    onValueChange: (String) -> Unit,
+    extraContent: (@Composable () -> Unit)? = null
+) {
+    ItemAjusteExpandible(
+        icon = icon,
+        label = label,
+        value = value,
+        isExpanded = isEditing,
+        onExpandClick = if (isEditing) onCancelClick else onEditClick
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                label = { Text(label) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+            extraContent?.invoke()
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onCancelClick, modifier = Modifier.weight(1f)) { Text("Cancelar") }
+                Button(onClick = onSaveClick, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
+                    Text("Guardar")
                 }
             }
         }

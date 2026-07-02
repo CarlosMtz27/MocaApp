@@ -1,37 +1,50 @@
 package com.cadev.mocaapp.feature.eventos.ui
 
 import android.app.TimePickerDialog
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.cadev.mocaapp.feature.eventos.domain.model.RecordatorioOpcion
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.cadev.mocaapp.core.model.TipoEvento
+import com.cadev.mocaapp.core.ui.*
+import com.cadev.mocaapp.feature.eventos.domain.model.RecordatorioOpcion
+import com.cadev.mocaapp.feature.eventos.ui.components.*
+import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.random.Random
 
-/**
- * ESTA ES LA PANTALLA PARA CREAR PLANES
- * 
- * Qué hace:
- * Aquí permitimos que la pareja registre un nuevo evento en nuestro calendario 
- * compartido. Podemos elegir el tipo de cita, ponerle un título, definir la 
- * fecha y la hora, y activar un recordatorio para que la app nos avise.
- * 
- * Cómo lo podemos modificar:
- * Si queremos que por defecto el recordatorio sea de "2 horas antes", debemos 
- * cambiar el valor inicial en el `EventoUiState` del ViewModel.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CrearEventoScreen(
@@ -42,39 +55,36 @@ fun CrearEventoScreen(
     onGuardado: () -> Unit,
     onRegresar: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme() || com.cadev.mocaapp.core.utils.ThemeManager.isDarkTheme
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    var mostrarConfeti by remember { mutableStateOf(false) }
 
-    /**
-     * Si el evento se guarda bien se limpia el formulario y se vuelve atrás
-     */
+    val colorPrimary = if (isDark) Color(0xFFE7BBC6) else StitchPrimary
+    val colorBackground = if (isDark) Color(0xFF1E1B14) else StitchBackground
+    val colorOnSurface = if (isDark) Color(0xFFE7BBC6) else StitchOnSurface
+    val colorOnSurfaceVariant = if (isDark) Color(0xFFD3C3C5) else StitchOnSurfaceVariant
+
+    val pickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { viewModel.subirImagen(it.toString()) }
+    }
+
     LaunchedEffect(uiState.guardado) {
         if (uiState.guardado) {
+            mostrarConfeti = true
+            delay(1500)
             viewModel.limpiarFormulario()
             onGuardado()
         }
     }
 
-    val datePickerState = rememberDatePickerState(
-        selectableDates = object : SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-                calendar.set(Calendar.HOUR_OF_DAY, 0)
-                calendar.set(Calendar.MINUTE, 0)
-                calendar.set(Calendar.SECOND, 0)
-                calendar.set(Calendar.MILLISECOND, 0)
-                return utcTimeMillis >= calendar.timeInMillis
-            }
-        }
-    )
+    val datePickerState = rememberDatePickerState()
     var mostrarDatePicker by remember { mutableStateOf(false) }
     var mostrarTimePicker by remember { mutableStateOf(false) }
-    var mostrarTipoPicker by remember { mutableStateOf(false) }
-    var mostrarRecordatorioPicker by remember { mutableStateOf(false) }
+    var mostrarReminderPicker by remember { mutableStateOf(false) }
 
-    /**
-     * Se actualiza la fecha en el gestor de datos cuando el usuario la elige en el calendario
-     */
     LaunchedEffect(datePickerState.selectedDateMillis) {
         val millis = datePickerState.selectedDateMillis ?: return@LaunchedEffect
         val cal = Calendar.getInstance().apply { timeInMillis = millis }
@@ -86,9 +96,6 @@ fun CrearEventoScreen(
         viewModel.actualizarFecha(fecha)
     }
 
-    /**
-     * Diálogo para elegir el día en un calendario visual
-     */
     if (mostrarDatePicker) {
         DatePickerDialog(
             onDismissRequest = { mostrarDatePicker = false },
@@ -100,308 +107,450 @@ fun CrearEventoScreen(
         }
     }
 
-    /**
-     * Diálogo para elegir la hora exacta de la cita
-     */
     if (mostrarTimePicker) {
         val hora = uiState.hora.split(":").getOrNull(0)?.toIntOrNull() ?: 12
-        val min  = uiState.hora.split(":").getOrNull(1)?.toIntOrNull() ?: 0
-        TimePickerDialog(
-            context, { _, h, m ->
-                viewModel.actualizarHora("%02d:%02d".format(h, m))
-                mostrarTimePicker = false
-            }, hora, min, true
-        ).show()
+        val min = uiState.hora.split(":").getOrNull(1)?.toIntOrNull() ?: 0
+        TimePickerDialog(context, { _, h, m ->
+            viewModel.actualizarHora("%02d:%02d".format(h, m))
+            mostrarTimePicker = false
+        }, hora, min, true).show()
         mostrarTimePicker = false
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Nuevo evento", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onRegresar) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Regresar")
-                    }
-                },
-                actions = {
-                    /**
-                     * Botón para enviar los datos del nuevo plan a la base de datos
-                     */
-                    TextButton(
-                        onClick = {
-                            viewModel.guardarEvento(context, usuarioId, parejaId, relacionId)
-                        },
-                        enabled = uiState.titulo.isNotBlank() &&
-                                uiState.fecha.isNotBlank() && !uiState.cargando
-                    ) {
-                        if (uiState.cargando) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text(
-                                "Guardar",
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-            )
-        }
-    ) { padding ->
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colorBackground)
+            .then(if (!isDark) Modifier.meshGradientBackground() else Modifier)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .statusBarsPadding()
         ) {
-            /**
-             * Tarjeta para seleccionar qué tipo de evento es (Cita Viaje Cumpleaños etc)
-             */
-            Card(shape = RoundedCornerShape(16.dp)) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+            // Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(if (isDark) colorBackground.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.5f))
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onRegresar,
+                    modifier = Modifier.background(if (isDark) Color.White.copy(alpha = 0.05f) else Color(0xFFF4EDE1), CircleShape)
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = colorPrimary)
+                }
+                Text(
+                    text = "Nuevo Evento",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Default,
+                    color = colorPrimary
+                )
+                TextButton(
+                    onClick = { viewModel.guardarEvento(context, usuarioId, parejaId, relacionId) },
+                    enabled = uiState.titulo.isNotBlank() && uiState.fecha.isNotBlank() && !uiState.cargando
                 ) {
                     Text(
-                        "Tipo de evento",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
+                        "Guardar", 
+                        fontWeight = FontWeight.Bold, 
+                        color = colorPrimary,
+                        fontSize = 16.sp
                     )
-                    ExposedDropdownMenuBox(
-                        expanded = mostrarTipoPicker,
-                        onExpandedChange = { mostrarTipoPicker = it }
-                    ) {
-                        val tipoActual = try {
-                            TipoEvento.valueOf(uiState.tipo)
-                        } catch (e: Exception) { TipoEvento.OTRO }
+                }
+            }
 
-                        OutlinedTextField(
-                            value = tipoActual.etiqueta,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Tipo") },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = tipoActual.icono,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            },
-                            trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(mostrarTipoPicker)
-                            },
-                            modifier = Modifier.fillMaxWidth().menuAnchor(),
-                            shape = RoundedCornerShape(12.dp)
+            var visible by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) { visible = true }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 1. Tipo de Evento
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = fadeIn(tween(600, 100)) + slideInVertically(tween(600, 100)) { 20 }
+                ) {
+                    SectionCard(title = "Tipo de Evento") {
+                        val tiposGrid = listOf(
+                            TipoEvento.CITA to "Cita",
+                            TipoEvento.ANIVERSARIO to "Aniversario",
+                            TipoEvento.CUMPLEANOS to "Cumple",
+                            TipoEvento.VIAJE to "Viaje",
+                            TipoEvento.ESPECIAL to "Celebrar",
+                            TipoEvento.CENA to "Cena"
                         )
-                        ExposedDropdownMenu(
-                            expanded = mostrarTipoPicker,
-                            onDismissRequest = { mostrarTipoPicker = false }
-                        ) {
-                            TipoEvento.entries.forEach { tipo ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = tipo.icono,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(20.dp)
+                        
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            for (i in 0 until 2) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    for (j in 0 until 3) {
+                                        val index = i * 3 + j
+                                        if (index < tiposGrid.size) {
+                                            val (tipo, label) = tiposGrid[index]
+                                            EventTypeButton(
+                                                tipo = tipo,
+                                                label = label,
+                                                isSelected = uiState.tipo == tipo.name,
+                                                isDark = isDark,
+                                                onClick = { viewModel.actualizarTipo(tipo.name) },
+                                                modifier = Modifier.weight(1f)
                                             )
-                                            Spacer(Modifier.width(8.dp))
-                                            Text(tipo.etiqueta)
                                         }
-                                    },
-                                    onClick = {
-                                        viewModel.actualizarTipo(tipo.name)
-                                        mostrarTipoPicker = false
                                     }
+                                }
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                                EventTypeButton(
+                                    tipo = TipoEvento.OTRO,
+                                    label = "Otro",
+                                    isSelected = uiState.tipo == TipoEvento.OTRO.name,
+                                    isDark = isDark,
+                                    onClick = { viewModel.actualizarTipo(TipoEvento.OTRO.name) },
+                                    modifier = Modifier.fillMaxWidth(0.33f)
                                 )
                             }
                         }
                     }
                 }
-            }
 
-            /**
-             * Sección para escribir el nombre del plan y una descripción opcional
-             */
-            Card(shape = RoundedCornerShape(16.dp)) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                // 2. Información
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = fadeIn(tween(600, 200)) + slideInVertically(tween(600, 200)) { 20 }
                 ) {
-                    Text(
-                        "Información",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    OutlinedTextField(
-                        value = uiState.titulo,
-                        onValueChange = viewModel::actualizarTitulo,
-                        label = { Text("Título *") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    OutlinedTextField(
-                        value = uiState.descripcion,
-                        onValueChange = viewModel::actualizarDescripcion,
-                        label = { Text("Descripción (opcional)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        maxLines = 3,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                }
-            }
-
-            /**
-             * Botones para abrir los selectores de fecha y hora
-             */
-            Card(shape = RoundedCornerShape(16.dp)) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        "Fecha y hora",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = uiState.fecha.ifBlank { "Seleccionar" },
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Fecha *") },
-                            trailingIcon = {
-                                Icon(Icons.Filled.CalendarMonth, null)
-                            },
+                    SectionCard(title = "Información") {
+                        MinimalTextField(
+                            value = uiState.titulo,
+                            onValueChange = viewModel::actualizarTitulo,
+                            placeholder = "Título del evento *",
+                            isTitle = true
+                        )
+                        MinimalTextField(
+                            value = uiState.lugar,
+                            onValueChange = viewModel::actualizarLugar,
+                            placeholder = "Lugar (ej: Restaurante, Parque...)"
+                        )
+                        
+                        // Selector de Imagen Premium
+                        Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .clickable { mostrarDatePicker = true },
-                            enabled = false,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                                disabledBorderColor = MaterialTheme.colorScheme.outline,
-                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        )
-                        OutlinedTextField(
-                            value = uiState.hora,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Hora") },
-                            trailingIcon = { Icon(Icons.Filled.Schedule, null) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable { mostrarTimePicker = true },
-                            enabled = false,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                                disabledBorderColor = MaterialTheme.colorScheme.outline,
-                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        )
-                    }
-                }
-            }
-
-            /**
-             * Configuración de la alarma de aviso automático
-             */
-            Card(shape = RoundedCornerShape(16.dp)) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Recordatorio",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Switch(
-                            checked = uiState.recordatorio,
-                            onCheckedChange = { viewModel.toggleRecordatorio() }
-                        )
-                    }
-
-                    /**
-                     * Selector de cuánto tiempo antes se debe mostrar el aviso
-                     */
-                    if (uiState.recordatorio) {
-                        ExposedDropdownMenuBox(
-                            expanded = mostrarRecordatorioPicker,
-                            onExpandedChange = { mostrarRecordatorioPicker = it }
+                                .fillMaxWidth()
+                                .height(160.dp)
+                                .clip(RoundedCornerShape(32.dp))
+                                .background(if (isDark) Color.White.copy(alpha = 0.05f) else Color(0xFFF4EDE1))
+                                .clickable { pickerLauncher.launch("image/*") },
+                            contentAlignment = Alignment.Center
                         ) {
-                            val opcionActual = RecordatorioOpcion.entries
-                                .find { it.minutos == uiState.minutosAntes }
-                                ?: RecordatorioOpcion.UNA_HORA
-
-                            OutlinedTextField(
-                                value = opcionActual.etiqueta,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Avisar") },
-                                trailingIcon = {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(
-                                        mostrarRecordatorioPicker
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth().menuAnchor(),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            ExposedDropdownMenu(
-                                expanded = mostrarRecordatorioPicker,
-                                onDismissRequest = { mostrarRecordatorioPicker = false }
-                            ) {
-                                RecordatorioOpcion.entries.forEach { opcion ->
-                                    DropdownMenuItem(
-                                        text = { Text(opcion.etiqueta) },
-                                        onClick = {
-                                            viewModel.actualizarMinutosAntes(opcion.minutos)
-                                            mostrarRecordatorioPicker = false
-                                        }
-                                    )
+                            if (uiState.fotoUrl.isNotBlank()) {
+                                AsyncImage(
+                                    model = uiState.fotoUrl,
+                                    contentDescription = null,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Black.copy(alpha = 0.2f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.PhotoCamera, null, tint = Color.White, modifier = Modifier.size(32.dp))
+                                }
+                            } else {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    if (uiState.subiendoImagen) {
+                                        CircularProgressIndicator(color = colorPrimary, modifier = Modifier.size(24.dp))
+                                        Spacer(Modifier.height(8.dp))
+                                        Text("Subiendo...", fontSize = 12.sp, color = colorPrimary)
+                                    } else {
+                                        Icon(Icons.Default.AddPhotoAlternate, null, tint = colorPrimary, modifier = Modifier.size(32.dp))
+                                        Spacer(Modifier.height(8.dp))
+                                        Text("Añadir foto", fontSize = 14.sp, color = colorPrimary, fontWeight = FontWeight.Medium)
+                                    }
                                 }
                             }
                         }
 
-                        Text(
-                            "También se notificará a tu pareja al crear el evento.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        MinimalTextField(
+                            value = uiState.descripcion,
+                            onValueChange = viewModel::actualizarDescripcion,
+                            placeholder = "Descripción (opcional)",
+                            singleLine = false,
+                            minLines = 4
                         )
                     }
                 }
-            }
 
-            /**
-             * Aviso de error si se intenta guardar sin título o fecha
-             */
-            if (uiState.error != null) {
-                Text(
-                    uiState.error!!,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
+                // 3. Fecha y Hora
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = fadeIn(tween(600, 300)) + slideInVertically(tween(600, 300)) { 20 }
+                ) {
+                    SectionCard(title = "Fecha y Hora") {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            DateTimeInput(
+                                label = "FECHA",
+                                value = if (uiState.fecha.isBlank()) "Fecha" else {
+                                    try {
+                                        val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(uiState.fecha)
+                                        SimpleDateFormat("dd MMM", Locale.getDefault()).format(date!!).uppercase()
+                                    } catch (e: Exception) { uiState.fecha }
+                                },
+                                icon = Icons.Default.CalendarMonth,
+                                isDark = isDark,
+                                onClick = { mostrarDatePicker = true },
+                                modifier = Modifier.weight(1f)
+                            )
+                            DateTimeInput(
+                                label = "HORA",
+                                value = uiState.hora.ifBlank { "Hora" },
+                                icon = Icons.Default.Schedule,
+                                isDark = isDark,
+                                onClick = { mostrarTimePicker = true },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
+                // 4. Recordatorio
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = fadeIn(tween(600, 400)) + slideInVertically(tween(600, 400)) { 20 }
+                ) {
+                    SectionCard(title = "Recordatorio") {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Activar Aviso", 
+                                fontSize = 16.sp, 
+                                fontWeight = FontWeight.SemiBold, 
+                                color = colorOnSurface
+                            )
+                            
+                            val trackColor by animateColorAsState(
+                                if (uiState.recordatorio) (if (isDark) colorPrimary else StitchPrimaryContainer) else (if (isDark) Color.White.copy(alpha = 0.1f) else Color(0xFFE9E2D6)), 
+                                label = "color"
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(50.dp, 30.dp)
+                                    .clip(CircleShape)
+                                    .background(trackColor)
+                                    .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { 
+                                        viewModel.toggleRecordatorio() 
+                                    }
+                                    .padding(2.dp)
+                            ) {
+                                val thumbOffset by animateFloatAsState(if (uiState.recordatorio) 20f else 0f, label = "thumb")
+                                Box(
+                                    modifier = Modifier
+                                        .offset(x = thumbOffset.dp)
+                                        .size(26.dp)
+                                        .shadow(2.dp, CircleShape)
+                                        .background(Color.White, CircleShape)
+                                )
+                            }
+                        }
+
+                        if (uiState.recordatorio) {
+                            Box(modifier = Modifier.padding(top = 8.dp)) {
+                                val opcionActual = RecordatorioOpcion.entries.find { it.minutos == uiState.minutosAntes } ?: RecordatorioOpcion.UNA_HORA
+                                
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(56.dp)
+                                        .clip(RoundedCornerShape(32.dp))
+                                        .background(if (isDark) Color.White.copy(alpha = 0.05f) else Color(0xFFF4EDE1))
+                                        .clickable { mostrarReminderPicker = true }
+                                        .padding(horizontal = 20.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = opcionActual.etiqueta,
+                                        fontSize = 16.sp,
+                                        color = colorOnSurface
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.KeyboardArrowDown,
+                                        contentDescription = null,
+                                        tint = colorOnSurfaceVariant
+                                    )
+                                }
+
+                                if (mostrarReminderPicker) {
+                                    DropdownMenu(
+                                        expanded = mostrarReminderPicker,
+                                        onDismissRequest = { mostrarReminderPicker = false },
+                                        modifier = Modifier.fillMaxWidth(0.8f).background(if (isDark) Color(0xFF2D2921) else Color.White)
+                                    ) {
+                                        RecordatorioOpcion.entries.forEach { opcion ->
+                                            DropdownMenuItem(
+                                                text = { Text(opcion.etiqueta, color = colorOnSurface) },
+                                                onClick = {
+                                                    viewModel.actualizarMinutosAntes(opcion.minutos)
+                                                    mostrarReminderPicker = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Text(
+                            "Tu pareja también recibirá una notificación cuando se cree este evento.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorOnSurfaceVariant.copy(alpha = 0.8f),
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp
+                        )
+                    }
+                }
+
+                if (uiState.error != null) {
+                    Text(
+                        uiState.error!!,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
+                        textAlign = TextAlign.Center,
+                        fontSize = 14.sp
+                    )
+                }
+                
+                Spacer(Modifier.height(100.dp))
+            }
+        }
+
+        if (mostrarConfeti) {
+            ConfettiOverlay()
+            Box(
+                modifier = Modifier.fillMaxSize().background((if (isDark) Color.Black else Color.White).copy(alpha = 0.8f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Default.CheckCircle, 
+                        contentDescription = null, 
+                        tint = if (isDark) Color(0xFFB5CDB2) else Color(0xFFD1E9CD), 
+                        modifier = Modifier.size(80.dp)
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        "¡Evento Guardado!",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Serif,
+                        color = colorPrimary,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
     }
+}
+
+@Composable
+fun EventTypeButton(
+    tipo: TipoEvento,
+    label: String,
+    isSelected: Boolean,
+    isDark: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colorPrimary = if (isDark) Color(0xFFE7BBC6) else StitchPrimary
+    val colorPrimaryContainer = if (isDark) colorPrimary.copy(alpha = 0.2f) else StitchPrimaryContainer
+    val colorSurfaceVariant = if (isDark) Color.White.copy(alpha = 0.05f) else Color(0xFFF4EDE1)
+    val colorOnSurface = if (isDark) Color(0xFFE7BBC6) else StitchOnSurface
+    val colorOnSurfaceVariant = if (isDark) Color(0xFFD3C3C5) else StitchOnSurfaceVariant
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (isPressed) 0.95f else 1f, label = "scale")
+
+    Column(
+        modifier = modifier
+            .scale(scale)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(if (isSelected) colorPrimaryContainer else colorSurfaceVariant)
+                .border(2.dp, if (isSelected) colorPrimary else Color.Transparent, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = tipo.icono,
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+                tint = if (isSelected) colorPrimary else colorOnSurfaceVariant
+            )
+        }
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            color = if (isSelected) colorOnSurface else colorOnSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun ConfettiOverlay() {
+    val particles = remember { List(50) { ConfettiParticle() } }
+    val infiniteTransition = rememberInfiniteTransition(label = "confetti")
+    val progress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "progress"
+    )
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        particles.forEach { particle ->
+            val y = (particle.y + progress * size.height * particle.speed) % size.height
+            val x = particle.x * size.width + (Math.sin(progress.toDouble() * 8 + particle.x.toDouble()) * 30).toFloat()
+            drawCircle(
+                color = particle.color.copy(alpha = 0.5f),
+                radius = 12f,
+                center = Offset(x, y)
+            )
+        }
+    }
+}
+
+class ConfettiParticle {
+    val x = Random.nextFloat()
+    val y = Random.nextFloat()
+    val speed = 0.5f + Random.nextFloat()
+    val color = listOf(
+        Color(0xFFFFD1DC), // Rosa
+        Color(0xFFD1E9CD), // Verde
+        Color(0xFFFFF0E0), // Durazno
+        Color(0xFFE8F5E9)  // Menta
+    ).random()
 }

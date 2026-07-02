@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cadev.mocaapp.feature.R
+import com.cadev.mocaapp.feature.ui.screens.LoadingTransition
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,7 +63,7 @@ fun WidgetsPreviewScreen(
         ) {
             when (val state = uiState) {
                 is WidgetsUiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    LoadingTransition()
                 }
                 is WidgetsUiState.Error -> {
                     Text(

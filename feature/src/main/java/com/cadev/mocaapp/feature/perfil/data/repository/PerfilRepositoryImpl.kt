@@ -2,6 +2,8 @@ package com.cadev.mocaapp.feature.perfil.data.repository
 
 import android.net.Uri
 import com.cadev.mocaapp.feature.auth.domain.model.Usuario
+import com.cadev.mocaapp.feature.diario.domain.model.EntradaDiario
+import com.cadev.mocaapp.feature.diario.domain.model.TipoEntrada
 import com.cadev.mocaapp.feature.perfil.domain.repository.PerfilRepository
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
@@ -289,6 +291,67 @@ class PerfilRepositoryImpl(
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    override suspend fun obtenerEntradas(
+        usuarioId: String,
+        parejaId: String?
+    ): Result<List<EntradaDiario>> {
+        return try {
+            val snapshot = firestore.collection("entradas")
+                .whereEqualTo("usuarioId", usuarioId)
+                .get()
+                .await()
+            
+            val list = snapshot.documents.mapNotNull { mapToEntradaDiario(it) }.toMutableList()
+            
+            if (parejaId != null) {
+                val snapshotPareja = firestore.collection("entradas")
+                    .whereEqualTo("usuarioId", parejaId)
+                    .whereEqualTo("compartida", true)
+                    .get()
+                    .await()
+                list.addAll(snapshotPareja.documents.mapNotNull { mapToEntradaDiario(it) })
+            }
+            
+            Result.success(list.sortedByDescending { it.creadaEn })
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun contarCuestionariosCompletados(usuarioId: String): Result<Int> {
+        return try {
+            val snapshot = firestore.collection("resultados")
+                .whereArrayContains("completadoPor", usuarioId)
+                .get()
+                .await()
+            Result.success(snapshot.size())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun mapToEntradaDiario(doc: com.google.firebase.firestore.DocumentSnapshot): EntradaDiario? {
+        return try {
+            EntradaDiario(
+                id = doc.id,
+                usuarioId = doc.getString("usuarioId") ?: "",
+                fecha = doc.getString("fecha") ?: "",
+                tipo = doc.getString("tipo") ?: TipoEntrada.MI_DIA.name,
+                etiqueta = doc.getString("etiqueta") ?: "",
+                titulo = doc.getString("titulo") ?: "",
+                detalles = doc.getString("detalles") ?: "",
+                emociones = (doc.get("emociones") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList(),
+                fotos = (doc.get("fotos") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList(),
+                videos = (doc.get("videos") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList(),
+                compartida = doc.getBoolean("compartida") ?: false,
+                parejaId = doc.getString("parejaId"),
+                creadaEn = doc.getTimestamp("creadaEn") ?: com.google.firebase.Timestamp.now()
+            )
+        } catch (e: Exception) {
+            null
         }
     }
 
